@@ -5,6 +5,39 @@ Prevents LLM hallucination of variables like "GDP_EU"
 
 from enum import Enum
 
+class ConceptCode(Enum):
+    """
+    Standard Taxonomy for Economic/Industrial Concepts.
+    Used for Graph Nodes and Extraction Validation.
+    """
+    # Energy
+    GAS_PRICE = "GAS_PRICE"
+    ELEC_PRICE = "ELEC_PRICE"
+    OIL_PRICE = "OIL_PRICE"
+    CARBON_PRICE = "CARBON_PRICE"
+    
+    # Macro
+    GDP = "GDP"
+    INFLATION = "INFLATION" 
+    INTEREST_RATE = "INTEREST_RATE"
+    UNEMPLOYMENT = "UNEMPLOYMENT"
+    
+    # Industry
+    STEEL_PRODUCTION = "STEEL_PRODUCTION"
+    CEMENT_PRODUCTION = "CEMENT_PRODUCTION"
+    CHEMICALS_PRODUCTION = "CHEMICALS_PRODUCTION"
+    AUTO_PRODUCTION = "AUTO_PRODUCTION"
+    
+    # Grid
+    GRID_LOAD = "GRID_LOAD"
+    RENEWABLE_GENERATION = "RENEWABLE_GENERATION"
+    COAL_GENERATION = "COAL_GENERATION"
+
+    # Trade
+    IMPORTS = "IMPORTS"
+    EXPORTS = "EXPORTS"
+
+
 class LawVariableCategory(Enum):
     BUDGET = "budget"
     EMISSION = "emission"

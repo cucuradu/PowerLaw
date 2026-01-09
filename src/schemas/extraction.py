@@ -12,7 +12,7 @@ from datetime import date
 
 #from pydantic import BaseModel, Field
 from typing import Literal, List, Optional, Union
-from .taxonomy import ConceptCode
+from src.utils.taxonomy import ConceptCode
 
 # --- Logic Primitives ---
 class LogicTrigger(BaseModel):

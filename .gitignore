@@ -2,3 +2,6 @@
 storage/
 __pycache__/
 *.pyc
+.venv/
+data/
+logs/

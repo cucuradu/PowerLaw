@@ -79,13 +79,14 @@ class MinioClient:
         """List all buckets"""
         return [b.name for b in self.client.list_buckets()]
     
-    def upload_pdf(self, bucket: str, file_path):
+    def upload_pdf(self, bucket: str, file_path, object_name: str = None):
         """
         Upload a PDF file to MinIO.
         
         Args:
             bucket: Target bucket (laws, papers)
             file_path: Path to PDF file
+            object_name: Optional custom object name (e.g. "folder/file.pdf")
             
         Returns:
             S3-style URI: s3://bucket/object_name
@@ -94,7 +95,8 @@ class MinioClient:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         
-        object_name = file_path.name
+        if object_name is None:
+            object_name = file_path.name
         
         self.client.fput_object(
             bucket,
@@ -104,7 +106,7 @@ class MinioClient:
         )
         
         uri = f"s3://{bucket}/{object_name}"
-        log(f"✅ Uploaded: {uri}")
+        # log(f"✅ Uploaded: {uri}") # Reduced spam
         return uri
     
     def upload_bytes(
@@ -256,8 +258,15 @@ def get_minio_client() -> MinioClient:
 
 
 def upload_law_pdf(file_path: Union[str, Path]) -> str:
-    """Upload a law PDF and return S3 URI"""
-    return get_minio_client().upload_pdf(BUCKET_LAWS, file_path)
+    """
+    Upload a law PDF and return S3 URI.
+    Uploads directly to root of 'laws' bucket (Flat structure).
+    """
+    path = Path(file_path)
+    # No prefix, just filename
+    object_name = path.name
+        
+    return get_minio_client().upload_pdf(BUCKET_LAWS, path, object_name)
 
 
 def upload_news_raw(article_id: str, raw_text: str) -> str:

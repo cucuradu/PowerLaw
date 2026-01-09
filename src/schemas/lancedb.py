@@ -4,7 +4,9 @@ from src.schemas.extraction import LogicGate, StructuredImpact, StructuredImpact
 from src.utils.taxonomy import ConceptCode
 from pydantic import field_validator
 from typing import List
+import pydantic # Added for pydantic.BaseModel
 
+# 1. LAWS (Logic Gates)
 # 1. LAWS (Logic Gates)
 class LawChunk(LanceModel):
     vector: Vector(768)
@@ -14,20 +16,19 @@ class LawChunk(LanceModel):
     minio_path: str         # Path to raw PDF in MinIO
     source_url: str         # EUR-Lex URL for traceability
     
-    # Native Nesting
-    logic: LogicGate 
+    # New Strict Schema Storage
+    gnn_rule_json: str # Stores the full GNNRule object
     
+    # Metadata for filtering
+    rule_type: str          # REGULATORY, PROCEDURAL, DEFINITION
     jurisdiction: str
     valid_from: str
     valid_to: str           # e.g. "2030-01-01" or "" if indefinite
-    
-    # Metadata Refinement
-    rule_type: str          # REGULATORY, PROCEDURAL, DEFINITION
     citations: List[str]    # Referenced CELEX IDs or Directive Names
     
-    # Schema Compatibility Fields
-    entity_types_json: str  # JSON string of entity/product tags
-    numeric_constraints_json: str # JSON string of constraints
+    # Schema Compatibility Fields (Legacy)
+    entity_types_json: str = "[]"
+    numeric_constraints_json: str = "[]"
 
 # 2. NEWS (Structured Impact)
 # Renamed from NewsEvent to NewsItem to avoid confusion with Neo4j "Events"
