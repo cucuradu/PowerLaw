@@ -1,6 +1,6 @@
 """
-PowerLaw Graph Explorer & Topology Suite
-Interactive Network Visualization via PyVis & NetworkX with Power-Law Analytics
+ConstructPulse Graph Explorer & Topology Suite
+Interactive Network Visualization via Plotly & NetworkX with Power-Law Analytics
 """
 
 import os
@@ -11,6 +11,7 @@ import numpy as np
 import networkx as nx
 import altair as alt
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit.components.v1 as components
 from pyvis.network import Network
 from pathlib import Path
@@ -205,7 +206,7 @@ col_eng, col_dl1, col_dl2 = st.columns([2, 1, 1])
 with col_eng:
     engine_mode = st.radio(
         "Interactive Engine",
-        ["⚡ High-Performance Updatable Canvas (HTML5)", "🕸️ 3D / PyVis Network View"],
+        ["📊 Native Plotly Network Graph (Interactive)", "⚡ High-Performance Updatable Canvas (HTML5)", "🕸️ 3D / PyVis Network View"],
         horizontal=True
     )
 
@@ -224,7 +225,7 @@ with col_dl1:
     st.download_button(
         label="📥 Standalone HTML",
         data=updatable_html_content,
-        file_name="powerlaw_interactive_graph.html",
+        file_name="constructpulse_interactive_graph.html",
         mime="text/html",
         use_container_width=True
     )
@@ -233,14 +234,100 @@ with col_dl2:
     st.download_button(
         label="📥 Graph JSON",
         data=json_data_content,
-        file_name="powerlaw_graph_data.json",
+        file_name="constructpulse_graph_data.json",
         mime="application/json",
         use_container_width=True
     )
 
 
 # --- RENDER SELECTED VISUALIZER ---
-if engine_mode == "⚡ High-Performance Updatable Canvas (HTML5)":
+if engine_mode == "📊 Native Plotly Network Graph (Interactive)":
+    if len(filtered_G.nodes()) == 0:
+        st.info("No nodes match the selected filters. Please adjust the filters in the sidebar.")
+    else:
+        # Compute layout coordinates
+        pos = nx.spring_layout(filtered_G, seed=42, k=0.38, iterations=50)
+
+        # Build Edge Traces
+        edge_x = []
+        edge_y = []
+        for u, v in filtered_G.edges():
+            x0, y0 = pos[u]
+            x1, y1 = pos[v]
+            edge_x.extend([x0, x1, None])
+            edge_y.extend([y0, y1, None])
+
+        edge_trace = go.Scatter(
+            x=edge_x,
+            y=edge_y,
+            line=dict(width=1.2, color="#475569"),
+            hoverinfo="none",
+            mode="lines"
+        )
+
+        # Build Node Traces
+        node_x = []
+        node_y = []
+        node_text = []
+        node_labels = []
+        node_color = []
+        node_size = []
+
+        total_degrees = dict(filtered_G.degree())
+        max_deg = max(total_degrees.values()) if total_degrees else 1
+
+        for n in filtered_G.nodes():
+            x, y = pos[n]
+            node_x.append(x)
+            node_y.append(y)
+
+            data = filtered_G.nodes[n]
+            ntype = data.get("node_type", "UNKNOWN")
+            lbl = data.get("label", n)
+            deg = total_degrees.get(n, 1)
+
+            node_labels.append(lbl[:16] + "..." if len(lbl) > 18 else lbl)
+            node_color.append(NODE_COLORS.get(ntype, "#94A3B8"))
+            node_size.append(14 + int(24 * (deg / max(max_deg, 1))))
+
+            desc = data.get("description", "")
+            desc_sub = (desc[:140] + "...") if len(desc) > 140 else desc
+            tooltip = f"<b>{lbl}</b><br>ID: <code>{n}</code><br>Type: <b>{ntype}</b><br>Degree: {deg}<br>Jurisdiction: {data.get('jurisdiction', 'EU')}<br><i>{desc_sub}</i>"
+            node_text.append(tooltip)
+
+        node_trace = go.Scatter(
+            x=node_x,
+            y=node_y,
+            mode="markers+text",
+            hoverinfo="text",
+            hovertext=node_text,
+            text=node_labels,
+            textposition="bottom center",
+            textfont=dict(size=10, color="#CBD5E1"),
+            marker=dict(
+                color=node_color,
+                size=node_size,
+                line=dict(width=2, color="#0F172A"),
+                opacity=0.95
+            )
+        )
+
+        fig_net = go.Figure(
+            data=[edge_trace, node_trace],
+            layout=go.Layout(
+                showlegend=False,
+                hovermode="closest",
+                margin=dict(b=10, l=10, r=10, t=10),
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(15,23,42,0.65)",
+                height=canvas_height
+            )
+        )
+        st.plotly_chart(fig_net, use_container_width=True)
+
+elif engine_mode == "⚡ High-Performance Updatable Canvas (HTML5)":
     # Embed the high-performance self-contained updatable canvas
     components.html(updatable_html_content, height=canvas_height + 40, scrolling=False)
 else:

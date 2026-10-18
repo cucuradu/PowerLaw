@@ -1,6 +1,6 @@
 """
-PowerLaw Law Registry & Logic Gate Inspector
-Browse EU Regulations, Extracted IF-THEN Logic Gates, and NACE Sector Mappings
+ConstructPulse Law Registry & Logic Gate Inspector
+Browse EU Construction Regulations, Extracted IF-THEN Logic Gates, and NACE Sector Mappings
 """
 
 import json

@@ -1,5 +1,5 @@
 """
-PowerLaw Dual-Layer GNN Dashboard
+ConstructPulse — AI Construction Law, Supply Chain & Material Price Forecaster
 Executive Overview of the Dual-Layer Legal & Economic System
 """
 
@@ -10,6 +10,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
+import plotly.express as px
 import networkx as nx
 from dotenv import load_dotenv
 
@@ -30,8 +31,8 @@ load_dotenv()
 
 # Streamlit Page Setup
 st.set_page_config(
-    page_title="PowerLaw: Dual-Layer Legal & Economic Platform",
-    page_icon="⚖️",
+    page_title="ConstructPulse: Construction Law & Material Price Intelligence",
+    page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -60,28 +61,25 @@ st.markdown("""
         font-weight: 700;
         margin-top: 4px;
     }
-    .kpi-sub {
-        color: #10B981;
-        font-size: 0.8rem;
-        margin-top: 2px;
-    }
     .hero-box {
-        background: linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%);
-        border: 1px solid #1E40AF;
-        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.85) 100%);
+        border: 1px solid #2563EB;
+        border-radius: 14px;
         padding: 24px;
         margin-bottom: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     }
     .badge-layer {
         display: inline-block;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: bold;
-        margin-right: 6px;
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        margin-right: 8px;
     }
     .badge-layer-1 { background-color: #1E3A8A; color: #93C5FD; border: 1px solid #3B82F6; }
     .badge-layer-2 { background-color: #064E3B; color: #6EE7B7; border: 1px solid #10B981; }
+    .badge-layer-3 { background-color: #4C1D95; color: #C4B5FD; border: 1px solid #8B5CF6; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -102,17 +100,23 @@ st.markdown("""
 <div class="hero-box">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
         <div>
-            <h1 style="margin: 0; color: #FFFFFF; font-size: 2.3rem; font-weight: 800;">
-                ⚖️ PowerLaw: Dual-Layer Legal & Economic Platform
-            </h1>
-            <p style="margin: 8px 0 16px 0; color: #94A3B8; font-size: 1.1rem; max-width: 900px;">
-                Executive intelligence engine modeling EU Regulations as executable logic gates across industrial supply chains.
-                Couples a <strong>Topological Graph</strong> of statutory mandates and market reactions with a 
-                <strong>Behind-The-Graph Tabular Time-Series</strong> engine for Graph Neural Network (GNN) simulation.
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <h1 style="margin: 0; color: #FFFFFF; font-size: 2.3rem; font-weight: 800; letter-spacing: -0.02em;">
+                    🏗️ ConstructPulse
+                </h1>
+                <span style="background: rgba(16, 185, 129, 0.2); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.35); padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700;">
+                    CONSTRUCTION & BUILDING MATERIALS INTELLIGENCE
+                </span>
+            </div>
+            <p style="margin: 4px 0 16px 0; color: #94A3B8; font-size: 1.05rem; max-width: 950px; line-height: 1.5;">
+                AI-driven forecasting engine linking <strong>European Construction Directives</strong> (CPR, EPBD, CBAM, EU ETS) 
+                to <strong>physical commodity price spikes</strong> (Rebar, Portland Cement, Ready-Mix, Mass Timber) and 
+                <strong>contractor equity margins</strong>. Powered by a Dual-Layer Topological Knowledge Graph and Spatio-Temporal GNN.
             </p>
             <div>
-                <span class="badge-layer badge-layer-1">LAYER 1: TOPOLOGICAL CAUSAL GRAPH</span>
-                <span class="badge-layer badge-layer-2">LAYER 2: BEHIND-THE-GRAPH TABULAR TIME-SERIES</span>
+                <span class="badge-layer badge-layer-1">TOPOLOGICAL CAUSAL GRAPH (68 NODES • 109 EDGES)</span>
+                <span class="badge-layer badge-layer-2">BEHIND-THE-GRAPH TABULAR LEDGER (1,038 RECORDS)</span>
+                <span class="badge-layer badge-layer-3">GNN IMPULSE RESPONSE & SHOCK FORECASTER</span>
             </div>
         </div>
     </div>
@@ -218,116 +222,120 @@ except Exception as e:
 st.divider()
 
 
-# --- 3. SYSTEM ARCHITECTURE DIAGRAM ---
-st.markdown("### 🏛️ System Architecture: Dual-Layer Graph & Tabular Engine")
+# --- 3. INTERACTIVE CONSTRUCTION PRICE & COMMODITY TELEMETRY ---
+st.markdown("### 📈 Live Construction Commodity Price Trajectories & Market Spreads")
+st.caption("Historical price benchmarks and equity indices extracted from the Behind-The-Graph Tabular Ledger (LanceDB).")
+
+history_df = store.get_history_df()
+if not history_df.empty and "metric_value" in history_df.columns:
+    # Filter to physical commodities and stocks
+    plot_df = history_df.dropna(subset=["metric_value", "timestamp"]).copy()
+    plot_df["timestamp"] = pd.to_datetime(plot_df["timestamp"])
+
+    chart_tab1, chart_tab2 = st.tabs(["🧱 Physical Construction Commodities", "🏢 Contractor & Producer Equities"])
+
+    with chart_tab1:
+        comm_ids = [
+            "COMM_REBAR_STEEL", "COMM_PORTLAND_CEMENT", "COMM_READY_MIX_CONCRETE",
+            "COMM_CLT_TIMBER", "COMM_RECYCLED_AGGREGATES", "CO2_ALLOWANCE"
+        ]
+        comm_df = plot_df[plot_df["node_id"].isin(comm_ids)].sort_values("timestamp")
+        if not comm_df.empty:
+            fig_comm = px.line(
+                comm_df,
+                x="timestamp",
+                y="metric_value",
+                color="node_id",
+                markers=True,
+                labels={"metric_value": "Market Price / Benchmark Value", "timestamp": "Date", "node_id": "Commodity"},
+                title="EU Construction Material Price Indices (2022 — 2026)",
+                color_discrete_map={
+                    "COMM_REBAR_STEEL": "#EF4444",
+                    "COMM_PORTLAND_CEMENT": "#3B82F6",
+                    "COMM_READY_MIX_CONCRETE": "#10B981",
+                    "COMM_CLT_TIMBER": "#F59E0B",
+                    "COMM_RECYCLED_AGGREGATES": "#8B5CF6",
+                    "CO2_ALLOWANCE": "#06B6D4"
+                }
+            )
+            fig_comm.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(15,23,42,0.6)",
+                font=dict(color="#E2E8F0"),
+                margin=dict(l=10, r=10, t=40, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_comm, use_container_width=True)
+        else:
+            st.info("No commodity time-series points available.")
+
+    with chart_tab2:
+        stock_ids = [
+            "STOCK_HEIDELBERG_MATERIALS", "STOCK_HOLCIM", "STOCK_SAINT_GOBAIN",
+            "STOCK_VINCI", "STOCK_SKANSKA", "STOCK_ARCELORMITTAL"
+        ]
+        stock_df = plot_df[plot_df["node_id"].isin(stock_ids)].sort_values("timestamp")
+        if not stock_df.empty:
+            fig_stock = px.line(
+                stock_df,
+                x="timestamp",
+                y="metric_value",
+                color="node_id",
+                markers=True,
+                labels={"metric_value": "Share Price / Index", "timestamp": "Date", "node_id": "Company"},
+                title="Major European Building Material Producers & General Contractors",
+                color_discrete_sequence=px.colors.qualitative.Bold
+            )
+            fig_stock.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(15,23,42,0.6)",
+                font=dict(color="#E2E8F0"),
+                margin=dict(l=10, r=10, t=40, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_stock, use_container_width=True)
+        else:
+            st.info("No equity time-series points available.")
+
+st.divider()
+
+# --- 4. SYSTEM ARCHITECTURE PIPELINE ---
+st.markdown("### 🏛️ Dual-Layer Architecture: Statutory Authority to Market Impact")
 st.markdown("""
-The PowerLaw architecture operates across two coupled representations:
-1. **Topological Graph Layer**: Directed acyclic and feedback graph tracking statutory authority (`LAW`), 
-mandated compliance steps (`ACTION`), economic events (`REACTION`), and industrial structures (`SECTOR`, `COMMODITY`).
-2. **Behind-the-Graph Tabular Layer**: Continuous time-series records per node capturing historical metrics 
-(e.g., carbon price, gas storage %, compliance cost) and categorical states (`ACTIVE`, `PEAK`, `TARGET_MET`).
-""")
-
-# Render Architecture Diagram with Graphviz
-architecture_dot = """
-digraph G {
-    rankdir=LR;
-    bgcolor="transparent";
-    node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10, penwidth=1.5];
-    edge [fontname="Helvetica", fontsize=9, color="#64748B", fontcolor="#94A3B8"];
-
-    // Ingestion Sources
-    subgraph cluster_ingest {
-        label = "Upstream Pipelines";
-        style = "dashed";
-        color = "#475569";
-        fontcolor = "#CBD5E1";
-        fontsize = 11;
-        
-        eurlex [label="EUR-Lex Directives\\n& Regulations (PDF)", fillcolor="#1E293B", fontcolor="#E2E8F0", color="#334155"];
-        news_rss [label="Economic & Trade\\nNews Feeds (RSS)", fillcolor="#1E293B", fontcolor="#E2E8F0", color="#334155"];
-        market_idx [label="Market Benchmarks\\n(TTF, EUA, BDI)", fillcolor="#1E293B", fontcolor="#E2E8F0", color="#334155"];
-    }
-
-    // Processing & Extraction
-    subgraph cluster_extract {
-        label = "Extraction & Vector Pipeline";
-        style = "dashed";
-        color = "#475569";
-        fontcolor = "#CBD5E1";
-        fontsize = 11;
-
-        llm_logic [label="Gemini LLM\\nAtomic LogicGate Extractor\\n(IF-THEN Rules)", fillcolor="#1E3A8A", fontcolor="#BFDBFE", color="#3B82F6"];
-        news_extractor [label="Receptor Signal &\\nImpact Extractor", fillcolor="#1E3A8A", fontcolor="#BFDBFE", color="#3B82F6"];
-    }
-
-    // Layer 1: Topological Graph
-    subgraph cluster_layer1 {
-        label = "LAYER 1: Topological Graph (Nodes & Edges)";
-        style = "filled";
-        fillcolor="#0F172A";
-        color = "#3B82F6";
-        fontcolor = "#93C5FD";
-        fontsize = 12;
-
-        law_node [label="LAW Node\\n(e.g., CBAM, ETS)", fillcolor="#2563EB", fontcolor="#FFFFFF", color="#60A5FA"];
-        act_node [label="ACTION Node\\n(Surrender, Permit)", fillcolor="#D97706", fontcolor="#FFFFFF", color="#FBBF24"];
-        react_node [label="REACTION Node\\n(Price Spike, Supply Cut)", fillcolor="#DC2626", fontcolor="#FFFFFF", color="#F87171"];
-        sector_node [label="SECTOR Node\\n(NACE C24, D35)", fillcolor="#059669", fontcolor="#FFFFFF", color="#34D399"];
-        comm_node [label="COMMODITY Node\\n(EUA, Gas TTF, Steel)", fillcolor="#7C3AED", fontcolor="#FFFFFF", color="#A78BFA"];
-
-        law_node -> act_node [label="MANDATES", color="#60A5FA", fontcolor="#93C5FD"];
-        act_node -> react_node [label="TRIGGERS", color="#FBBF24", fontcolor="#FDE68A"];
-        act_node -> sector_node [label="AFFECTS", color="#34D399", fontcolor="#A7F3D0"];
-        react_node -> comm_node [label="IMPACTS", color="#F87171", fontcolor="#FECACA"];
-        law_node -> sector_node [label="REGULATES", style="dotted", color="#94A3B8"];
-    }
-
-    // Layer 2: Behind-The-Graph Tabular Engine
-    subgraph cluster_layer2 {
-        label = "LAYER 2: Behind-The-Graph Tabular Engine";
-        style = "filled";
-        fillcolor="#064E3B";
-        color = "#10B981";
-        fontcolor = "#A7F3D0";
-        fontsize = 12;
-
-        history_tbl [label="NodeStateRecord Store\\n[timestamp, node_id, state_val,\\nmetric_name, metric_val, delta]", shape=note, fillcolor="#047857", fontcolor="#FFFFFF", color="#34D399"];
-    }
-
-    // Downstream Consumers
-    subgraph cluster_downstream {
-        label = "Downstream Analytics & GNN";
-        style = "dashed";
-        color = "#475569";
-        fontcolor = "#CBD5E1";
-        fontsize = 11;
-
-        powerlaw_eng [label="Scale-Free Power-Law\\nP(k) ~ k^(-γ)\\nCentrality Profiler", fillcolor="#1E293B", fontcolor="#E2E8F0", color="#64748B"];
-        gnn_tensors [label="GNN Tensors\\nFeature Matrix X (N x D)\\nEdge Index E (2 x M)", fillcolor="#1E293B", fontcolor="#E2E8F0", color="#64748B"];
-    }
-
-    // Cross-cluster connections
-    eurlex -> llm_logic;
-    news_rss -> news_extractor;
-    
-    llm_logic -> law_node;
-    llm_logic -> act_node;
-    news_extractor -> react_node;
-    market_idx -> comm_node;
-
-    law_node -> history_tbl [style="dashed", color="#34D399"];
-    act_node -> history_tbl [style="dashed", color="#34D399"];
-    react_node -> history_tbl [style="dashed", color="#34D399"];
-    comm_node -> history_tbl [style="dashed", color="#34D399"];
-
-    cluster_layer1 -> powerlaw_eng;
-    cluster_layer1 -> gnn_tensors;
-    history_tbl -> gnn_tensors [label="Temporal Aggs"];
-}
-"""
-
-st.graphviz_chart(architecture_dot, width="stretch")
+<div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1E293B; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+        <div style="flex: 1; min-width: 160px; background: #1E293B; border: 1px solid #3B82F6; border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="color: #60A5FA; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">1. Statutory Origin</div>
+            <div style="color: #FFFFFF; font-size: 1rem; font-weight: bold; margin-top: 4px;">📜 EU Directives</div>
+            <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">CPR 2024, EPBD, CBAM, ETS</div>
+        </div>
+        <div style="color: #60A5FA; font-size: 1.2rem;">➔</div>
+        <div style="flex: 1; min-width: 160px; background: #1E293B; border: 1px solid #F59E0B; border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="color: #FBBF24; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">2. Mandated Action</div>
+            <div style="color: #FFFFFF; font-size: 1rem; font-weight: bold; margin-top: 4px;">⚡ Compliance Acts</div>
+            <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">Digital Passports, GWP Caps</div>
+        </div>
+        <div style="color: #F59E0B; font-size: 1.2rem;">➔</div>
+        <div style="flex: 1; min-width: 160px; background: #1E293B; border: 1px solid #EF4444; border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="color: #F87171; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">3. Market Reaction</div>
+            <div style="color: #FFFFFF; font-size: 1rem; font-weight: bold; margin-top: 4px;">🎯 Supply Shocks</div>
+            <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">Scrap Deficit, Green Premium</div>
+        </div>
+        <div style="color: #EF4444; font-size: 1.2rem;">➔</div>
+        <div style="flex: 1; min-width: 160px; background: #1E293B; border: 1px solid #8B5CF6; border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="color: #A78BFA; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">4. Physical Market</div>
+            <div style="color: #FFFFFF; font-size: 1rem; font-weight: bold; margin-top: 4px;">🧱 Commodities</div>
+            <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">Rebar, Cement, CLT Timber</div>
+        </div>
+        <div style="color: #8B5CF6; font-size: 1.2rem;">➔</div>
+        <div style="flex: 1; min-width: 160px; background: #1E293B; border: 1px solid #10B981; border-radius: 10px; padding: 14px; text-align: center;">
+            <div style="color: #34D399; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">5. Economic Impact</div>
+            <div style="color: #FFFFFF; font-size: 1rem; font-weight: bold; margin-top: 4px;">🏢 Equities & Margins</div>
+            <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">Contractors, Producers, NACE</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
@@ -473,4 +481,4 @@ with hub_col2:
 
 
 # --- FOOTER ---
-st.caption("PowerLaw Framework v2.0 • Phase 2 Dual-Layer Architecture • Operating on LanceDB & NetworkX")
+st.caption("ConstructPulse v2.0 • AI Construction Law, Supply Chain & Material Price Forecaster • Operating on LanceDB & PyG")

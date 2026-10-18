@@ -1,5 +1,5 @@
 """
-PowerLaw Economic & Trade News Feed
+ConstructPulse Construction & Material News Feed
 Real-Time Event Stream with Extracted Receptor Signals, Actions, and Reactions
 """
 
@@ -312,4 +312,4 @@ with tab4:
     st.dataframe(df_full, width="stretch", height=450)
 
     csv_data = df_full.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download Scraped News as CSV", csv_data, "powerlaw_economic_news.csv", "text/csv", width="stretch")
+    st.download_button("📥 Download Scraped News as CSV", csv_data, "constructpulse_economic_news.csv", "text/csv", width="stretch")

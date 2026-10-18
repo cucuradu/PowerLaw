@@ -13,11 +13,13 @@ from src.quant.fragility import compute_systemic_fragility
 from src.quant.macro_fred import MacroFREDEngine
 from src.quant.regime_hmm import ConstructionRegimeHMM, detect_market_regime
 from src.quant.volatility_garch import GARCHVolatilityEngine
+from src.quant.ranking import ConstructionFactorRanker
 
 __all__ = [
     "compute_systemic_fragility",
     "MacroFREDEngine",
     "ConstructionRegimeHMM",
     "detect_market_regime",
-    "GARCHVolatilityEngine"
+    "GARCHVolatilityEngine",
+    "ConstructionFactorRanker"
 ]

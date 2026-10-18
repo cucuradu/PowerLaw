@@ -1,5 +1,5 @@
 """
-PowerLaw Behind-The-Graph Tabular Inspector
+ConstructPulse Behind-The-Graph Tabular Inspector
 Time-Slider Historical State Machine, Time-Series Metrics, and GNN Tensor Tensors
 """
 

@@ -1,5 +1,5 @@
 """
-PowerLaw GNN Modeling Lab & Downstream Tensor Exporter
+ConstructPulse GNN Modeling Lab & Downstream Tensor Exporter
 Prepares topological graphs and behind-the-graph temporal tabular data for downstream Graph Neural Networks (PyG, DGL, TGAT).
 """
 
@@ -20,7 +20,7 @@ from src.gnn.temporal_gnn import HAS_TORCH
 load_dotenv()
 
 st.set_page_config(
-    page_title="GNN Modeling Lab — PowerLaw",
+    page_title="GNN Modeling Lab — ConstructPulse",
     page_icon="🤖",
     layout="wide"
 )
@@ -160,11 +160,19 @@ tab_train, tab_shock, tab_preds = st.tabs([
     "🎯 Model Predictions & Node Risk Ledger"
 ])
 
-# Initialize session state for trainer if needed
+# Initialize session state for trainer if needed with disk checkpoint persistence
 if "tgnn_trainer" not in st.session_state:
-    st.session_state.tgnn_trainer = TGNNTrainer(store)
-    st.session_state.tgnn_trained = False
-    st.session_state.train_results = None
+    trainer = TGNNTrainer(store)
+    is_loaded = trainer.load_checkpoint()
+    st.session_state.tgnn_trainer = trainer
+    st.session_state.tgnn_trained = is_loaded
+    if is_loaded and trainer.training_history:
+        st.session_state.train_results = {
+            "final_loss": trainer.training_history[-1].get("total_loss", 0.1),
+            "history": trainer.training_history
+        }
+    else:
+        st.session_state.train_results = None
 
 with tab_train:
     c_p1, c_p2, c_p3 = st.columns(3)
@@ -183,12 +191,13 @@ with tab_train:
                 status_text.text(f"Epoch {epoch}/{total_epochs} — Loss: {record['total_loss']:.4f}")
 
             res = trainer.train(epochs=epochs, callback=train_callback)
+            trainer.save_checkpoint()
             st.session_state.tgnn_trainer = trainer
             st.session_state.tgnn_trained = True
             st.session_state.train_results = res
             status_text.empty()
             progress_bar.empty()
-            st.success(f"✅ Training completed in {epochs} epochs! Final Loss: {res['final_loss']:.4f}")
+            st.success(f"✅ Training completed & model locked to disk in {epochs} epochs! Final Loss: {res['final_loss']:.4f}")
 
     if st.session_state.train_results:
         res = st.session_state.train_results
@@ -267,36 +276,22 @@ with tab_preds:
 
 st.divider()
 
-# --- 4. DOWNSTREAM GNN CODE BLUEPRINT ---
-st.subheader("4. PyTorch Geometric (PyG) Integration Blueprint")
-st.markdown("Use this template to load the dual-layer tensors directly into a Temporal GNN training pipeline:")
+# --- 4. CONSTRUCTION MULTI-FACTOR RISK & SENSITIVITY RANKING ---
+st.subheader("4. 🏆 Construction Multi-Factor Risk & Sensitivity Ranking")
+st.caption("Cross-sectional multi-factor scoring evaluating Sharpe-adjusted momentum, return volatility, and regulatory exposure.")
 
-sample_x_list = X.tolist()[:3] if hasattr(X, "tolist") else []
-sample_edge_list = edge_index.tolist() if hasattr(edge_index, "tolist") else []
-edge_weights = snapshot.get("edge_weights", np.array([]))
-sample_w_list = edge_weights[:5].tolist() if hasattr(edge_weights, "tolist") else []
-
-code_sample = f'''import torch
-from torch_geometric.data import Data
-
-# 1. Load PowerLaw Dual-Layer Tensors
-x = torch.tensor({sample_x_list}, dtype=torch.float) # Shape: [N, D] (Showing sample of {N})
-edge_index = torch.tensor({sample_edge_list}, dtype=torch.long) # Shape: [2, M]
-edge_weight = torch.tensor({sample_w_list}, dtype=torch.float)
-
-# 2. Instantiate PyG Data Container
-data = Data(x=x, edge_index=edge_index, edge_attr=edge_weight)
-
-# 3. Spatio-Temporal GNN Architecture Definition
-from src.gnn.temporal_gnn import TemporalLawReactionGNN
-
-model = TemporalLawReactionGNN(in_features={D}, hidden_dim=64, out_features=1)
-'''
-st.code(code_sample, language="python")
+from src.quant.ranking import ConstructionFactorRanker
+ranker = ConstructionFactorRanker(store)
+factor_ranks_df = ranker.compute_factor_rankings()
+if not factor_ranks_df.empty:
+    st.dataframe(factor_ranks_df, use_container_width=True, hide_index=True)
+else:
+    st.info("Insufficient history for factor ranking.")
 
 # --- 5. EXPORT TENSORS ---
 st.divider()
 st.subheader("5. Export Graph Dataset")
+edge_weights = snapshot.get("edge_weights", np.array([]))
 export_dict = {
     "as_of_date": snapshot.get("as_of_date", str(target_date or "latest")),
     "num_nodes": N,
@@ -314,7 +309,7 @@ with col_d1:
     st.download_button(
         label="📥 Download GNN Tensor Dataset (JSON)",
         data=json_export,
-        file_name=f"powerlaw_gnn_dataset_{snapshot.get('as_of_date', 'latest')}.json",
+        file_name=f"constructpulse_gnn_dataset_{snapshot.get('as_of_date', 'latest')}.json",
         mime="application/json",
         use_container_width=True
     )
@@ -326,7 +321,7 @@ with col_d2:
         st.download_button(
             label="📦 Download Full Multimodal Graph & Centralities (JSON)",
             data=full_export,
-            file_name=f"powerlaw_full_graph_export.json",
+            file_name=f"constructpulse_full_graph_export.json",
             mime="application/json",
             use_container_width=True
         )

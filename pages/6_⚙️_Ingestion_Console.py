@@ -1,5 +1,5 @@
 """
-PowerLaw Ingestion Console & Pipeline Operations
+ConstructPulse Ingestion Console & Pipeline Operations
 Operations dashboard for EUR-Lex downloads, RSS news scraping, and LanceDB storage management.
 """
 
@@ -16,7 +16,7 @@ from src.scrapers.eurlex import TARGET_LAWS, download_law
 load_dotenv()
 
 st.set_page_config(
-    page_title="Ingestion Console — PowerLaw",
+    page_title="Ingestion Console — ConstructPulse",
     page_icon="⚙️",
     layout="wide"
 )

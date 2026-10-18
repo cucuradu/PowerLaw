@@ -80,3 +80,17 @@ def test_garch_volatility(populated_store):
     assert vol["garch_1d_pct"] > 0.0
     assert vol["garch_5d_pct"] > 0.0
     assert vol["term_structure"] in ["RISING", "FALLING"]
+
+
+def test_construction_factor_ranker(populated_store):
+    """Verify multi-factor cross-sectional ranking across construction assets."""
+    from src.quant.ranking import ConstructionFactorRanker
+    ranker = ConstructionFactorRanker(populated_store)
+    df = ranker.compute_factor_rankings()
+    assert isinstance(df, pd.DataFrame)
+    assert not df.empty
+    assert "Rank" in df.columns
+    assert "Name" in df.columns
+    assert "Sharpe Proxy" in df.columns
+    assert "Total Return (%)" in df.columns
+    assert len(df) > 3

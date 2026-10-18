@@ -8,6 +8,7 @@ Orchestrates:
 """
 
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any, Union
 import numpy as np
 import pandas as pd
@@ -353,3 +354,51 @@ class TGNNTrainer:
 
         res_df = pd.DataFrame(results)
         return res_df.sort_values(by="impulse_response", key=abs, ascending=False)
+
+    def save_checkpoint(self, filepath: str = "data/checkpoints/tgnn_checkpoint.pt") -> None:
+        """Saves trained model state, parameters, and loss history to disk."""
+        if self.model is None:
+            return
+        p = Path(filepath)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        torch.save({
+            "model_state_dict": self.model.state_dict(),
+            "in_features": self.in_features,
+            "hidden_dim": self.hidden_dim,
+            "num_gcn_layers": self.num_gcn_layers,
+            "node_ids": self.node_ids,
+            "feature_names": self.feature_names,
+            "feature_slices": self.feature_slices,
+            "metric_target_idx": self.metric_target_idx,
+            "training_history": self.training_history
+        }, p)
+        logger.info(f"TGNN checkpoint saved to {p}")
+
+    def load_checkpoint(self, filepath: str = "data/checkpoints/tgnn_checkpoint.pt") -> bool:
+        """Loads trained model state, parameters, and loss history from disk."""
+        p = Path(filepath)
+        if not p.exists():
+            return False
+        try:
+            ckpt = torch.load(p, map_location=self.device)
+            self.in_features = ckpt["in_features"]
+            self.hidden_dim = ckpt.get("hidden_dim", self.hidden_dim)
+            self.num_gcn_layers = ckpt.get("num_gcn_layers", self.num_gcn_layers)
+            self.node_ids = ckpt["node_ids"]
+            self.feature_names = ckpt["feature_names"]
+            self.feature_slices = ckpt["feature_slices"]
+            self.metric_target_idx = ckpt["metric_target_idx"]
+            self.training_history = ckpt.get("training_history", [])
+
+            self.model = TemporalLawReactionGNN(
+                in_features=self.in_features,
+                hidden_dim=self.hidden_dim,
+                num_gcn_layers=self.num_gcn_layers
+            ).to(self.device)
+            self.model.load_state_dict(ckpt["model_state_dict"])
+            self.model.eval()
+            logger.info(f"TGNN checkpoint loaded from {p}")
+            return True
+        except Exception as e:
+            logger.warning(f"Could not load TGNN checkpoint: {e}")
+            return False

@@ -32,6 +32,16 @@ USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
 # These are real, important EU laws on carbon, energy, and steel
 TARGET_LAWS = [
     {
+        "celex_id": "32024R1069",
+        "title": "Construction Products Regulation (CPR) recast",
+        "date": "2024-04-24"
+    },
+    {
+        "celex_id": "32024L1275",
+        "title": "Energy Performance of Buildings Directive (EPBD recast)",
+        "date": "2024-04-24"
+    },
+    {
         "celex_id": "32023R0956",
         "title": "Carbon Border Adjustment Mechanism (CBAM)",
         "date": "2023-05-10"
@@ -40,6 +50,11 @@ TARGET_LAWS = [
         "celex_id": "32023D1534",
         "title": "Emissions Trading System (ETS) Reform 2023",
         "date": "2023-07-26"
+    },
+    {
+        "celex_id": "32020R0852",
+        "title": "EU Taxonomy Regulation (Sustainable Construction & Circular Economy)",
+        "date": "2020-06-18"
     },
     {
         "celex_id": "32018L2002",
@@ -62,9 +77,13 @@ EURLEX_BASE = "https://eur-lex.europa.eu"
 
 
 def log(message: str) -> None:
-    """Simple console logger with timestamp"""
+    """Simple console logger with timestamp, safe for Windows cp1252 consoles."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}")
+    try:
+        print(f"[{timestamp}] {message}")
+    except UnicodeEncodeError:
+        safe_msg = message.encode("ascii", errors="replace").decode("ascii")
+        print(f"[{timestamp}] {safe_msg}")
 
 
 def download_law(celex_id: str, title: str, date: str) -> bool:
@@ -79,6 +98,7 @@ def download_law(celex_id: str, title: str, date: str) -> bool:
     Returns:
         True if successful
     """
+    LAW_DIR.mkdir(parents=True, exist_ok=True)
     pdf_path = LAW_DIR / f"{celex_id}.pdf"
     json_path = LAW_DIR / f"{celex_id}.json"
     
