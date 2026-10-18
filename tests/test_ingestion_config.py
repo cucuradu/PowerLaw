@@ -227,3 +227,175 @@ class TestIngestionConfig(unittest.TestCase):
         self.assertGreater(report["summary"]["total_records"], 0)
         # Verify quarantine count
         self.assertGreater(report["summary"]["total_quarantined_records"], 0)
+
+    def test_trial_sources_rejected_by_validator(self):
+        """Free-source validator must reject trial/evaluation tier sources even if free."""
+        from src.config import validate_source_entry
+        with self.assertRaises(ValueError) as ctx:
+            validate_source_entry("TRIAL_SOURCE", {
+                "access_fee": 0,
+                "requires_paid_subscription": False,
+                "trial": True,
+                "rights_checked": True,
+                "rights": "Trial License",
+                "terms_checked_at": "2026-10-18"
+            })
+        self.assertIn("trial", str(ctx.exception).lower())
+
+    def test_training_restricted_sources_rejected_by_validator(self):
+        """Free-source validator must reject sources with training or commercial restrictions."""
+        from src.config import validate_source_entry
+        # Training forbidden
+        with self.assertRaises(ValueError) as ctx:
+            validate_source_entry("NO_TRAIN_API", {
+                "access_fee": 0,
+                "requires_paid_subscription": False,
+                "training_allowed": False,
+                "rights_checked": True,
+                "rights": "Creative Commons NonCommercial NoDerivatives",
+                "terms_checked_at": "2026-10-18"
+            })
+        self.assertIn("training or commercial reuse restrictions", str(ctx.exception).lower())
+
+        # Non-commercial terms in rights string
+        with self.assertRaises(ValueError) as ctx:
+            validate_source_entry("NON_COMMERCIAL_API", {
+                "access_fee": 0,
+                "requires_paid_subscription": False,
+                "rights_checked": True,
+                "rights": "Non-commercial educational use only",
+                "terms_checked_at": "2026-10-18"
+            })
+        self.assertIn("restrictions", str(ctx.exception).lower())
+
+    def test_missing_rights_check_rejected_by_validator(self):
+        """Free-source validator must reject entries without verified rights check."""
+        from src.config import validate_source_entry
+        with self.assertRaises(ValueError) as ctx:
+            validate_source_entry("UNVERIFIED_RIGHTS", {
+                "access_fee": 0,
+                "requires_paid_subscription": False,
+                "rights_checked": False,
+                "rights": "Public domain",
+                "terms_checked_at": "2026-10-18"
+            })
+        self.assertIn("rights check", str(ctx.exception).lower())
+
+    def test_production_mode_news_reader_strictly_rejects_demo_records(self):
+        """Isolated probe: in production mode, news reader must NEVER return demo records."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            prod_dir = Path(tmp_dir) / "data" / "production"
+            raw_news_dir = prod_dir / "raw" / "news"
+            raw_news_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write a probe with mixed demo and production records into news cache
+            probe_news = [
+                {
+                    "news_id": "NEWS_DEMO_01",
+                    "headline": "Demo Headline Should Not Leak",
+                    "data_origin": "demo",
+                    "origin": "demo"
+                },
+                {
+                    "news_id": "NEWS_SYNTHETIC_02",
+                    "headline": "Synthetic Headline Should Not Leak",
+                    "data_origin": "synthetic"
+                },
+                {
+                    "news_id": "NEWS_PROD_01",
+                    "headline": "Official Production Event",
+                    "data_origin": "production",
+                    "origin": "production"
+                }
+            ]
+            import json
+            with open(raw_news_dir / "scraped_news.json", "w", encoding="utf-8") as f:
+                json.dump(probe_news, f)
+
+            with patch.dict(os.environ, {
+                "POWERLAW_MODE": "production",
+                "POWERLAW_DATA_DIR": str(prod_dir)
+            }):
+                import src.config
+                if hasattr(src.config, "clear_settings_cache"):
+                    src.config.clear_settings_cache()
+
+                import src.storage.dashboard_data as dd
+                articles = dd.get_all_news_data()
+
+                # Must contain ONLY the production record, never demo or synthetic
+                self.assertEqual(len(articles), 1)
+                self.assertEqual(articles[0]["news_id"], "NEWS_PROD_01")
+                self.assertNotIn("NEWS_DEMO_01", [a["news_id"] for a in articles])
+
+    def test_database_paths_default_to_centralized_settings(self):
+        """All stores, exporters, and CLI arguments must default to centralized Settings path."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            custom_path = Path(tmp_dir) / "custom_lancedb"
+            with patch.dict(os.environ, {"LANCEDB_PATH": str(custom_path)}):
+                import src.config
+                if hasattr(src.config, "clear_settings_cache"):
+                    src.config.clear_settings_cache()
+
+                settings = src.config.get_settings()
+                self.assertEqual(settings.database_path.resolve(), custom_path.resolve())
+
+                # DualLayerGraphStore default
+                from src.storage.graph_store import DualLayerGraphStore
+                gs = DualLayerGraphStore()
+                self.assertEqual(gs.storage_dir.resolve(), custom_path.resolve())
+
+                # DualLayerStore default
+                from src.storage.dual_layer_store import DualLayerStore
+                ds = DualLayerStore()
+                self.assertEqual(ds.storage_dir.resolve(), custom_path.resolve())
+
+                # GNNGraphExporter default
+                from src.gnn.graph_exporter import GNNGraphExporter
+                exporter = GNNGraphExporter(store=None, storage_dir=None)
+                self.assertEqual(exporter.store.storage_dir.resolve(), custom_path.resolve())
+
+    def test_audit_includes_minio_raw_references_and_temporal_coverage(self):
+        """audit_sources must include MinIO inspection, raw document reference validation, and temporal coverage."""
+        from scripts.ops.migrate_data import audit_sources
+        report = audit_sources([Path("data/lancedb")])
+        self.assertIn("minio_inspection", report)
+        self.assertIn("status", report["minio_inspection"])
+
+        path_data = report["paths_inspected"][0]
+        # Check parquet files inspection
+        for f_name, f_data in path_data.get("parquet_files", {}).items():
+            self.assertIn("raw_document_references", f_data)
+            self.assertIn("temporal_coverage", f_data)
+            self.assertIn("classification", f_data)
+            # Unproven legacy without verified production origin must NOT be "verified"
+            self.assertNotEqual(f_data["classification"], "verified")
+
+    def test_primary_target_has_coverage_release_metadata_and_valid_fixture(self):
+        """Primary target must contain coverage metadata, release metadata, and an on-disk response fixture."""
+        from src.config import get_primary_target_definition
+        target = get_primary_target_definition()
+
+        self.assertIn("coverage_metadata", target)
+        cov = target["coverage_metadata"]
+        self.assertIn("geographic_coverage", cov)
+        self.assertIn("sector_coverage", cov)
+        self.assertIn("base_period", cov)
+
+        self.assertIn("release_metadata", target)
+        rel = target["release_metadata"]
+        self.assertIn("frequency", rel)
+        self.assertIn("reference_months", rel)
+        self.assertIn("publication_lag_days", rel)
+
+        self.assertIn("verification_evidence", target)
+        ev = target["verification_evidence"]
+        self.assertEqual(ev["status"], "VERIFIED_OFFICIAL_RESPONSE")
+        fixture_path = Path(ev["fixture_path"])
+        self.assertTrue(fixture_path.exists(), f"Fixture file {fixture_path} must exist on disk")
+
+        # Verify fixture SHA256 integrity
+        import hashlib
+        with open(fixture_path, "rb") as f:
+            actual_sha256 = hashlib.sha256(f.read()).hexdigest()
+        self.assertEqual(actual_sha256, ev["fixture_sha256"])

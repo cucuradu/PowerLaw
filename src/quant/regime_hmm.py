@@ -14,8 +14,14 @@ import logging
 from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from hmmlearn.hmm import GaussianHMM
+try:
+    from sklearn.preprocessing import StandardScaler
+    from hmmlearn.hmm import GaussianHMM
+    HAS_HMM = True
+except ImportError:
+    StandardScaler = None
+    GaussianHMM = None
+    HAS_HMM = False
 
 from src.storage.graph_store import DualLayerGraphStore
 
@@ -32,8 +38,8 @@ class ConstructionRegimeHMM:
     def __init__(self, n_components: int = 4, random_state: int = 42):
         self.n_components = n_components
         self.random_state = random_state
-        self.scaler = StandardScaler()
-        self.model: Optional[GaussianHMM] = None
+        self.scaler = StandardScaler() if StandardScaler is not None else None
+        self.model: Optional[Any] = None
         self.state_to_regime: Dict[int, str] = {}
 
     def extract_features_from_store(self, store: DualLayerGraphStore) -> pd.DataFrame:
@@ -75,8 +81,8 @@ class ConstructionRegimeHMM:
         """
         Fits GaussianHMM and predicts current regime and state probabilities.
         """
-        if len(feat_df) < 15:
-            # Fallback for sparse history
+        if not HAS_HMM or self.scaler is None or GaussianHMM is None or len(feat_df) < 15:
+            # Fallback for sparse history or missing hmmlearn
             return {
                 "current_regime": "NEUTRAL_CONSOLIDATION",
                 "confidence": 0.75,

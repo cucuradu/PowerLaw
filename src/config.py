@@ -41,6 +41,11 @@ class Settings(BaseModel):
 
     model_config = {"arbitrary_types_allowed": True}
 
+    @property
+    def database_path(self) -> Path:
+        """Alias for canonical LanceDB database path."""
+        return self.lancedb_path
+
     def __repr__(self) -> str:
         """Redact sensitive keys from representation."""
         return (
@@ -164,15 +169,61 @@ def load_data_sources_registry(registry_path: Optional[Path] = None) -> dict:
 def validate_source_entry(source_id: str, entry: dict) -> None:
     """
     Validates that a candidate data source satisfies the free-source policy:
-    access_fee == 0, requires_paid_subscription is False, and no automatic paid fallback.
+    1. Zero access fee and no paid subscription.
+    2. No trial / evaluation tiers (even if currently free).
+    3. No AI-training or commercial use restrictions.
+    4. Verified rights check performed with terms documentation.
     """
     access_fee = entry.get("access_fee", 0)
     requires_sub = entry.get("requires_paid_subscription", False)
 
+    # 1. Zero fees and no paid subscriptions
     if access_fee > 0 or requires_sub:
         raise ValueError(
             f"Source {source_id} violates free-source policy (access_fee={access_fee}, "
             f"requires_paid_subscription={requires_sub}). Paid sources cannot be enabled."
+        )
+
+    # 2. Reject trial sources
+    is_trial = (
+        bool(entry.get("trial", False))
+        or bool(entry.get("is_trial", False))
+        or str(entry.get("tier", "")).lower() == "trial"
+        or "trial" in str(entry.get("license", "")).lower()
+        or "trial" in str(entry.get("rights", "")).lower()
+        or "trial" in str(entry.get("name", "")).lower()
+    )
+    if is_trial:
+        raise ValueError(
+            f"Source {source_id} is a trial source. Trial/temporary tier sources cannot be enabled."
+        )
+
+    # 3. Reject AI training or commercial reuse restrictions
+    is_restricted = (
+        entry.get("training_allowed") is False
+        or entry.get("commercial_use_allowed") is False
+        or bool(entry.get("ai_training_restricted", False))
+        or bool(entry.get("training_restricted", False))
+        or "no-training" in str(entry.get("rights", "")).lower()
+        or "non-commercial" in str(entry.get("rights", "")).lower()
+        or "no commercial" in str(entry.get("rights", "")).lower()
+        or ("restricted" in str(entry.get("rights", "")).lower() and "unrestricted" not in str(entry.get("rights", "")).lower())
+    )
+    if is_restricted:
+        raise ValueError(
+            f"Source {source_id} contains training or commercial reuse restrictions "
+            f"({entry.get('rights', 'restricted')}). Training-restricted sources cannot be enabled."
+        )
+
+    # 4. Mandatory rights verification
+    rights_checked = entry.get("rights_checked")
+    rights_text = str(entry.get("rights", "")).strip()
+    terms_checked_at = str(entry.get("terms_checked_at", "")).strip()
+
+    if not rights_checked or not rights_text or not terms_checked_at:
+        raise ValueError(
+            f"Source {source_id} lacks verified rights check. Explicit 'rights_checked=True', "
+            f"'rights', and 'terms_checked_at' are required before source registration."
         )
 
 

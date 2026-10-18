@@ -19,7 +19,12 @@ import uuid
 import numpy as np
 import pandas as pd
 from pydantic import Field, model_validator
-from lancedb.pydantic import LanceModel, Vector
+try:
+    from lancedb.pydantic import LanceModel, Vector
+except ImportError:
+    from pydantic import BaseModel as LanceModel
+    def Vector(dim):
+        return List[float]
 
 
 # ============================================================================

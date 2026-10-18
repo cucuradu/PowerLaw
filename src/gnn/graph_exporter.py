@@ -157,7 +157,7 @@ class GNNGraphExporter:
     def __init__(
         self,
         store: Optional[DualLayerGraphStore] = None,
-        storage_dir: Optional[Union[str, Path]] = "data/lancedb",
+        storage_dir: Optional[Union[str, Path]] = None,
         embedding_dim: int = 128,
         embedding_fn: Optional[Callable[[str], List[float]]] = None,
         custom_embeddings: Optional[Dict[str, List[float]]] = None,
@@ -185,7 +185,9 @@ class GNNGraphExporter:
         if store is not None:
             self.store = store
         else:
-            self.store = DualLayerGraphStore(str(storage_dir))
+            from src.config import get_settings
+            resolved_dir = storage_dir if storage_dir is not None else get_settings().lancedb_path
+            self.store = DualLayerGraphStore(resolved_dir)
 
         self.embedding_dim = max(0, int(embedding_dim))
         self.embedding_fn = embedding_fn

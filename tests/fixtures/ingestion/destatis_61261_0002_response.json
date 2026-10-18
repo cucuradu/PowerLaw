@@ -1,0 +1,50 @@
+{
+  "source": "DESTATIS_GENESIS",
+  "table_id": "61261-0002",
+  "table_name": "Baupreisindex für den Neubau von Wohngebäuden (einschl. USt)",
+  "publisher": "Statistisches Bundesamt (Destatis)",
+  "retrieved_at": "2026-10-18T12:00:00Z",
+  "data_license": "dl-de/by-2-0",
+  "metadata": {
+    "frequency": "QUARTERLY",
+    "base_year": "2021=100",
+    "unit": "INDEX",
+    "tax_treatment": "INCLUDING_VAT",
+    "geography": "DE",
+    "geography_name": "Deutschland",
+    "building_type": "Wohngebäude insgesamt",
+    "building_type_code": "BAUWERK_WOHN_GES",
+    "work_type": "Bauleistungen am Bauwerk",
+    "work_type_code": "BAUL_BAUWERK"
+  },
+  "release_calendar": {
+    "cadence": "QUARTERLY",
+    "reference_months": ["February", "May", "August", "November"],
+    "typical_lag_days": 35,
+    "source_url": "https://genesis.destatis.de/genesisWS/rest/2020/data/tablefile"
+  },
+  "observations": [
+    {"period": "2021-Q1", "reference_month": "2021-02", "value": 96.2, "status": "FINAL", "vintage_id": "vintage_2021_04_09"},
+    {"period": "2021-Q2", "reference_month": "2021-05", "value": 99.1, "status": "FINAL", "vintage_id": "vintage_2021_07_09"},
+    {"period": "2021-Q3", "reference_month": "2021-08", "value": 101.8, "status": "FINAL", "vintage_id": "vintage_2021_10_08"},
+    {"period": "2021-Q4", "reference_month": "2021-11", "value": 102.9, "status": "FINAL", "vintage_id": "vintage_2022_01_10"},
+    {"period": "2022-Q1", "reference_month": "2022-02", "value": 109.8, "status": "FINAL", "vintage_id": "vintage_2022_04_08"},
+    {"period": "2022-Q2", "reference_month": "2022-05", "value": 114.7, "status": "FINAL", "vintage_id": "vintage_2022_07_08"},
+    {"period": "2022-Q3", "reference_month": "2022-08", "value": 116.5, "status": "FINAL", "vintage_id": "vintage_2022_10_07"},
+    {"period": "2022-Q4", "reference_month": "2022-11", "value": 117.8, "status": "FINAL", "vintage_id": "vintage_2023_01_10"},
+    {"period": "2023-Q1", "reference_month": "2023-02", "value": 121.2, "status": "FINAL", "vintage_id": "vintage_2023_04_11"},
+    {"period": "2023-Q2", "reference_month": "2023-05", "value": 122.4, "status": "FINAL", "vintage_id": "vintage_2023_07_10"},
+    {"period": "2023-Q3", "reference_month": "2023-08", "value": 123.1, "status": "FINAL", "vintage_id": "vintage_2023_10_09"},
+    {"period": "2023-Q4", "reference_month": "2023-11", "value": 123.6, "status": "FINAL", "vintage_id": "vintage_2024_01_10"},
+    {"period": "2024-Q1", "reference_month": "2024-02", "value": 124.5, "status": "FINAL", "vintage_id": "vintage_2024_04_09"},
+    {"period": "2024-Q2", "reference_month": "2024-05", "value": 125.8, "status": "FINAL", "vintage_id": "vintage_2024_07_09"},
+    {"period": "2024-Q3", "reference_month": "2024-08", "value": 126.7, "status": "FINAL", "vintage_id": "vintage_2024_10_08"},
+    {"period": "2024-Q4", "reference_month": "2024-11", "value": 127.3, "status": "FINAL", "vintage_id": "vintage_2025_01_10"},
+    {"period": "2025-Q1", "reference_month": "2025-02", "value": 128.1, "status": "FINAL", "vintage_id": "vintage_2025_04_09"},
+    {"period": "2025-Q2", "reference_month": "2025-05", "value": 129.4, "status": "FINAL", "vintage_id": "vintage_2025_07_09"},
+    {"period": "2025-Q3", "reference_month": "2025-08", "value": 130.2, "status": "FINAL", "vintage_id": "vintage_2025_10_08"},
+    {"period": "2025-Q4", "reference_month": "2025-11", "value": 131.0, "status": "FINAL", "vintage_id": "vintage_2026_01_09"},
+    {"period": "2026-Q1", "reference_month": "2026-02", "value": 132.1, "status": "PROVISIONAL", "vintage_id": "vintage_2026_04_10"},
+    {"period": "2026-Q2", "reference_month": "2026-05", "value": 133.5, "status": "PROVISIONAL", "vintage_id": "vintage_2026_07_10"}
+  ]
+}

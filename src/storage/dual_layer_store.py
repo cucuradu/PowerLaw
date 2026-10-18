@@ -22,9 +22,19 @@ from typing import List, Dict, Any, Optional, Tuple, Union
 from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
-import networkx as nx
+try:
+    import networkx as nx
+    HAS_NETWORKX = True
+except ImportError:
+    nx = None
+    HAS_NETWORKX = False
 
-import lancedb
+try:
+    import lancedb
+    HAS_LANCEDB = True
+except ImportError:
+    lancedb = None
+    HAS_LANCEDB = False
 
 from src.schemas.graph_temporal import (
     BaseGraphNode,
@@ -71,11 +81,14 @@ class DualLayerStore:
 
     def __init__(
         self,
-        storage_dir: Union[str, Path] = "data/lancedb",
+        storage_dir: Optional[Union[str, Path]] = None,
         nodes_table_name: str = "nodes",
         edges_table_name: str = "edges",
         history_table_name: str = "tabular_history",
     ):
+        if storage_dir is None:
+            from src.config import get_settings
+            storage_dir = get_settings().lancedb_path
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.nodes_table_name = nodes_table_name
@@ -88,9 +101,12 @@ class DualLayerStore:
         self._history: List[TabularNodeHistory] = []
 
         # Initialize LanceDB connection and tables
-        self.db = lancedb.connect(str(self.storage_dir))
-        self._init_tables()
-        self._load_from_storage()
+        if HAS_LANCEDB and lancedb is not None:
+            self.db = lancedb.connect(str(self.storage_dir))
+            self._init_tables()
+            self._load_from_storage()
+        else:
+            self.db = None
 
     def _init_tables(self) -> None:
         """Initialize LanceDB tables with pydantic schemas safely without concurrency races."""

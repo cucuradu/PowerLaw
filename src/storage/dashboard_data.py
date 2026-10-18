@@ -874,22 +874,46 @@ def get_all_laws_data(storage_dir: Optional[str] = None) -> List[Dict[str, Any]]
 
 def get_all_news_data() -> List[Dict[str, Any]]:
     """Retrieve news articles with extracted receptor signals, actions, and reactions."""
+    settings = get_settings()
     articles = []
-    news_file = NEWS_DIR / "scraped_news.json"
+
+    # 1. Resolve mode-appropriate news file path
+    prod_news_file = settings.data_dir / "raw" / "news" / "scraped_news.json"
+    shared_news_file = NEWS_DIR / "scraped_news.json"
+
+    news_file = prod_news_file if prod_news_file.exists() else shared_news_file
     if news_file.exists():
         try:
             with open(news_file, "r", encoding="utf-8") as f:
-                articles = json.load(f)
+                loaded = json.load(f)
+                if isinstance(loaded, list):
+                    articles = loaded
         except Exception as e:
             logger.warning(f"Failed to read news from {news_file}: {e}")
 
-    settings = get_settings()
-    if not articles:
-        if settings.mode == "demo":
+    # 2. Strict Origin Enforcement
+    if settings.mode == "production":
+        # Disallow demo, synthetic, test, or unverified origin records
+        filtered_articles = []
+        for a in articles:
+            if not isinstance(a, dict):
+                continue
+            origin = a.get("data_origin", a.get("origin", ""))
+            # Must explicitly match production
+            if origin == "production":
+                filtered_articles.append(a)
+        articles = filtered_articles
+
+        # In production mode, if empty, return empty list (never fall back to demo seeds!)
+        if not articles:
+            return []
+    elif settings.mode == "demo":
+        if not articles:
             from src.scrapers.news_scraper import FALLBACK_NEWS_CORPUS
             articles = list(FALLBACK_NEWS_CORPUS)
-        else:
-            return []
+    elif settings.mode == "test":
+        # In test mode, exclude quarantined legacy items
+        articles = [a for a in articles if isinstance(a, dict) and a.get("data_origin") != "quarantined_legacy"]
 
     # Normalize fields for unified consumption
     normalized = []

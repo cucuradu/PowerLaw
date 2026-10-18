@@ -12,10 +12,15 @@ import os
 import json
 import logging
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
-import networkx as nx
+try:
+    import networkx as nx
+    HAS_NETWORKX = True
+except ImportError:
+    nx = None
+    HAS_NETWORKX = False
 
 try:
     import lancedb
@@ -41,7 +46,10 @@ class DualLayerGraphStore:
     2. The behind-the-graph Tabular History (Timestamped metrics and state changes)
     """
 
-    def __init__(self, storage_dir: str = "data/lancedb"):
+    def __init__(self, storage_dir: Optional[Union[str, Path]] = None):
+        if storage_dir is None:
+            from src.config import get_settings
+            storage_dir = get_settings().lancedb_path
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.db = None

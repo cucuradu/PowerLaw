@@ -22,7 +22,13 @@ from typing import List, Dict, Any, Optional, Tuple, Union
 import email.utils
 
 import requests
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    BeautifulSoup = None
+    HAS_BS4 = False
+import xml.etree.ElementTree as ET
 import numpy as np
 
 # Schemas
@@ -743,49 +749,86 @@ class EconomicNewsScraper:
                 logger.warning(f"Failed to fetch {feed_url}: HTTP status {resp.status_code}")
                 return []
 
-            # Try parsing with XML parser
-            soup = BeautifulSoup(resp.content, "xml")
-            items = soup.find_all("item")
-            if not items:
-                items = soup.find_all("entry")  # Atom feed format
+            # Try parsing with BeautifulSoup XML parser if available, else ElementTree
+            if HAS_BS4 and BeautifulSoup is not None:
+                soup = BeautifulSoup(resp.content, "xml")
+                items = soup.find_all("item")
+                if not items:
+                    items = soup.find_all("entry")  # Atom feed format
 
-            for item in items[:max_items]:
-                # Title
-                title_elem = item.find("title")
-                title_text = title_elem.text.strip() if title_elem else "Untitled"
+                for item in items[:max_items]:
+                    title_elem = item.find("title")
+                    title_text = title_elem.text.strip() if title_elem else "Untitled"
 
-                # Link
-                link_elem = item.find("link")
-                link_text = ""
-                if link_elem:
-                    link_text = link_elem.get("href") or link_elem.text.strip()
+                    link_elem = item.find("link")
+                    link_text = ""
+                    if link_elem:
+                        link_text = link_elem.get("href") or link_elem.text.strip()
 
-                # Published Date
-                date_elem = item.find(["pubDate", "published", "updated", "date", "dc:date"])
-                date_str = date_elem.text.strip() if date_elem else ""
-                parsed_date = self._parse_date(date_str)
+                    date_elem = item.find(["pubDate", "published", "updated", "date", "dc:date"])
+                    date_str = date_elem.text.strip() if date_elem else ""
+                    parsed_date = self._parse_date(date_str)
 
-                # Description / Summary
-                desc_elem = item.find(["description", "summary", "content", "content:encoded"])
-                desc_text = ""
-                if desc_elem:
-                    desc_soup = BeautifulSoup(desc_elem.text, "html.parser")
-                    desc_text = desc_soup.get_text().strip()
+                    desc_elem = item.find(["description", "summary", "content", "content:encoded"])
+                    desc_text = ""
+                    if desc_elem:
+                        try:
+                            desc_soup = BeautifulSoup(desc_elem.text, "html.parser")
+                            desc_text = desc_soup.get_text().strip()
+                        except Exception:
+                            desc_text = desc_elem.text.strip()
 
-                # Generate clean unique ID
-                id_seed = f"{link_text}_{title_text}_{parsed_date}"
-                hash_id = abs(hash(id_seed)) % 10000000
-                article_id = f"NEWS_{parsed_date.replace('-', '_')}_{hash_id:07d}"
+                    id_seed = f"{link_text}_{title_text}_{parsed_date}"
+                    hash_id = abs(hash(id_seed)) % 10000000
+                    article_id = f"NEWS_{parsed_date.replace('-', '_')}_{hash_id:07d}"
 
-                raw_items.append({
-                    "news_id": article_id,
-                    "title": title_text,
-                    "published_date": parsed_date,
-                    "source_name": source_name,
-                    "source_url": link_text,
-                    "summary": desc_text[:1200]
-                })
+                    raw_items.append({
+                        "news_id": article_id,
+                        "title": title_text,
+                        "published_date": parsed_date,
+                        "source_name": source_name,
+                        "source_url": link_text,
+                        "summary": desc_text[:1200]
+                    })
+            else:
+                # ElementTree standard library fallback
+                root = ET.fromstring(resp.content)
+                # Channel items (RSS) or root entries (Atom)
+                et_items = root.findall(".//item")
+                if not et_items:
+                    # Strip namespace for Atom
+                    et_items = [elem for elem in root.iter() if elem.tag.endswith("entry")]
 
+                for item in et_items[:max_items]:
+                    title_elem = next((e for e in item if e.tag.endswith("title")), None)
+                    title_text = title_elem.text.strip() if title_elem is not None and title_elem.text else "Untitled"
+
+                    link_elem = next((e for e in item if e.tag.endswith("link")), None)
+                    link_text = ""
+                    if link_elem is not None:
+                        link_text = link_elem.attrib.get("href") or (link_elem.text.strip() if link_elem.text else "")
+
+                    date_elem = next((e for e in item if any(e.tag.endswith(t) for t in ["pubDate", "published", "updated", "date"])), None)
+                    date_str = date_elem.text.strip() if date_elem is not None and date_elem.text else ""
+                    parsed_date = self._parse_date(date_str)
+
+                    desc_elem = next((e for e in item if any(e.tag.endswith(t) for t in ["description", "summary", "content"])), None)
+                    desc_text = ""
+                    if desc_elem is not None and desc_elem.text:
+                        desc_text = re.sub(r"<[^>]+>", " ", desc_elem.text).strip()
+
+                    id_seed = f"{link_text}_{title_text}_{parsed_date}"
+                    hash_id = abs(hash(id_seed)) % 10000000
+                    article_id = f"NEWS_{parsed_date.replace('-', '_')}_{hash_id:07d}"
+
+                    raw_items.append({
+                        "news_id": article_id,
+                        "title": title_text,
+                        "published_date": parsed_date,
+                        "source_name": source_name,
+                        "source_url": link_text,
+                        "summary": desc_text[:1200]
+                    })
         except Exception as e:
             logger.warning(f"Error fetching feed {feed_url} ({source_name}): {e}")
 
@@ -1944,7 +1987,7 @@ def main():
     parser.add_argument("--seed", action="store_true", help="Generate and ingest offline seeds into LanceDB")
     parser.add_argument("--count", type=int, default=10, help="Number of seed items to generate")
     parser.add_argument("--feeds", action="store_true", help="Fetch and process live RSS feeds")
-    parser.add_argument("--db-path", type=str, default="./storage/lancedb", help="LanceDB database directory path")
+    parser.add_argument("--db-path", type=str, default=None, help="LanceDB database directory path (defaults to centralized settings)")
     parser.add_argument("--output", type=str, default="data/raw/news/scraped_news.json", help="Output JSON path")
     parser.add_argument("--verify", action="store_true", help="Verify LanceDB news table records")
     args = parser.parse_args()
@@ -1970,7 +2013,7 @@ def main():
         events = scraper.generate_offline_seeds(count=args.count, save_to_lancedb=True, output_file=Path(args.output))
         print(f"[OK] Generated {len(events)} structured economic events.")
         print(f"[CACHE] Cached JSON at: {args.output}")
-        print(f"[LANCEDB] Persisted into LanceDB: {args.db_path} (table 'news_items')")
+        print(f"[LANCEDB] Persisted into LanceDB: {scraper.lancedb_path} (table 'news_items')")
         return
 
     # Default / Feeds mode

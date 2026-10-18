@@ -24,7 +24,13 @@ from tqdm import tqdm
 sys.path.append(str(Path(__file__).parent.parent.parent))
 load_dotenv()
 
-LANCEDB_PATH = Path(os.getenv("LANCEDB_PATH", "./storage/lancedb"))
+try:
+    from src.config import get_settings
+    DEFAULT_LANCEDB = str(get_settings().lancedb_path)
+except Exception:
+    DEFAULT_LANCEDB = "./data/production/lancedb"
+
+LANCEDB_PATH = Path(os.getenv("LANCEDB_PATH", DEFAULT_LANCEDB))
 
 # EUR-Lex RSS Feeds for recent changes
 EURLEX_FEEDS = {
