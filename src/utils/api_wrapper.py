@@ -36,9 +36,9 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Model identifiers
-EMBEDDING_MODEL = "models/text-embedding-004"  # 768 dimensions
-LLM_FLASH_MODEL = "models/gemini-2.0-flash"    # Fast, cost-effective (stable)
-LLM_PRO_MODEL = "models/gemini-pro-latest"     # Complex Reasoning (for review)
+EMBEDDING_MODEL = "models/gemini-embedding-001"  # 768 dimensions
+LLM_FLASH_MODEL = "models/gemini-3.8-flash"      # Fast, high-throughput extraction
+LLM_PRO_MODEL = "models/gemini-3.1-pro-preview"  # Deep Reasoning & Statutory Logic Gates
 
 # Safety settings - BLOCK_NONE for enterprise control
 SAFETY_SETTINGS = {
@@ -116,7 +116,8 @@ def get_embedding(text: str, task_type: str = "RETRIEVAL_DOCUMENT") -> List[floa
     result = genai.embed_content(
         model=EMBEDDING_MODEL,
         content=text,
-        task_type=task_type
+        task_type=task_type,
+        output_dimensionality=768
     )
     
     return result['embedding']
@@ -161,7 +162,8 @@ def get_embeddings_batch(
         result = genai.embed_content(
             model=EMBEDDING_MODEL,
             content=text,
-            task_type=task_type
+            task_type=task_type,
+            output_dimensionality=768
         )
         embeddings.append(result['embedding'])
     
