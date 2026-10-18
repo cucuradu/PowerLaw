@@ -105,6 +105,8 @@ PowerLaw/
 │   │   ├── graph_store.py           # Topo graph & temporal snapshot queries
 │   │   └── dashboard_data.py        # Analytics & metric aggregation
 │   ├── gnn/
+│   │   ├── temporal_gnn.py          # Spatio-Temporal GNN (Graph Conv + Temporal GRU)
+│   │   ├── trainer.py               # Multi-task training & counterfactual shock simulation
 │   │   └── graph_exporter.py        # PyTorch Geometric tensors, node feature matrices X,
 │   │                                # adjacency matrices A, and temporal NPZ/JSON snapshots
 │   └── utils/
@@ -114,14 +116,14 @@ PowerLaw/
 ├── scripts/                         # Maintenance and diagnostic scripts
 │   ├── ops/                         # Data ingestion, MinIO, and LanceDB operations
 │   └── debug/                       # SPARQL, model inspection, and schema debug tools
-└── tests/                           # 112 automated unit and integration tests (100% pass)
+└── tests/                           # 119 automated unit and integration tests (100% pass)
 ```
 
 ---
 
 ## 🧪 Testing
 
-Run the comprehensive test suite (112 tests):
+Run the comprehensive test suite (119 tests):
 ```bash
 pytest
 ```
