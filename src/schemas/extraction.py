@@ -124,7 +124,44 @@ class ReceptorSignal(BaseModel):
     # ...
 
 class NewsEntities(BaseModel):
-    geography: List[str] = Field(default_factory=list)
+    geography: List[str] = Field(default_factory=list, description="Geographic regions, e.g. EU, Western Europe")
+    companies: List[str] = Field(default_factory=list, description="Identified companies, e.g. ArcelorMittal, BASF, RWE")
+    countries: List[str] = Field(default_factory=list, description="Identified countries, e.g. Germany, France, China")
+    sectors: List[str] = Field(default_factory=list, description="Identified industry sectors or NACE codes")
+
+class EconomicAction(BaseModel):
+    """Specific commercial or policy action taken by an economic actor"""
+    action_type: str = Field(..., description="Type: PRODUCTION_CUT, CAPEX_INVESTMENT, PRICE_REVISION, TARIFF_IMPOSITION, SUBSIDY_PROGRAM, FACILITY_SHUTDOWN, CONTRACT_SIGNING, REGULATORY_MANDATE")
+    actor: str = Field(..., description="Company, country, or institution taking the action")
+    target: str = Field(default="", description="Affected facility, product, sector, or market")
+    description: str = Field(default="", description="Summary of the action taken")
+    magnitude: Optional[float] = Field(default=None, description="Numeric magnitude if stated")
+    unit: Optional[str] = Field(default=None, description="Unit of measurement (PERCENT, EUR, EUR/t, TONNES, MW)")
+
+class EconomicReaction(BaseModel):
+    """Direct market or operational response to an action or shock"""
+    reaction_type: str = Field(..., description="Type: PRICE_CHANGE, SUPPLY_SHIFT, DEMAND_CHANGE, COMPLIANCE_COST_SHIFT, MARKET_VOLATILITY, INVENTORY_DRAWDOWN")
+    affected_entity: str = Field(..., description="Asset, commodity, sector, or market responding")
+    direction: str = Field(default="STABLE", description="INCREASE, DECREASE, STABLE, VOLATILE")
+    magnitude: Optional[float] = Field(default=None, description="Numeric magnitude if stated")
+    unit: Optional[str] = Field(default=None, description="Unit (PERCENT, EUR, EUR/t, EUR/MWh)")
+    timeframe: str = Field(default="IMMEDIATE", description="IMMEDIATE, 3_MONTHS, 1_YEAR, LONG_TERM")
+    confidence: float = Field(default=0.8, description="Confidence score 0.0 to 1.0")
+
+class StructuredEconomicEvent(BaseModel):
+    """Normalized structured economic event extracted from news"""
+    event_id: str = Field(..., description="Deterministic unique event ID")
+    timestamp: str = Field(..., description="Publication / event timestamp (ISO YYYY-MM-DD)")
+    headline: str = Field(..., description="News headline / title")
+    source_url: str = Field(default="", description="Source article URL")
+    source_name: str = Field(default="News", description="Source agency / publisher")
+    summary: str = Field(default="", description="Article summary or excerpt")
+    actors: NewsEntities = Field(default_factory=NewsEntities, description="Identified economic actors")
+    actions: List[EconomicAction] = Field(default_factory=list, description="Extracted commercial or policy actions")
+    reactions: List[EconomicReaction] = Field(default_factory=list, description="Extracted market reactions")
+    receptor_signal: Optional[str] = Field(default=None, description="Root cause event / receptor signal")
+    target_asset: Optional[str] = Field(default=None, description="Primary impacted asset or sector")
+    relevance_score: float = Field(default=1.0, description="Relevance score 0.0 to 1.0")
 
 # Note: StructuredImpact moved to line 42 with enhanced qualitative fields.
 # Re-defining here for NewsExtraction to use correct version.
@@ -149,11 +186,13 @@ class StructuredImpactNews(BaseModel):
 
 class NewsExtraction(BaseModel):
     semantic_summary: str
-    impact_date: Optional[str]
-    receptor_signal: Optional[ReceptorSignal]
-    structured_impact: Optional[StructuredImpactNews]  # Changed to enhanced version
-    entities: Optional[NewsEntities]
-    relevance_score: float
+    impact_date: Optional[str] = None
+    receptor_signal: Optional[ReceptorSignal] = None
+    structured_impact: Optional[StructuredImpactNews] = None  # Changed to enhanced version
+    entities: Optional[NewsEntities] = None
+    actions: List[EconomicAction] = Field(default_factory=list)
+    reactions: List[EconomicReaction] = Field(default_factory=list)
+    relevance_score: float = 1.0
 
 class PaperExtraction(BaseModel):
     """Research Paper Extraction - Basic (for causal links only)"""

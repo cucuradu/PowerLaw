@@ -8,7 +8,7 @@ import os
 import sys
 import json
 import re
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 from json_repair import repair_json
 import lancedb
 from pathlib import Path
@@ -24,7 +24,6 @@ from concurrent.futures import ThreadPoolExecutor
 from src.utils.api_wrapper import get_embedding, get_completion_with_json, upload_to_gemini, get_completion_multimodal
 from src.utils.minio_client import upload_law_pdf
 # NEW IMPORTS
-from src.schemas.lancedb import LawChunk
 from src.schemas.lancedb import LawChunk
 from src.schemas.rule_schema import GNNRule, GNNRuleList
 from src.prompts.rule_extraction import RULES_EXTRACTION_SYSTEM_PROMPT

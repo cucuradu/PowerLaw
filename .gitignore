@@ -1,7 +1,37 @@
+# Environment & Secrets
 .env
-storage/
-__pycache__/
-*.pyc
-.venv/
+.env.*
+!.env.example
+
+# Databases & Large Data
+/storage/
 data/
+*.parquet
+*.lance
+*.npz
+
+# Logs & Runtime
 logs/
+*.log
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

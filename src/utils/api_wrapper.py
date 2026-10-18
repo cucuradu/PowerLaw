@@ -68,7 +68,7 @@ def initialize_api() -> None:
         )
     
     genai.configure(api_key=GOOGLE_API_KEY)
-    print("✅ Google AI API initialized")
+    print("[OK] Google AI API initialized")
 
 
 # Retry decorator optimized for PAID tier
@@ -354,22 +354,23 @@ def test_api_connection() -> bool:
         
         # Test LLM Flash
         test_response = get_completion("Say 'OK' and nothing else.")
-        print(f"  ✅ LLM Flash test: {test_response.strip()}")
+        print(f"  [OK] LLM Flash test: {test_response.strip()}")
         
-        print("✅ All API tests passed!")
+        print("[OK] All API tests passed!")
         return True
     
     except Exception as e:
-        print(f"❌ API test failed: {e}")
+        print(f"[ERROR] API test failed: {e}")
         return False
 
 
-# Auto-initialize on import
+# Auto-initialize on import if API key is configured
 try:
-    initialize_api()
+    if GOOGLE_API_KEY:
+        initialize_api()
 except Exception as e:
-    print(f"⚠️  Warning: Could not auto-initialize API: {e}")
-    print("   Call initialize_api() manually with proper GOOGLE_API_KEY")
+    print(f"[WARNING] Could not auto-initialize API: {e}")
+    print("          Call initialize_api() manually with proper GOOGLE_API_KEY")
 
 
 if __name__ == "__main__":

@@ -38,19 +38,24 @@ class NewsItem(LanceModel):
     
     # --- SEARCH LAYER ---
     semantic_summary: str   # Renamed from summary per request
+    headline: str = ""      # Article headline
     
     # --- CONTEXT LAYER ---
-    source_url: str         # Renamed from minio_path (can serve as both or URL)
-    source_name: str        # e.g. "Reuters", "Financial Times"
+    source_url: str = ""    # Renamed from minio_path (can serve as both or URL)
+    source_name: str = ""   # e.g. "Reuters", "Financial Times"
     entities: NewsEntities  # Nested Pydantic Model instead of Dict
     
+    # --- ACTIONS & REACTIONS (Structured Economic Events) ---
+    actions_json: str = "[]"      # JSON list of EconomicAction
+    reactions_json: str = "[]"    # JSON list of EconomicReaction
+    
     # --- CAUSAL LAYER (GNN Input) ---
-    receptor_signal_json: str   # JSON of ReceptorSignal
+    receptor_signal_json: str = "{}"   # JSON of ReceptorSignal
     
     # --- MARKET LAYER (GNN Output) ---
-    structured_impact_json: str # JSON of StructuredImpactNews 
+    structured_impact_json: str = "{}" # JSON of StructuredImpactNews 
     
-    impact_date: str        # Kept for sorting
+    impact_date: str = ""        # Kept for sorting
 
 # 3A. RESEARCH PAPERS (Document Layer + Economic Insights)
 class ResearchPaper(LanceModel):
