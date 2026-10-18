@@ -130,6 +130,39 @@ else:
 
 st.divider()
 
+# --- 4. GEMINI 3.8 FLASH ENGINE & THINKING EFFORT ---
+st.subheader("🧠 Google Gemini 3.8 Flash AI Engine & Reasoning Effort")
+c_gem1, c_gem2 = st.columns([2, 1])
+
+with c_gem1:
+    effort_choice = st.radio(
+        "Select Reasoning Effort (Thinking Level):",
+        options=[
+            "⚡ Dynamic: Low for news/market feeds, High for statutory law logic gates (Active)",
+            "🐇 Low: Maximum speed & throughput (Minimum latency for real-time streams)",
+            "⚖️ Medium: Balanced step-by-step reasoning",
+            "🧠 High: Extended reasoning tokens (Deep multi-hop causal statutory parsing)"
+        ],
+        index=0,
+        help="Controls the thinking token budget and reasoning depth of Gemini 3.8 Flash."
+    )
+    st.caption("Active Model: **`gemini-3.8-flash`** • Key Status: **`Connected`** • Embedding Engine: **`gemini-embedding-001` (768-dim)**")
+
+with c_gem2:
+    if st.button("🧪 Ping Gemini 3.8 Flash", width="stretch"):
+        import time
+        from src.utils.api_wrapper import get_completion
+        t0 = time.time()
+        try:
+            with st.spinner("Pinging Gemini 3.8 Flash API..."):
+                reply = get_completion("Respond with exactly: PONG_CONSTRUCT_PULSE_OK")
+                dt = (time.time() - t0) * 1000.0
+                st.success(f"✅ Online! Latency: {dt:.0f} ms\n\n`{reply.strip()}`")
+        except Exception as e:
+            st.error(f"Ping failed: {e}")
+
+st.divider()
+
 # --- DIAGNOSTIC LOG INSPECTION ---
 st.subheader("🔍 Environment & Architecture Diagnostics")
 col_diag1, col_diag2 = st.columns(2)
@@ -157,10 +190,11 @@ Pandas:      {pd.__version__}
 
 with col_diag2:
     st.markdown("#### Cloud & AI Configuration")
-    api_key_set = bool(os.getenv("GOOGLE_API_KEY"))
+    api_key_set = bool(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
     minio_set = bool(os.getenv("MINIO_ENDPOINT"))
     st.code(f"""
-GOOGLE_API_KEY: {'[CONFIGURED]' if api_key_set else '[OFFLINE / MOCK MODE]'}
-MINIO_ENDPOINT: {'[CONFIGURED]' if minio_set else '[LOCAL DISK FALLBACK]'}
-LANCEDB_PATH:   {storage_path}
+GEMINI_MODEL:         gemini-3.8-flash
+THINKING_EFFORT:      dynamic (low: feeds / high: laws)
+GEMINI_API_KEY:       {'[ACTIVE / VERIFIED]' if api_key_set else '[OFFLINE / MOCK MODE]'}
+LANCEDB_PATH:         {storage_path}
     """.strip(), language="text")

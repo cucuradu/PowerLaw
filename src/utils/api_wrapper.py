@@ -40,6 +40,26 @@ EMBEDDING_MODEL = "models/gemini-embedding-001"  # 768 dimensions
 LLM_FLASH_MODEL = "models/gemini-3.8-flash"      # Fast, high-throughput extraction
 LLM_PRO_MODEL = "models/gemini-3.1-pro-preview"  # Deep Reasoning & Statutory Logic Gates
 
+# Reasoning Effort (Thinking Level) for Gemini 3.8 Flash
+# Options: 'dynamic', 'low', 'medium', 'high'
+GEMINI_THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "dynamic")
+
+
+def resolve_thinking_effort(thinking_level: Optional[str] = None, deep_reasoning: bool = False) -> str:
+    """
+    Resolves the reasoning effort level for Gemini 3.8 Flash:
+    - 'dynamic': 'low' for fast news/market feeds, 'high' for statutory law logic gates and shocks.
+    - 'low': fast extraction, lowest latency.
+    - 'medium': balanced reasoning.
+    - 'high': extended reasoning tokens.
+    """
+    level = (thinking_level or os.getenv("GEMINI_THINKING_LEVEL", "dynamic")).lower()
+    if level == "dynamic":
+        return "high" if deep_reasoning else "low"
+    if level in ["low", "medium", "high"]:
+        return level
+    return "low"
+
 # Safety settings - BLOCK_NONE for enterprise control
 SAFETY_SETTINGS = {
     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -174,35 +194,26 @@ def get_embeddings_batch(
 def get_completion(
     prompt: str, 
     use_pro: bool = False,
-    max_output_tokens: Optional[int] = None
+    max_output_tokens: Optional[int] = None,
+    thinking_level: Optional[str] = None
 ) -> str:
     """
-    Get LLM completion using Gemini models
+    Get LLM completion using Gemini 3.8 Flash with Dynamic Thinking Effort.
     
     Args:
         prompt: Input prompt for the model
-        use_pro: If True, use Gemini 1.5 Pro (complex reasoning)
-                 If False, use Gemini 1.5 Flash (fast, bulk operations)
+        use_pro: If True, use deep statutory reasoning profile (Gemini 3.8 Flash high effort)
         max_output_tokens: Maximum tokens in response (None = model default)
+        thinking_level: Reasoning effort ('dynamic', 'low', 'medium', 'high')
     
     Returns:
         Generated text completion
-    
-    Example:
-        >>> # Fast extraction
-        >>> response = get_completion("Extract the date from: 2023-01-15")
-        
-        >>> # Complex reasoning
-        >>> response = get_completion(
-        ...     "Analyze the legal implications...",
-        ...     use_pro=True
-        ... )
     """
     if not prompt or not prompt.strip():
         raise ValueError("Prompt cannot be empty")
     
-    # Select model based on complexity
-    model_name = LLM_PRO_MODEL if use_pro else LLM_FLASH_MODEL
+    effort = resolve_thinking_effort(thinking_level, deep_reasoning=use_pro)
+    model_name = LLM_FLASH_MODEL
     
     # Create generation config
     gen_config = GENERATION_CONFIG.copy()
@@ -234,31 +245,26 @@ def get_completion(
 def get_completion_with_json(
     prompt: str,
     use_pro: bool = False,
-    response_schema: Optional[Any] = None
+    response_schema: Optional[Any] = None,
+    thinking_level: Optional[str] = None
 ) -> str:
     """
-    Get LLM completion with JSON mode enabled
-    Ensures output is valid JSON, optionally complying with a Pydantic schema
+    Get LLM completion with JSON mode enabled and Dynamic Thinking Effort.
     
     Args:
         prompt: Input prompt (should request JSON output)
-        use_pro: If True, use Pro model, else Flash
+        use_pro: If True, use deep statutory reasoning profile
         response_schema: Optional Pydantic model class or schema dict
+        thinking_level: Reasoning effort ('dynamic', 'low', 'medium', 'high')
     
     Returns:
         JSON string response
-    
-    Example:
-        >>> response = get_completion_with_json(
-        ...     'Extract entities...',
-        ...     response_schema=MyPydanticModel
-        ... )
     """
     if not prompt or not prompt.strip():
         raise ValueError("Prompt cannot be empty")
     
-    # Select model
-    model_name = LLM_PRO_MODEL if use_pro else LLM_FLASH_MODEL
+    effort = resolve_thinking_effort(thinking_level, deep_reasoning=use_pro)
+    model_name = LLM_FLASH_MODEL
     
     # Create generation config with JSON mode
     gen_config = GENERATION_CONFIG.copy()
