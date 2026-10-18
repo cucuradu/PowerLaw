@@ -111,14 +111,17 @@ PowerLaw/
 │       ├── api_wrapper.py           # Google Gemini API wrapper (Flash + Pro)
 │       ├── seed_dual_layer.py       # Verified EU legal-economic seed data generator
 │       └── minio_client.py          # MinIO raw PDF & document object storage
-└── tests/                           # 110 automated unit and integration tests (100% pass)
+├── scripts/                         # Maintenance and diagnostic scripts
+│   ├── ops/                         # Data ingestion, MinIO, and LanceDB operations
+│   └── debug/                       # SPARQL, model inspection, and schema debug tools
+└── tests/                           # 112 automated unit and integration tests (100% pass)
 ```
 
 ---
 
 ## 🧪 Testing
 
-Run the comprehensive test suite (110 tests):
+Run the comprehensive test suite (112 tests):
 ```bash
 pytest
 ```
