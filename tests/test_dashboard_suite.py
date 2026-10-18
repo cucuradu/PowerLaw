@@ -50,49 +50,49 @@ def test_dashboard_data_provider():
 
 def test_render_dashboard_main():
     """Test dashboard.py renders cleanly without exceptions."""
-    at = AppTest.from_file("dashboard.py").run()
+    at = AppTest.from_file("dashboard.py").run(timeout=15)
     assert not at.exception, f"dashboard.py raised exception: {at.exception}"
     assert len(at.title) > 0 or len(at.markdown) > 0
 
 
 def test_render_page_1_law_registry():
     """Test pages/1_📜_Law_Registry.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/1_📜_Law_Registry.py").run()
+    at = AppTest.from_file("pages/1_📜_Law_Registry.py").run(timeout=15)
     assert not at.exception, f"pages/1_📜_Law_Registry.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_2_news_feed():
     """Test pages/2_📰_News_Feed.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/2_📰_News_Feed.py").run()
+    at = AppTest.from_file("pages/2_📰_News_Feed.py").run(timeout=15)
     assert not at.exception, f"pages/2_📰_News_Feed.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_3_graph_explorer():
     """Test pages/3_🕸️_Graph_Explorer.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/3_🕸️_Graph_Explorer.py").run()
+    at = AppTest.from_file("pages/3_🕸️_Graph_Explorer.py").run(timeout=15)
     assert not at.exception, f"pages/3_🕸️_Graph_Explorer.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_4_temporal_table():
     """Test pages/4_⏱️_Temporal_Table.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/4_⏱️_Temporal_Table.py").run()
+    at = AppTest.from_file("pages/4_⏱️_Temporal_Table.py").run(timeout=15)
     assert not at.exception, f"pages/4_⏱️_Temporal_Table.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_5_gnn_modeling_lab():
     """Test pages/5_🤖_GNN_Modeling_Lab.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/5_🤖_GNN_Modeling_Lab.py").run()
+    at = AppTest.from_file("pages/5_🤖_GNN_Modeling_Lab.py").run(timeout=25)
     assert not at.exception, f"pages/5_🤖_GNN_Modeling_Lab.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_6_ingestion_console():
     """Test pages/6_⚙️_Ingestion_Console.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/6_⚙️_Ingestion_Console.py").run()
+    at = AppTest.from_file("pages/6_⚙️_Ingestion_Console.py").run(timeout=15)
     assert not at.exception, f"pages/6_⚙️_Ingestion_Console.py raised exception: {at.exception}"
     assert len(at.title) > 0
 

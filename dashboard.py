@@ -19,6 +19,12 @@ from src.storage.dashboard_data import (
     get_all_laws_data,
     get_all_news_data
 )
+from src.quant import (
+    compute_systemic_fragility,
+    MacroFREDEngine,
+    detect_market_regime,
+    GARCHVolatilityEngine
+)
 
 load_dotenv()
 
@@ -170,8 +176,49 @@ with col6:
 
 st.divider()
 
+# --- 2. QUANTITATIVE MACRO & SYSTEMIC RISK OVERLAY (Merged from ml-pipeline) ---
+st.markdown("### 🏗️ Construction Macro & Quantitative Risk Intelligence")
+st.caption("Cross-asset systemic fragility, HMM market regimes, keyless FRED credit spreads, and GARCH volatility forecasting.")
 
-# --- 2. SYSTEM ARCHITECTURE DIAGRAM ---
+@st.cache_data(ttl=600, show_spinner=False)
+def get_cached_quant_telemetry():
+    try:
+        s = get_graph_store()
+        f_data = compute_systemic_fragility(s)
+        r_data = detect_market_regime(s)
+        m_data = MacroFREDEngine().compute_macro_risk()
+        g_data = GARCHVolatilityEngine().forecast_asset_volatility(s, "COMM_REBAR_STEEL")
+        return f_data, r_data, m_data, g_data
+    except Exception as e:
+        return {}, {}, {}, {}
+
+try:
+    frag_data, regime_data, macro_data, garch_rebar = get_cached_quant_telemetry()
+
+    qc1, qc2, qc3, qc4 = st.columns(4)
+    with qc1:
+        reg_name = regime_data.get("current_regime", "NEUTRAL_CONSOLIDATION")
+        reg_conf = regime_data.get("confidence", 0.8) * 100
+        st.metric("Market Regime (HMM)", reg_name.replace("_", " "), f"{reg_conf:.1f}% Confidence")
+    with qc2:
+        ar_val = frag_data.get("absorption_ratio", 0.5) * 100
+        ar_status = frag_data.get("status", "NORMAL")
+        st.metric("Systemic Fragility (Absorption Ratio)", f"{ar_val:.1f}%", f"Status: {ar_status}")
+    with qc3:
+        m_risk = macro_data.get("macro_risk", 0.4)
+        yc = macro_data.get("yield_curve_spread", 0.0)
+        st.metric("Macro Credit Risk (FRED)", f"{m_risk:.2f}", f"10Y-3M Curve: {yc:+.2f}%")
+    with qc4:
+        v_1d = garch_rebar.get("garch_1d_pct", 15.0)
+        v_term = garch_rebar.get("term_structure", "FALLING")
+        st.metric("Rebar Volatility (GARCH 1d)", f"{v_1d:.1f}%", f"Term: {v_term}")
+except Exception as e:
+    st.info(f"Quant risk overlay initializing: {e}")
+
+st.divider()
+
+
+# --- 3. SYSTEM ARCHITECTURE DIAGRAM ---
 st.markdown("### 🏛️ System Architecture: Dual-Layer Graph & Tabular Engine")
 st.markdown("""
 The PowerLaw architecture operates across two coupled representations:

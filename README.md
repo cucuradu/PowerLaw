@@ -1,6 +1,7 @@
-# PowerLaw: Dual-Layer Legal & Economic Platform
+# PowerLaw: Dual-Layer Legal, Economic & Supply Chain Platform
+### *Specialized Intelligence for the Construction & Building Materials Sector*
 
-An AI-driven platform that converts unstructured EU legislation and economic news into an executable, **Dual-Layer Knowledge Graph & Temporal Tabular System** ready for Graph Neural Networks (GNNs).
+An AI-driven platform that converts unstructured EU legislation, supply chain disruptions, and market indicators into an executable, **Dual-Layer Knowledge Graph & Temporal Tabular System** equipped with **Quantitative Fragility Models & GNN Forecasters**.
 
 ```
                           ┌──────────────────────────────────────────────┐
@@ -94,7 +95,13 @@ PowerLaw/
 │   │   ├── eurlex.py                # Direct CELEX PDF downloader
 │   │   ├── eurlex_bulk.py           # SPARQL bulk harvester for EU Publications Office
 │   │   ├── eurlex_history.py        # Historical EU legislation scraper
-│   │   └── news_scraper.py          # Real-time trade, energy, and commodity RSS scraper
+│   │   ├── news_scraper.py          # Real-time trade, energy, and commodity RSS scraper
+│   │   └── market_data.py           # Live Yahoo Finance ingestion for European construction leaders
+│   ├── quant/                       # Quantitative Risk & Financial Macro Suite
+│   │   ├── fragility.py             # Kritzman (2010) PCA Absorption Ratio (Systemic Fragility)
+│   │   ├── macro_fred.py            # Keyless FRED Yield Curve, HY OAS, NFCI stress tracker
+│   │   ├── regime_hmm.py            # 4-State Gaussian HMM market regime classifier
+│   │   └── volatility_garch.py      # GARCH(1,1) forward term-structure volatility model
 │   ├── schemas/
 │   │   ├── graph_temporal.py        # LawNode, ActionNode, ReactionNode, SectorNode schemas
 │   │   ├── rule_schema.py           # GNNRule & executable logic gates (MAX_LIMIT, etc.)
@@ -116,14 +123,14 @@ PowerLaw/
 ├── scripts/                         # Maintenance and diagnostic scripts
 │   ├── ops/                         # Data ingestion, MinIO, and LanceDB operations
 │   └── debug/                       # SPARQL, model inspection, and schema debug tools
-└── tests/                           # 119 automated unit and integration tests (100% pass)
+└── tests/                           # 123 automated unit and integration tests (100% pass)
 ```
 
 ---
 
 ## 🧪 Testing
 
-Run the comprehensive test suite (119 tests):
+Run the comprehensive test suite (123 tests):
 ```bash
 pytest
 ```

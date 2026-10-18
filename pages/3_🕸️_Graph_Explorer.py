@@ -3,6 +3,7 @@ PowerLaw Graph Explorer & Topology Suite
 Interactive Network Visualization via PyVis & NetworkX with Power-Law Analytics
 """
 
+import os
 import json
 import streamlit as st
 import pandas as pd
@@ -12,9 +13,17 @@ import altair as alt
 import plotly.express as px
 import streamlit.components.v1 as components
 from pyvis.network import Network
+from pathlib import Path
 
 from src.storage.dashboard_data import get_graph_store
-from src.models.dual_layer_model import NodeType, EdgeRelation
+from src.models.dual_layer_model import (
+    GraphNode,
+    GraphEdge,
+    NodeStateRecord,
+    NodeType,
+    EdgeRelation
+)
+from scripts.export_graph_viz import export_graph_visualization
 
 st.set_page_config(
     page_title="Dual-Layer Graph Explorer",
@@ -191,132 +200,174 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- PYVIS INTERACTIVE VISUALIZER ---
-if len(filtered_G.nodes()) == 0:
-    st.info("No nodes match the selected filters. Please adjust the filters in the sidebar.")
-else:
-    net = Network(
-        height=f"{canvas_height}px",
-        width="100%",
-        bgcolor="#0B0F19",
-        font_color="#F3F4F6",
-        directed=True
+# --- ENGINE SELECTION ---
+col_eng, col_dl1, col_dl2 = st.columns([2, 1, 1])
+with col_eng:
+    engine_mode = st.radio(
+        "Interactive Engine",
+        ["⚡ High-Performance Updatable Canvas (HTML5)", "🕸️ 3D / PyVis Network View"],
+        horizontal=True
     )
 
-    # Degrees for scaling
-    in_degrees = dict(filtered_G.in_degree())
-    out_degrees = dict(filtered_G.out_degree())
-    total_degrees = dict(filtered_G.degree())
-    max_deg = max(total_degrees.values()) if total_degrees else 1
+# Ensure interactive graph HTML exists
+html_viz_path = Path("visualizations/interactive_graph.html")
+if not html_viz_path.exists():
+    export_graph_visualization()
 
-    # Add Nodes
-    for node_id, data in filtered_G.nodes(data=True):
-        ntype = data.get("node_type", "UNKNOWN")
-        color = NODE_COLORS.get(ntype, "#94A3B8")
-        deg = total_degrees.get(node_id, 1)
-        
-        # Node size based on degree
-        size = 16 + int(24 * (deg / max(max_deg, 1)))
+with open(html_viz_path, "r", encoding="utf-8") as f:
+    updatable_html_content = f.read()
 
-        label = data.get("label", node_id)
-        # Shorten label for cleaner canvas display
-        display_label = label if len(label) <= 24 else f"{label[:21]}..."
+json_viz_path = Path("visualizations/graph_data.json")
+json_data_content = json_viz_path.read_text(encoding="utf-8") if json_viz_path.exists() else "{}"
 
-        tooltip = f"""
-        <div style='font-family: sans-serif; font-size: 12px; color: #111827; background: #FFFFFF; padding: 8px; border-radius: 4px;'>
-            <strong>{label}</strong><br/>
-            <b>ID:</b> {node_id}<br/>
-            <b>Type:</b> {ntype}<br/>
-            <b>In-Degree:</b> {in_degrees.get(node_id, 0)} | <b>Out-Degree:</b> {out_degrees.get(node_id, 0)}<br/>
-            <b>Jurisdiction:</b> {data.get('jurisdiction', 'EU')}<br/>
-            <b>Description:</b> {data.get('description', '')[:160]}...
-        </div>
-        """
+with col_dl1:
+    st.download_button(
+        label="📥 Standalone HTML",
+        data=updatable_html_content,
+        file_name="powerlaw_interactive_graph.html",
+        mime="text/html",
+        use_container_width=True
+    )
 
-        net.add_node(
-            node_id,
-            label=display_label,
-            title=tooltip,
-            color=color,
-            size=size,
-            borderWidth=2,
-            borderWidthSelected=4,
-            shape="dot"
+with col_dl2:
+    st.download_button(
+        label="📥 Graph JSON",
+        data=json_data_content,
+        file_name="powerlaw_graph_data.json",
+        mime="application/json",
+        use_container_width=True
+    )
+
+
+# --- RENDER SELECTED VISUALIZER ---
+if engine_mode == "⚡ High-Performance Updatable Canvas (HTML5)":
+    # Embed the high-performance self-contained updatable canvas
+    components.html(updatable_html_content, height=canvas_height + 40, scrolling=False)
+else:
+    # PyVis Network View
+    if len(filtered_G.nodes()) == 0:
+        st.info("No nodes match the selected filters. Please adjust the filters in the sidebar.")
+    else:
+        net = Network(
+            height=f"{canvas_height}px",
+            width="100%",
+            bgcolor="#0B0F19",
+            font_color="#F3F4F6",
+            directed=True
         )
 
-    # Add Edges
-    for u, v, data in filtered_G.edges(data=True):
-        rel = data.get("relation_type", "RELATED")
-        edge_color = EDGE_COLORS.get(rel, "#94A3B8")
-        weight = data.get("weight", 1.0)
+        # Degrees for scaling
+        in_degrees = dict(filtered_G.in_degree())
+        out_degrees = dict(filtered_G.out_degree())
+        total_degrees = dict(filtered_G.degree())
+        max_deg = max(total_degrees.values()) if total_degrees else 1
 
-        edge_tooltip = f"<b>{u}</b> ➔ <b>{v}</b><br/>Relation: <b>{rel}</b><br/>Weight: {weight}"
-        if data.get("timestamp"):
-            edge_tooltip += f"<br/>Active Since: {data['timestamp']}"
+        # Add Nodes
+        for node_id, data in filtered_G.nodes(data=True):
+            ntype = data.get("node_type", "UNKNOWN")
+            color = NODE_COLORS.get(ntype, "#94A3B8")
+            deg = total_degrees.get(node_id, 1)
+            size = 16 + int(24 * (deg / max(max_deg, 1)))
 
-        net.add_edge(
-            u,
-            v,
-            title=edge_tooltip,
-            label=rel,
-            color=edge_color,
-            arrows="to",
-            width=1.5 if abs(weight) <= 1.0 else 2.5,
-            font={"size": 9, "color": "#94A3B8", "strokeWidth": 0}
-        )
+            label = data.get("label", node_id)
+            display_label = label if len(label) <= 24 else f"{label[:21]}..."
 
-    # PyVis Physics Options
-    net.set_options("""
-    {
-      "physics": {
-        "forceAtlas2Based": {
-          "gravitationalConstant": -50,
-          "centralGravity": 0.01,
-          "springLength": 100,
-          "springConstant": 0.08,
-          "damping": 0.4
-        },
-        "maxVelocity": 50,
-        "solver": "forceAtlas2Based",
-        "timestep": 0.35,
-        "stabilization": {"iterations": 150}
-      },
-      "interaction": {
-        "hover": true,
-        "navigationButtons": true,
-        "tooltipDelay": 150,
-        "hideEdgesOnDrag": false
-      }
-    }
-    """)
+            tooltip = f"""
+            <div style='font-family: sans-serif; font-size: 12px; color: #111827; background: #FFFFFF; padding: 8px; border-radius: 4px;'>
+                <strong>{label}</strong><br/>
+                <b>ID:</b> {node_id}<br/>
+                <b>Type:</b> {ntype}<br/>
+                <b>In-Degree:</b> {in_degrees.get(node_id, 0)} | <b>Out-Degree:</b> {out_degrees.get(node_id, 0)}<br/>
+                <b>Jurisdiction:</b> {data.get('jurisdiction', 'EU')}<br/>
+                <b>Description:</b> {data.get('description', '')[:160]}...
+            </div>
+            """
 
-    # Render HTML in Streamlit (with inlined bindings to avoid 404 in iframe)
-    html_content = net.generate_html()
-    try:
-        import pyvis
-        pyvis_dir = os.path.dirname(pyvis.__file__)
-        utils_path = os.path.join(pyvis_dir, "lib", "bindings", "utils.js")
-        if os.path.exists(utils_path):
-            with open(utils_path, "r", encoding="utf-8") as f:
-                utils_js = f.read()
-            html_content = html_content.replace(
-                '<script src="lib/bindings/utils.js"></script>',
-                f'<script type="text/javascript">\n{utils_js}\n</script>'
+            net.add_node(
+                node_id,
+                label=display_label,
+                title=tooltip,
+                color=color,
+                size=size,
+                borderWidth=2,
+                borderWidthSelected=4,
+                shape="dot"
             )
-    except Exception:
-        pass
-    components.html(html_content, height=canvas_height + 10, scrolling=False)
+
+        # Add Edges
+        for u, v, data in filtered_G.edges(data=True):
+            rel = data.get("relation_type", "RELATED")
+            edge_color = EDGE_COLORS.get(rel, "#94A3B8")
+            weight = data.get("weight", 1.0)
+
+            edge_tooltip = f"<b>{u}</b> ➔ <b>{v}</b><br/>Relation: <b>{rel}</b><br/>Weight: {weight}"
+            if data.get("timestamp"):
+                edge_tooltip += f"<br/>Active Since: {data['timestamp']}"
+
+            net.add_edge(
+                u,
+                v,
+                title=edge_tooltip,
+                label=rel,
+                color=edge_color,
+                arrows="to",
+                width=1.5 if abs(weight) <= 1.0 else 2.5,
+                font={"size": 9, "color": "#94A3B8", "strokeWidth": 0}
+            )
+
+        # PyVis Physics Options
+        net.set_options("""
+        {
+          "physics": {
+            "forceAtlas2Based": {
+              "gravitationalConstant": -50,
+              "centralGravity": 0.01,
+              "springLength": 100,
+              "springConstant": 0.08,
+              "damping": 0.4
+            },
+            "maxVelocity": 50,
+            "solver": "forceAtlas2Based",
+            "timestep": 0.35,
+            "stabilization": {"iterations": 150}
+          },
+          "interaction": {
+            "hover": true,
+            "navigationButtons": true,
+            "tooltipDelay": 150,
+            "hideEdgesOnDrag": false
+          }
+        }
+        """)
+
+        html_content = net.generate_html()
+        try:
+            import pyvis
+            pyvis_dir = os.path.dirname(pyvis.__file__)
+            utils_path = os.path.join(pyvis_dir, "lib", "bindings", "utils.js")
+            if os.path.exists(utils_path):
+                with open(utils_path, "r", encoding="utf-8") as f:
+                    utils_js = f.read()
+                html_content = html_content.replace(
+                    '<script src="lib/bindings/utils.js"></script>',
+                    f'<script type="text/javascript">\n{utils_js}\n</script>'
+                )
+        except Exception:
+            pass
+        components.html(html_content, height=canvas_height + 10, scrolling=False)
 
 
 st.divider()
 
 
-# --- BOTTOM TABS: POWER-LAW ANALYTICS & NODE INSPECTOR ---
-g_tab1, g_tab2, g_tab3 = st.tabs([
+# --- BOTTOM TABS: POWER-LAW ANALYTICS, NODE INSPECTOR, LIVE AUTHORING ---
+g_tab1, g_tab2, g_tab3, g_tab4 = st.tabs([
     "📐 Power-Law & Centrality Analytics",
     "🔍 Node Inspector",
-    "📑 Subgraph Edge Matrix"
+    "📑 Subgraph Edge Matrix",
+    "✏️ Live Database Authoring Studio"
 ])
+
 
 
 # ============================================================================
@@ -436,3 +487,112 @@ with g_tab3:
         })
     df_edges = pd.DataFrame(edge_records)
     st.dataframe(df_edges, width="stretch", height=400)
+
+
+# ============================================================================
+# TAB 4: LIVE DATABASE AUTHORING STUDIO
+# ============================================================================
+with g_tab4:
+    st.subheader("✏️ Live Graph Authoring & LanceDB Injection Studio")
+    st.markdown("""
+    Inject new statutory regulations, industry actions, market shocks, and commodity metrics directly 
+    into the **LanceDB Dual-Layer Store**. Changes immediately re-compile and sync with both the **Topological Graph** 
+    and the **High-Performance Canvas**.
+    """)
+
+    auth_col1, auth_col2, auth_col3 = st.columns(3)
+
+    # 1. Inject Node
+    with auth_col1:
+        st.markdown("#### ➕ 1. Inject Graph Node")
+        with st.form("form_inject_node", clear_on_submit=True):
+            new_label = st.text_input("Entity Label", placeholder="e.g. EU Low-Carbon Cement Mandate 2027")
+            new_type = st.selectbox(
+                "Node Type",
+                ["LAW", "ACTION", "REACTION", "COMMODITY", "SECTOR", "ECONOMIC_INDEX"],
+                index=2
+            )
+            new_id = st.text_input("Custom ID (Optional)", placeholder="Auto-generated if empty")
+            new_desc = st.text_area("Description / Rationale", placeholder="Explain compliance obligation or market effect...")
+            new_juris = st.text_input("Jurisdiction", value="EU")
+            new_date = st.date_input("Activation Date")
+            submit_node = st.form_submit_button("💾 Save Node to Database", use_container_width=True)
+
+            if submit_node and new_label:
+                node_id = new_id.strip() if new_id.strip() else f"{new_type}_{new_label.upper().replace(' ', '_')[:20]}_{int(pd.Timestamp.now().timestamp()) % 10000}"
+                node_obj = GraphNode(
+                    id=node_id,
+                    label=new_label.strip(),
+                    node_type=NodeType(new_type),
+                    description=new_desc.strip(),
+                    jurisdiction=new_juris.strip(),
+                    activation_date=str(new_date)
+                )
+                store.add_node(node_obj)
+                store.save()
+                export_graph_visualization()
+                st.success(f"✅ Injected Node `{node_id}` into LanceDB!")
+                st.rerun()
+
+    # 2. Connect Edge
+    with auth_col2:
+        st.markdown("#### 🔗 2. Connect Causal Edge")
+        with st.form("form_inject_edge", clear_on_submit=True):
+            all_ids = sorted([n.id for n in raw_nodes])
+            src_choice = st.selectbox("Source (Driver / Cause)", all_ids, index=0 if all_ids else 0)
+            tgt_choice = st.selectbox("Target (Impacted / Receiver)", all_ids, index=min(1, len(all_ids)-1) if all_ids else 0)
+            rel_choice = st.selectbox(
+                "Relation Type",
+                ["MANDATES", "TRIGGERS", "AFFECTS", "IMPACTS", "REGULATES", "CAUSES"],
+                index=1
+            )
+            edge_w = st.slider("Causal Weight (Impact Scale)", min_value=0.1, max_value=5.0, value=1.5, step=0.1)
+            submit_edge = st.form_submit_button("🔗 Connect Causal Relation", use_container_width=True)
+
+            if submit_edge:
+                if src_choice == tgt_choice:
+                    st.error("Cannot connect a node to itself.")
+                else:
+                    edge_obj = GraphEdge(
+                        source_id=src_choice,
+                        target_id=tgt_choice,
+                        relation_type=EdgeRelation(rel_choice),
+                        weight=float(edge_w),
+                        timestamp=pd.Timestamp.now().strftime("%Y-%m-%d")
+                    )
+                    store.add_edge(edge_obj)
+                    store.save()
+                    export_graph_visualization()
+                    st.success(f"✅ Connected `{src_choice}` ➔ `{tgt_choice}` ({rel_choice})!")
+                    st.rerun()
+
+    # 3. Log Tabular State Metric
+    with auth_col3:
+        st.markdown("#### ⏱️ 3. Log Tabular State Metric")
+        with st.form("form_inject_state", clear_on_submit=True):
+            all_ids = sorted([n.id for n in raw_nodes])
+            state_target = st.selectbox("Target Node", all_ids, index=0 if all_ids else 0)
+            state_val = st.selectbox("State Category", ["ACTIVE", "PEAK", "TARGET_MET", "REVISED", "STRESS"], index=0)
+            metric_n = st.text_input("Metric Name", placeholder="e.g. spot_price, compliance_cost")
+            metric_v = st.number_input("Metric Value", value=100.0, step=1.0)
+            metric_u = st.text_input("Unit", value="EUR/t")
+            state_notes = st.text_area("State Summary / Event Notes", placeholder="e.g. Market quotation update after CBAM review")
+            submit_state = st.form_submit_button("⏱️ Record in Tabular Ledger", use_container_width=True)
+
+            if submit_state:
+                target_node_obj = store.get_node(state_target)
+                rec = NodeStateRecord(
+                    node_id=state_target,
+                    node_type=target_node_obj.node_type if target_node_obj else NodeType.ACTION,
+                    state_value=state_val,
+                    metric_name=metric_n.strip() or "spot_metric",
+                    metric_value=float(metric_v),
+                    unit=metric_u.strip(),
+                    notes=state_notes.strip(),
+                    timestamp=pd.Timestamp.now().strftime("%Y-%m-%d")
+                )
+                store.add_state_record(rec)
+                store.save()
+                export_graph_visualization()
+                st.success(f"✅ Recorded state entry for `{state_target}` in LanceDB!")
+                st.rerun()
