@@ -80,7 +80,19 @@ class MacroFREDEngine:
 
         # Fallback offline defaults if network unreachable
         if any(s is None for s in [dgs10, dgs3m, hy_oas]):
-            return self._generate_fallback_macro_state()
+            from src.config import get_settings
+            settings = get_settings()
+            if settings.mode == "demo":
+                return self._generate_fallback_macro_state()
+            return {
+                "status": "unavailable",
+                "macro_risk": None,
+                "crash_risk": None,
+                "yield_curve_spread": None,
+                "hy_oas_spread": None,
+                "nfci_index": None,
+                "error": "FRED series unreachable and synthetic fallback is disabled in production"
+            }
 
         # 1. Yield Curve (10Y - 3M)
         common_idx = dgs10.index.intersection(dgs3m.index)

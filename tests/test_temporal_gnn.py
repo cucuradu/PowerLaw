@@ -17,14 +17,15 @@ import torch
 
 from src.gnn.temporal_gnn import GraphConvLayer, TemporalLawReactionGNN, HAS_TORCH
 from src.gnn.trainer import TGNNTrainer
-from src.storage.dashboard_data import get_graph_store
+from src.storage.dashboard_data import get_demo_graph_store
 from src.storage.graph_store import DualLayerGraphStore
 
 
 @pytest.fixture
-def sample_graph_store(tmp_path):
+def sample_graph_store(tmp_path, monkeypatch):
     """Instantiates a populated graph store with seed data for tests."""
-    return get_graph_store()
+    monkeypatch.setenv("POWERLAW_MODE", "demo")
+    return get_demo_graph_store(storage_dir=str(tmp_path / "gnn_db"))
 
 
 def test_has_torch():
@@ -137,7 +138,7 @@ def test_counterfactual_shock_simulation(sample_graph_store):
     trainer = TGNNTrainer(sample_graph_store, hidden_dim=32)
     trainer.train(epochs=5)
 
-    shock_node = "LAW_32023R0956_CBAM"
+    shock_node = "LAW_32023R0956"
     shocks = trainer.simulate_shock(shock_node, shock_magnitude=20.0)
 
     assert isinstance(shocks, pd.DataFrame)

@@ -38,10 +38,16 @@ from src.schemas.rule_schema import (
     ConditionalTrigger
 )
 
+from src.config import get_settings
+
 logger = logging.getLogger(__name__)
 
+def get_configured_db_path() -> Path:
+    """Return canonical LanceDB path from centralized Settings."""
+    return get_settings().lancedb_path
+
 # Directory configuration
-DEFAULT_DB_PATH = os.getenv("LANCEDB_PATH", "data/lancedb")
+DEFAULT_DB_PATH = str(get_configured_db_path())
 NEWS_DIR = Path("data/raw/news")
 
 
@@ -740,24 +746,43 @@ def build_seed_dual_layer_store(store: DualLayerGraphStore) -> None:
 
 _CACHED_GRAPH_STORES: Dict[str, DualLayerGraphStore] = {}
 
-def get_graph_store(storage_dir: str = DEFAULT_DB_PATH) -> DualLayerGraphStore:
-    """Retrieve or initialize the DualLayerGraphStore per storage_dir with seed data."""
+def get_graph_store(storage_dir: Optional[str] = None) -> DualLayerGraphStore:
+    """Retrieve or initialize the DualLayerGraphStore per storage_dir.
+    In production mode, empty stores remain empty. In demo mode, benchmark seeds are injected."""
+    if storage_dir is None:
+        storage_dir = str(get_configured_db_path())
     abs_dir = str(Path(storage_dir).resolve())
     if abs_dir in _CACHED_GRAPH_STORES:
         return _CACHED_GRAPH_STORES[abs_dir]
 
     store = DualLayerGraphStore(storage_dir=storage_dir)
 
-    # If completely empty, inject seed dataset
-    if len(store.get_nodes()) == 0 or len(store.get_edges()) == 0:
-        build_seed_dual_layer_store(store)
+    settings = get_settings()
+    # If completely empty and in demo mode, inject seed dataset
+    if settings.mode == "demo":
+        if len(store.get_nodes()) == 0 or len(store.get_edges()) == 0:
+            build_seed_dual_layer_store(store)
 
     _CACHED_GRAPH_STORES[abs_dir] = store
     return store
 
 
-def ensure_structured_rules_table(storage_dir: str = DEFAULT_DB_PATH) -> None:
+def get_demo_graph_store(storage_dir: Optional[str] = None) -> DualLayerGraphStore:
+    """Explicitly retrieve or initialize a demo DualLayerGraphStore with seed data."""
+    if storage_dir is None:
+        storage_dir = str(get_configured_db_path())
+    abs_dir = str(Path(storage_dir).resolve())
+    store = DualLayerGraphStore(storage_dir=storage_dir)
+    if len(store.get_nodes()) == 0 or len(store.get_edges()) == 0:
+        build_seed_dual_layer_store(store)
+    _CACHED_GRAPH_STORES[abs_dir] = store
+    return store
+
+
+def ensure_structured_rules_table(storage_dir: Optional[str] = None) -> None:
     """Ensure LanceDB structured_rules table is initialized."""
+    if storage_dir is None:
+        storage_dir = str(get_configured_db_path())
     try:
         import lancedb
         db = lancedb.connect(storage_dir)
@@ -769,37 +794,41 @@ def ensure_structured_rules_table(storage_dir: str = DEFAULT_DB_PATH) -> None:
             tables = db.table_names()
 
         if "structured_rules" not in tables:
-            rows = []
-            for item in BENCHMARK_RULES_SEED:
-                rule_obj = item["rule"]
-                rows.append({
-                    "vector": [0.0] * 768,
-                    "law_id": item["law_id"],
-                    "chunk_id": item["chunk_id"],
-                    "summary": item["summary"],
-                    "minio_path": f"minio://laws/{item['law_id']}.pdf",
-                    "source_url": item["source_url"],
-                    "gnn_rule_json": json.dumps(rule_obj),
-                    "rule_type": item["rule_type"],
-                    "jurisdiction": item["jurisdiction"],
-                    "valid_from": item["valid_from"],
-                    "valid_to": item["valid_to"],
-                    "citations": [],
-                    "entity_types_json": "[]",
-                    "numeric_constraints_json": "[]"
-                })
-            db.create_table("structured_rules", data=pd.DataFrame(rows), mode="overwrite")
-            logger.info("Initialized LanceDB structured_rules table.")
+            settings = get_settings()
+            if settings.mode == "demo":
+                rows = []
+                for item in BENCHMARK_RULES_SEED:
+                    rule_obj = item["rule"]
+                    rows.append({
+                        "vector": [0.0] * 768,
+                        "law_id": item["law_id"],
+                        "chunk_id": item["chunk_id"],
+                        "summary": item["summary"],
+                        "minio_path": f"minio://laws/{item['law_id']}.pdf",
+                        "source_url": item["source_url"],
+                        "gnn_rule_json": json.dumps(rule_obj),
+                        "rule_type": item["rule_type"],
+                        "jurisdiction": item["jurisdiction"],
+                        "valid_from": item["valid_from"],
+                        "valid_to": item["valid_to"],
+                        "citations": [],
+                        "entity_types_json": "[]",
+                        "numeric_constraints_json": "[]"
+                    })
+                db.create_table("structured_rules", data=pd.DataFrame(rows), mode="overwrite")
+                logger.info("Initialized LanceDB structured_rules table with benchmark seeds.")
     except Exception as e:
         logger.warning(f"Could not initialize LanceDB structured_rules: {e}")
 
 
-def get_all_laws_data(storage_dir: str = DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
+def get_all_laws_data(storage_dir: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Retrieve structured laws and rules.
     Attempts to read from LanceDB table 'structured_rules' first,
-    otherwise returns the comprehensive benchmark seed rules.
+    otherwise returns the comprehensive benchmark seed rules in demo mode.
     """
+    if storage_dir is None:
+        storage_dir = str(get_configured_db_path())
     ensure_structured_rules_table(storage_dir)
     # 1. Try LanceDB if populated
     try:
@@ -836,8 +865,11 @@ def get_all_laws_data(storage_dir: str = DEFAULT_DB_PATH) -> List[Dict[str, Any]
     except Exception as e:
         logger.debug(f"LanceDB direct lookup skipped: {e}")
 
-    # 2. Return Benchmark seed corpus
-    return list(BENCHMARK_RULES_SEED)
+    # 2. Return Benchmark seed corpus only in demo mode
+    settings = get_settings()
+    if settings.mode == "demo":
+        return list(BENCHMARK_RULES_SEED)
+    return []
 
 
 def get_all_news_data() -> List[Dict[str, Any]]:
@@ -851,9 +883,13 @@ def get_all_news_data() -> List[Dict[str, Any]]:
         except Exception as e:
             logger.warning(f"Failed to read news from {news_file}: {e}")
 
+    settings = get_settings()
     if not articles:
-        from src.scrapers.news_scraper import FALLBACK_NEWS_CORPUS
-        articles = list(FALLBACK_NEWS_CORPUS)
+        if settings.mode == "demo":
+            from src.scrapers.news_scraper import FALLBACK_NEWS_CORPUS
+            articles = list(FALLBACK_NEWS_CORPUS)
+        else:
+            return []
 
     # Normalize fields for unified consumption
     normalized = []

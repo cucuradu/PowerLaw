@@ -123,14 +123,14 @@ PowerLaw/
 ├── scripts/                         # Maintenance and diagnostic scripts
 │   ├── ops/                         # Data ingestion, MinIO, and LanceDB operations
 │   └── debug/                       # SPARQL, model inspection, and schema debug tools
-└── tests/                           # 123 automated unit and integration tests (100% pass)
+└── tests/                           # 135 automated unit and integration tests (100% pass)
 ```
 
 ---
 
 ## 🧪 Testing
 
-Run the comprehensive test suite (123 tests):
+Run the comprehensive test suite (135 tests):
 ```bash
 pytest
 ```
@@ -142,5 +142,13 @@ pytest -v
 
 ---
 
-## ⚖️ Legal & Compliance
-Official EU legal acts published on EUR-Lex are open for commercial and non-commercial re-use under **Commission Decision 2011/833/EU** and licensed under **Creative Commons Attribution 4.0 International (CC BY 4.0)**. Text and data mining (TDM) is explicitly protected under **Articles 3 & 4 of Directive (EU) 2019/790**.
+## ⚖️ Legal, Data Sources & Re-use Policy
+
+All tracked data sources adhere to the strict **Free-Source Policy** (`access_fee=0`, `requires_paid_subscription=false`):
+
+- **EUR-Lex / Publications Office**: Public European Union legal acts, metadata, and notices are re-usable under [Commission Decision 2011/833/EU](https://eur-lex.europa.eu/content/legal-notice/legal-notice.html?locale=en). Certain third-party content or non-standard provisions may have specific exceptions detailed in the [EUR-Lex Legal Notice](https://eur-lex.europa.eu/content/legal-notice/legal-notice.html?locale=en).
+- **Statistisches Bundesamt (Destatis)**: Official German construction producer and material price indices (family 61261) under *Datenlizenz Deutschland - Namensnennung 2.0* ([dl-de/by-2-0](https://www.destatis.de/DE/Service/OpenData/nutzungsbedingungen.html)).
+- **Eurostat**: European statistical datasets re-usable under the [European Commission open data policy](https://ec.europa.eu/eurostat/about-us/policies/copyright).
+- **Deutsche Bundesbank & ECB**: Public SDMX interest rate, financing, and exchange rate series under their respective open statistical dissemination policies.
+- **Bundesnetzagentur (SMARD)**: Electricity market time series re-usable under [Creative Commons Attribution 4.0 (CC BY 4.0)](https://www.smard.de/home/datennutzung) with attribution *Bundesnetzagentur | SMARD.de*.
+- **Official News Discovery**: Public RSS and press corner releases from the European Commission and relevant authorities are tracked for metadata and permitted excerpts only. No proprietary or paywalled news feeds are tracked.

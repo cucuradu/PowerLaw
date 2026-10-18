@@ -80,7 +80,10 @@ st.subheader("1. Node Feature Matrix X ∈ ℝ^(N × D)")
 st.caption("Combines static topological roles (one-hot type, degrees) with behind-the-graph temporal aggregations.")
 
 feature_names = snapshot.get("feature_names", [f"feat_{i}" for i in range(D)])
-feat_df = pd.DataFrame(X, index=snapshot.get("node_ids", []), columns=feature_names)
+if N > 0:
+    feat_df = pd.DataFrame(X, index=snapshot.get("node_ids", []), columns=feature_names)
+else:
+    feat_df = pd.DataFrame(columns=feature_names)
 
 tab_feat1, tab_feat2 = st.tabs(["📊 Feature Matrix Data Table", "🔥 Feature Heatmap"])
 

@@ -243,44 +243,62 @@ class MarketDataIngester:
                 results["edges_added"] += 1
 
             # 3. Fetch Time Series History
+            from src.config import get_settings
+            settings = get_settings()
+
             df = self._fetch_history(ticker, period)
             if df is None or df.empty:
-                df = self._generate_synthetic_history(ticker, currency)
+                if settings.mode == "demo":
+                    df = self._generate_synthetic_history(ticker, currency)
+                else:
+                    if "instruments_failed" not in results:
+                        results["instruments_failed"] = []
+                    results["instruments_failed"].append(ticker)
+                    df = None
 
             # Sample records
-            df = df.iloc[::sample_step_days] if len(df) > sample_step_days else df
+            records_count = 0
+            if df is not None and not df.empty:
+                df = df.iloc[::sample_step_days] if len(df) > sample_step_days else df
 
-            batch_records = []
-            for dt, row in df.iterrows():
-                dt_str = str(dt)[:10]
-                close_val = float(row.get("Close", 0.0))
-                volume_val = float(row.get("Volume", 0.0))
-                ret_val = float(row.get("Return_Pct", 0.0))
+                batch_records = []
+                for dt, row in df.iterrows():
+                    dt_str = str(dt)[:10]
+                    close_val = float(row.get("Close", 0.0))
+                    volume_val = float(row.get("Volume", 0.0))
+                    ret_val = float(row.get("Return_Pct", 0.0))
 
-                rec = NodeStateRecord(
-                    node_id=node_id,
-                    node_type=node_type,
-                    timestamp=dt_str,
-                    state_value="ACTIVE",
-                    metric_name="price",
-                    metric_value=close_val,
-                    delta=round(ret_val, 2),
-                    unit=currency,
-                    source_id=ticker,
-                    source_type="MARKET_INDEX",
-                    notes=f"{label} closing price: {close_val:.2f} {currency} (Weekly Return: {ret_val:+.2f}%)"
-                )
-                batch_records.append(rec)
+                    rec = NodeStateRecord(
+                        node_id=node_id,
+                        node_type=node_type,
+                        timestamp=dt_str,
+                        state_value="ACTIVE",
+                        metric_name="price",
+                        metric_value=close_val,
+                        delta=round(ret_val, 2),
+                        unit=currency,
+                        source_id=ticker,
+                        source_type="MARKET_INDEX",
+                        notes=f"{label} closing price: {close_val:.2f} {currency} (Weekly Return: {ret_val:+.2f}%)"
+                    )
+                    batch_records.append(rec)
 
-            if batch_records:
-                self.store.add_state_records_batch(batch_records)
-                records_count = len(batch_records)
+                if batch_records:
+                    self.store.add_state_records_batch(batch_records)
+                    records_count = len(batch_records)
 
             results["history_rows_added"] += records_count
             results["instruments_processed"].append({"ticker": ticker, "records": records_count})
 
         # Save to disk
         self.store.save()
+        failed_count = len(results.get("instruments_failed", []))
+        if failed_count == len(TRACKED_INSTRUMENTS):
+            results["status"] = "unavailable"
+        elif failed_count > 0:
+            results["status"] = "partial_failure"
+        else:
+            results["status"] = "success"
         return results
 
     def _fetch_history(self, ticker: str, period: str) -> Optional[pd.DataFrame]:

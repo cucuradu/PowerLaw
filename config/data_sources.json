@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0",
+  "updated_at": "2026-10-18T17:20:00Z",
+  "policy": {
+    "require_zero_access_fee": true,
+    "disallow_paid_subscriptions": true,
+    "disallow_proprietary_benchmarks": true,
+    "automatic_paid_fallback_allowed": false
+  },
+  "primary_target": {
+    "target_id": "DE_CONSTRUCTION_PPI_RESIDENTIAL_NEW_Q",
+    "provider": "DESTATIS_GENESIS",
+    "table_id": "61261-0002",
+    "family_id": "61261",
+    "name": "Baupreisindex für den Neubau von Wohngebäuden (einschl. USt)",
+    "description": "Quarterly producer/output price index for new construction of residential buildings in Germany (including VAT), measuring prices charged by building contractors for construction work on building structures.",
+    "building_type": "Wohngebäude insgesamt (einschl. Umsatzsteuer)",
+    "work_type": "Bauleistungen am Bauwerk",
+    "measurement_kind": "PRODUCER_PRICE_INDEX",
+    "geography": "DE",
+    "base_period": "2021=100",
+    "frequency": "QUARTERLY",
+    "reference_months": ["February", "May", "August", "November"],
+    "tax_treatment": "INCLUDING_VAT",
+    "comparable_eurostat_code": "sts_copi_q",
+    "prohibited_substitutions": [
+      "CONSTRUCTION_INPUT_COST_INDEX",
+      "MATERIAL_PPI",
+      "HOUSE_PRICE_INDEX",
+      "CONSUMER_PRICE_INDEX",
+      "EQUITY_STOCK_PRICE"
+    ]
+  },
+  "sources": {
+    "DESTATIS_GENESIS": {
+      "name": "Federal Statistical Office of Germany (Destatis) GENESIS-Online",
+      "category": "OFFICIAL_STATISTICS",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "rights": "Datenlizenz Deutschland - Namensnennung 2.0 (dl-de/by-2-0)",
+      "terms_url": "https://www.destatis.de/DE/Service/OpenData/nutzungsbedingungen.html",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "Statistisches Bundesamt (Destatis)",
+      "auth_method": "FREE_REGISTRATION",
+      "release_cadence": "QUARTERLY_AND_MONTHLY",
+      "allowable_delay_days": 15,
+      "source_owner": "Statistisches Bundesamt",
+      "enabled": false,
+      "endpoints": {
+        "rest_post_data": "https://genesis.destatis.de/genesisWS/rest/2020/data/tablefile"
+      },
+      "series_keys": {
+        "primary_construction_target": "61261-0002",
+        "material_ppi_metals": "61241-0004",
+        "material_ppi_minerals": "61241-0006"
+      }
+    },
+    "EUROSTAT_STS": {
+      "name": "Eurostat Short-Term Business Statistics (STS)",
+      "category": "OFFICIAL_STATISTICS",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "rights": "European Union open data policy / reuse under Commission Decision 2011/833/EU",
+      "terms_url": "https://ec.europa.eu/eurostat/about-us/policies/copyright",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "Eurostat",
+      "auth_method": "NONE",
+      "release_cadence": "MONTHLY_AND_QUARTERLY",
+      "allowable_delay_days": 30,
+      "source_owner": "European Commission (Eurostat)",
+      "enabled": false,
+      "endpoints": {
+        "api_v2": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data"
+      },
+      "series_keys": {
+        "construction_producer_prices_quarterly": "sts_copi_q",
+        "industrial_producer_prices_domestic_monthly": "sts_inppd_m",
+        "construction_production_monthly": "sts_copr_m",
+        "building_permits_monthly": "sts_cobp_m"
+      }
+    },
+    "ECB_SDMX": {
+      "name": "European Central Bank Data Portal SDMX REST API",
+      "category": "FINANCIAL_CONTEXT",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "rights": "ECB open data policy - free reuse with attribution",
+      "terms_url": "https://data.ecb.europa.eu/help/terms",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "European Central Bank",
+      "auth_method": "NONE",
+      "release_cadence": "DAILY_AND_MONTHLY",
+      "allowable_delay_days": 5,
+      "source_owner": "European Central Bank",
+      "enabled": false,
+      "endpoints": {
+        "sdmx_rest": "https://data-api.ecb.europa.eu/service/data"
+      },
+      "series_keys": {
+        "eur_usd_exchange_rate": "EXR.D.USD.EUR.SP00.A",
+        "bank_lending_rates_corporations": "MIR.M.U2.B.A20.A.R.A.2240.EUR.N"
+      }
+    },
+    "BUNDESBANK_SDMX": {
+      "name": "Deutsche Bundesbank SDMX Web Service",
+      "category": "FINANCIAL_CONTEXT",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "rights": "Free reuse for public statistical data with attribution",
+      "terms_url": "https://www.bundesbank.de/en/statistics/time-series-databases/help-for-sdmx-web-service",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "Deutsche Bundesbank",
+      "auth_method": "NONE",
+      "release_cadence": "MONTHLY",
+      "allowable_delay_days": 10,
+      "source_owner": "Deutsche Bundesbank",
+      "enabled": false,
+      "endpoints": {
+        "sdmx_rest": "https://api.statistiken.bundesbank.de/rest/data"
+      },
+      "series_keys": {
+        "housing_loan_rates_germany": "BBSIS.M.I.ZST.WZ.EUR.A.A.A.000000.G.C.A.A._Z._Z.A"
+      }
+    },
+    "SMARD_DE": {
+      "name": "Bundesnetzagentur Electricity Market Platform (SMARD)",
+      "category": "ENERGY_CONTEXT",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "rights": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "terms_url": "https://www.smard.de/home/datennutzung",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "Bundesnetzagentur | SMARD.de",
+      "auth_method": "NONE",
+      "release_cadence": "DAILY",
+      "allowable_delay_days": 3,
+      "source_owner": "Bundesnetzagentur",
+      "enabled": false,
+      "endpoints": {
+        "download_center": "https://www.smard.de/en/downloadcenter"
+      },
+      "series_keys": {
+        "wholesale_power_price_germany_luxembourg": "MARKET_DATA_DAY_AHEAD_DE_LU"
+      }
+    },
+    "EURLEX_CELLAR": {
+      "name": "Publications Office of the EU - CELLAR SPARQL & Metadata",
+      "category": "LEGAL_REGULATORY",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "rights": "Reuse under Commission Decision 2011/833/EU with attribution",
+      "terms_url": "https://eur-lex.europa.eu/content/legal-notice/legal-notice.html?locale=en",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "European Union, https://eur-lex.europa.eu, 1998-2026",
+      "auth_method": "NONE",
+      "release_cadence": "DAILY",
+      "allowable_delay_days": 7,
+      "source_owner": "Publications Office of the European Union",
+      "enabled": false,
+      "endpoints": {
+        "cellar_sparql": "https://publications.europa.eu/webapi/rdf/sparql"
+      },
+      "series_keys": {
+        "celex_corpus": "CORE_CONSTRUCTION_ACTS"
+      }
+    },
+    "OFFICIAL_NEWS": {
+      "name": "European Commission & Authority Press Feeds",
+      "category": "DISCOVERY_NEWS",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "rights": "Official public press releases; metadata discovery and permitted excerpts only",
+      "terms_url": "https://ec.europa.eu/info/legal-notice_en",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "European Commission Press Corner",
+      "auth_method": "NONE",
+      "release_cadence": "HOURLY",
+      "allowable_delay_days": 2,
+      "source_owner": "European Commission",
+      "enabled": false,
+      "endpoints": {
+        "presscorner_rss": "https://ec.europa.eu/commission/presscorner/api/rss?language=en",
+        "trade_rss": "https://policy.trade.ec.europa.eu/rss_en",
+        "single_market_rss": "https://single-market-economy.ec.europa.eu/rss_en"
+      },
+      "series_keys": {}
+    },
+    "GISCO_GEOGRAPHY": {
+      "name": "GISCO Geographical Information and Maps",
+      "category": "GEOGRAPHIC_IDENTITY",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "rights": "Free public download for administrative/territorial boundaries with attribution",
+      "terms_url": "https://ec.europa.eu/eurostat/web/gisco/geodata/statistical-units/territorial-units-statistics",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "Eurostat / GISCO",
+      "auth_method": "NONE",
+      "release_cadence": "ANNUAL",
+      "allowable_delay_days": 365,
+      "source_owner": "Eurostat",
+      "enabled": false,
+      "endpoints": {
+        "nuts_boundary_json": "https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_20M_2024_4326.geojson"
+      },
+      "series_keys": {}
+    }
+  }
+}

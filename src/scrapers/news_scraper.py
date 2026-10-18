@@ -713,9 +713,9 @@ class EconomicNewsScraper:
         offline: bool = False
     ):
         self.data_dir = Path(data_dir)
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        
-        self.lancedb_path = Path(lancedb_path or os.getenv("LANCEDB_PATH", "./storage/lancedb"))
+        from src.config import get_settings
+        settings = get_settings()
+        self.lancedb_path = Path(lancedb_path) if lancedb_path else settings.lancedb_path
         self.graph_store = graph_store
         self.use_llm = use_llm
         self.offline = offline
@@ -1454,8 +1454,14 @@ class EconomicNewsScraper:
                 )
                 events.append(evt)
         else:
-            logger.info("Live RSS feeds returned 0 articles (or offline). Loading benchmark seed generator.")
-            events = self.generate_offline_seeds(count=len(FALLBACK_NEWS_CORPUS), save_to_lancedb=False)
+            from src.config import get_settings
+            settings = get_settings()
+            if settings.mode == "demo" or self.offline:
+                logger.info("Live RSS feeds returned 0 articles (or offline). Loading benchmark seed generator.")
+                events = self.generate_offline_seeds(count=len(FALLBACK_NEWS_CORPUS), save_to_lancedb=False)
+            else:
+                logger.warning("Live RSS feeds returned 0 articles in production mode. Zero synthetic events generated.")
+                return []
 
         # Cache events to disk
         self.cache_to_disk(events)

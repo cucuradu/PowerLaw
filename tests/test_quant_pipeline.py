@@ -12,7 +12,7 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from src.storage.dashboard_data import get_graph_store
+from src.storage.dashboard_data import get_demo_graph_store
 from src.quant.fragility import compute_systemic_fragility
 from src.quant.macro_fred import MacroFREDEngine
 from src.quant.regime_hmm import ConstructionRegimeHMM, detect_market_regime
@@ -20,8 +20,9 @@ from src.quant.volatility_garch import GARCHVolatilityEngine
 
 
 @pytest.fixture
-def populated_store():
-    return get_graph_store()
+def populated_store(tmp_path, monkeypatch):
+    monkeypatch.setenv("POWERLAW_MODE", "demo")
+    return get_demo_graph_store(storage_dir=str(tmp_path / "quant_db"))
 
 
 def test_systemic_fragility(populated_store):

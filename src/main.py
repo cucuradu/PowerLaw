@@ -75,7 +75,11 @@ def extract_tables_from_pdf(pdf_path: Path) -> str:
 load_dotenv()
 
 # Configuration
-LANCEDB_PATH = Path(os.getenv("LANCEDB_PATH", "./storage/lancedb"))
+def get_configured_db_path() -> Path:
+    from src.config import get_settings
+    return get_settings().lancedb_path
+
+LANCEDB_PATH = get_configured_db_path()
 LAW_DIR = Path("data/raw/laws")
 TABLE_NAME = "structured_rules"
 WORKERS = 4
@@ -101,7 +105,7 @@ class LawIngestionPipeline:
         self.setup_db()
         
     def setup_db(self):
-        self.db = lancedb.connect(str(LANCEDB_PATH))
+        self.db = lancedb.connect(str(get_configured_db_path()))
         
         if TABLE_NAME in self.db.table_names():
             self.table = self.db.open_table(TABLE_NAME)

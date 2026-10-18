@@ -8,10 +8,28 @@ import pytest
 from streamlit.testing.v1 import AppTest
 from src.storage.dashboard_data import (
     get_graph_store,
+    get_demo_graph_store,
     get_system_kpis,
     get_all_laws_data,
-    get_all_news_data
+    get_all_news_data,
+    _CACHED_GRAPH_STORES
 )
+import src.config
+
+
+@pytest.fixture(autouse=True)
+def setup_demo_environment(tmp_path, monkeypatch):
+    """Isolate dashboard tests to explicit temporary demo storage with demo seeds."""
+    demo_db = tmp_path / "demo_lancedb"
+    demo_db.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("POWERLAW_MODE", "demo")
+    monkeypatch.setenv("LANCEDB_PATH", str(demo_db))
+    src.config.clear_settings_cache()
+    _CACHED_GRAPH_STORES.clear()
+    get_demo_graph_store(storage_dir=str(demo_db))
+    yield
+    _CACHED_GRAPH_STORES.clear()
+    src.config.clear_settings_cache()
 
 
 def test_dashboard_data_provider():
