@@ -33,6 +33,8 @@ class NodeType(str, Enum):
     SECTOR = "SECTOR"
     COMMODITY = "COMMODITY"
     ECONOMIC_INDEX = "ECONOMIC_INDEX"
+    COMPANY = "COMPANY"
+    GEOGRAPHY = "GEOGRAPHY"
 
 
 def _is_nan(val: Any) -> bool:
@@ -189,6 +191,20 @@ class EconomicIndexNode(BaseGraphNode):
     node_type: str = Field(default="ECONOMIC_INDEX", description="ECONOMIC_INDEX node type")
 
 
+class CompanyNode(BaseGraphNode):
+    """
+    Corporate or Economic Entity Node (e.g. Heidelberg Materials, Hochtief).
+    """
+    node_type: str = Field(default="COMPANY", description="COMPANY node type")
+
+
+class GeographyNode(BaseGraphNode):
+    """
+    Geographic Jurisdiction or Spatial Node (e.g. DE, EU, DE-BY).
+    """
+    node_type: str = Field(default="GEOGRAPHY", description="GEOGRAPHY node type")
+
+
 # Registry for instantiating concrete node subclasses by type string
 NODE_CLASS_REGISTRY = {
     "LAW": LawNode,
@@ -197,6 +213,8 @@ NODE_CLASS_REGISTRY = {
     "SECTOR": SectorNode,
     "COMMODITY": CommodityNode,
     "ECONOMIC_INDEX": EconomicIndexNode,
+    "COMPANY": CompanyNode,
+    "GEOGRAPHY": GeographyNode,
 }
 
 
@@ -223,6 +241,14 @@ class EdgeRelation(str, Enum):
     IMPACTS = "IMPACTS"
     CAUSES = "CAUSES"
     AFFECTS = "AFFECTS"
+    PERFORMS = "PERFORMS"
+    BELONGS_TO = "BELONGS_TO"
+    ABOUT = "ABOUT"
+    LOCATED_IN = "LOCATED_IN"
+    WITHIN = "WITHIN"
+    MEASURES = "MEASURES"
+    FLOWS_TO = "FLOWS_TO"
+    APPLIES_IN = "APPLIES_IN"
 
 
 class GraphEdge(LanceModel):

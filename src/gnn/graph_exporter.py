@@ -139,15 +139,7 @@ class GNNGraphExporter:
         NodeType.ECONOMIC_INDEX
     ]
 
-    EDGE_RELATIONS: List[EdgeRelation] = [
-        EdgeRelation.MANDATES,
-        EdgeRelation.TRIGGERS,
-        EdgeRelation.REGULATES,
-        EdgeRelation.AFFECTS,
-        EdgeRelation.IMPACTS,
-        EdgeRelation.CAUSES,
-        EdgeRelation.AMENDS
-    ]
+    EDGE_RELATIONS: List[EdgeRelation] = list(EdgeRelation)
 
     COMMON_STATES: List[str] = [
         "ACTIVE",

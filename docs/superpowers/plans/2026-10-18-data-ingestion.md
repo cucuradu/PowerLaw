@@ -104,11 +104,11 @@ The design's [concrete fix register](../specs/2026-10-18-data-ingestion-design.m
 
 **Interfaces:** `SourceDocument`, `Entity`, `EntityAlias`, `Fact`, `EvidenceLink`, `SeriesDefinition`, `Observation`, `QualityDecision`, `BatchManifest`, `DatasetManifest`, `PredictionRecord` implement the technical architecture's canonical tables/fields. `stable_id(namespace: str, *parts: str) -> str` uses SHA-256. `validate_candidate(candidate: Fact | Observation, source: SourceDocument) -> QualityDecision` returns `accepted`, `needs_review`, `rejected`, or `out_of_scope` plus reason codes.
 
-- [ ] Write tests asserting identity is identical across two Python processes; exact duplicate releases share IDs; corrections change version IDs; null quantity remains null; missing dates do not become today/1900; fraction/percent/percentage-point are distinct; original units survive normalization.
-- [ ] Test public availability versus reference time using a March observation first released in May and revised in June: unavailable in April, first version in May, revised version in June. A legacy value without vintage evidence is not eligible before first fetch.
-- [ ] Run `python -m pytest tests/test_ingestion_schema.py -q` and confirm failure, then implement schemas and pure validation/identity functions. Add COMPANY and GEOGRAPHY plus the technical architecture's factual, geographic and measurement relations to both vocabularies and conversion tests; validate entity versus edge namespaces and supported endpoints.
-- [ ] Permit non-numeric legal obligations; preserve conditions/exception structures and evidence anchors. Update prompt/model mismatches and existing fixtures without weakening boundaries to arbitrary accepted strings.
-- [ ] Run `python -m pytest tests/test_ingestion_schema.py tests/test_schema.py tests/test_dual_layer_model.py tests/test_edge_cases.py -q`; review serialization/round trips and commit.
+- [x] Write tests asserting identity is identical across two Python processes; exact duplicate releases share IDs; corrections change version IDs; null quantity remains null; missing dates do not become today/1900; fraction/percent/percentage-point are distinct; original units survive normalization.
+- [x] Test public availability versus reference time using a March observation first released in May and revised in June: unavailable in April, first version in May, revised version in June. A legacy value without vintage evidence is not eligible before first fetch.
+- [x] Run `python -m pytest tests/test_ingestion_schema.py -q` and confirm failure, then implement schemas and pure validation/identity functions. Add COMPANY and GEOGRAPHY plus the technical architecture's factual, geographic and measurement relations to both vocabularies and conversion tests; validate entity versus edge namespaces and supported endpoints.
+- [x] Permit non-numeric legal obligations; preserve conditions/exception structures and evidence anchors. Update prompt/model mismatches and existing fixtures without weakening boundaries to arbitrary accepted strings.
+- [x] Run `python -m pytest tests/test_ingestion_schema.py tests/test_schema.py tests/test_dual_layer_model.py tests/test_edge_cases.py -q`; review serialization/round trips and commit.
 
 ## Task 3: One durable store, version-aware reads and reversible migration
 

@@ -19,16 +19,27 @@ class NodeType(str, Enum):
     SECTOR = "SECTOR"
     COMMODITY = "COMMODITY"
     ECONOMIC_INDEX = "ECONOMIC_INDEX"
+    COMPANY = "COMPANY"
+    GEOGRAPHY = "GEOGRAPHY"
 
 
 class EdgeRelation(str, Enum):
-    MANDATES = "MANDATES"       # Law -> Action
-    TRIGGERS = "TRIGGERS"       # Action -> Reaction (or Reaction -> Action)
-    REGULATES = "REGULATES"     # Law/Action -> Sector or Commodity
-    AFFECTS = "AFFECTS"         # Action -> Sector/Commodity
-    IMPACTS = "IMPACTS"         # Reaction -> Commodity, Sector, or Metric
-    CAUSES = "CAUSES"           # Reaction -> Reaction
-    AMENDS = "AMENDS"           # Law -> Law
+    MANDATES = "MANDATES"             # Law -> Action
+    TRIGGERS = "TRIGGERS"             # Action -> Reaction (or Reaction -> Action)
+    REGULATES = "REGULATES"           # Law/Action -> Sector or Commodity
+    AFFECTS = "AFFECTS"               # Action -> Sector/Commodity
+    AFFECTS_COST_OF = "AFFECTS_COST_OF" # Factor/Law/Action -> Cost of Material
+    IMPACTS = "IMPACTS"               # Reaction -> Commodity, Sector, or Metric
+    CAUSES = "CAUSES"                 # Reaction -> Reaction
+    AMENDS = "AMENDS"                 # Law -> Law
+    PERFORMS = "PERFORMS"             # Company -> Action
+    BELONGS_TO = "BELONGS_TO"         # Company -> Sector
+    ABOUT = "ABOUT"                   # Action/Reaction/Index -> Sector/Commodity/Company
+    LOCATED_IN = "LOCATED_IN"         # Entity -> Geography
+    WITHIN = "WITHIN"                 # Geography -> Geography (Hierarchy)
+    MEASURES = "MEASURES"             # Economic Index -> Commodity/Sector/Target
+    FLOWS_TO = "FLOWS_TO"             # Trade/Material -> Geography
+    APPLIES_IN = "APPLIES_IN"         # Law -> Geography
 
 
 class Strictness(str, Enum):
