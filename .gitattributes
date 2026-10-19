@@ -1,0 +1,8 @@
+# Normalize source text to LF in the repository and working tree.
+* text=auto eol=lf
+
+# Fixtures are byte-exact evidence: config/data_sources.json pins their SHA-256.
+tests/fixtures/** -text
+*.zip binary
+*.png binary
+*.pt binary
