@@ -1,20 +1,23 @@
+from tests.sample_data import get_fixture_graph_store
 """
 Automated Verification & Test Suite for PowerLaw Dashboard
 Tests all pages in dashboard.py and pages/ for clean rendering and execution.
 """
 
 import os
+from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 from src.storage.dashboard_data import (
     get_graph_store,
-    get_demo_graph_store,
     get_system_kpis,
     get_all_laws_data,
     get_all_news_data,
     _CACHED_GRAPH_STORES
 )
 import src.config
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture(autouse=True)
@@ -24,9 +27,10 @@ def setup_demo_environment(tmp_path, monkeypatch):
     demo_db.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("POWERLAW_MODE", "demo")
     monkeypatch.setenv("LANCEDB_PATH", str(demo_db))
+    monkeypatch.setenv("POWERLAW_DATA_DIR", str(tmp_path))
     src.config.clear_settings_cache()
     _CACHED_GRAPH_STORES.clear()
-    get_demo_graph_store(storage_dir=str(demo_db))
+    get_fixture_graph_store(storage_dir=str(demo_db))
     yield
     _CACHED_GRAPH_STORES.clear()
     src.config.clear_settings_cache()
@@ -66,51 +70,53 @@ def test_dashboard_data_provider():
         assert "target_asset" in n
 
 
-def test_render_dashboard_main():
+def test_render_dashboard_main(monkeypatch):
     """Test dashboard.py renders cleanly without exceptions."""
-    at = AppTest.from_file("dashboard.py").run(timeout=15)
+    # Exercise the demo's unavailable-provider path without FRED network retries.
+    monkeypatch.setattr("src.quant.macro_fred.MacroFREDEngine.fetch_fred_series", lambda self, code: None)
+    at = AppTest.from_file(str(REPO_ROOT / "dashboard.py")).run(timeout=15)
     assert not at.exception, f"dashboard.py raised exception: {at.exception}"
     assert len(at.title) > 0 or len(at.markdown) > 0
 
 
 def test_render_page_1_law_registry():
     """Test pages/1_📜_Law_Registry.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/1_📜_Law_Registry.py").run(timeout=15)
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "1_📜_Law_Registry.py")).run(timeout=15)
     assert not at.exception, f"pages/1_📜_Law_Registry.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_2_news_feed():
     """Test pages/2_📰_News_Feed.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/2_📰_News_Feed.py").run(timeout=15)
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "2_📰_News_Feed.py")).run(timeout=15)
     assert not at.exception, f"pages/2_📰_News_Feed.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_3_graph_explorer():
     """Test pages/3_🕸️_Graph_Explorer.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/3_🕸️_Graph_Explorer.py").run(timeout=15)
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "3_🕸️_Graph_Explorer.py")).run(timeout=15)
     assert not at.exception, f"pages/3_🕸️_Graph_Explorer.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_4_temporal_table():
     """Test pages/4_⏱️_Temporal_Table.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/4_⏱️_Temporal_Table.py").run(timeout=15)
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "4_⏱️_Temporal_Table.py")).run(timeout=15)
     assert not at.exception, f"pages/4_⏱️_Temporal_Table.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_5_gnn_modeling_lab():
     """Test pages/5_🤖_GNN_Modeling_Lab.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/5_🤖_GNN_Modeling_Lab.py").run(timeout=25)
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "5_🤖_GNN_Modeling_Lab.py")).run(timeout=25)
     assert not at.exception, f"pages/5_🤖_GNN_Modeling_Lab.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
 def test_render_page_6_ingestion_console():
     """Test pages/6_⚙️_Ingestion_Console.py renders cleanly without exceptions."""
-    at = AppTest.from_file("pages/6_⚙️_Ingestion_Console.py").run(timeout=15)
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "6_⚙️_Ingestion_Console.py")).run(timeout=15)
     assert not at.exception, f"pages/6_⚙️_Ingestion_Console.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
@@ -141,7 +147,7 @@ def test_gnn_tensor_export():
 
 def test_edge_case_law_registry_search_nonexistent():
     """Test Law Registry behavior when search matches zero laws."""
-    at = AppTest.from_file("pages/1_📜_Law_Registry.py")
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "1_📜_Law_Registry.py"))
     at.run()
     if at.sidebar.text_input:
         at.sidebar.text_input[0].input("NONEXISTENT_REGULATION_QUERY_12345").run()
@@ -150,7 +156,7 @@ def test_edge_case_law_registry_search_nonexistent():
 
 def test_edge_case_graph_explorer_filtering():
     """Test Graph Explorer with single node type filter."""
-    at = AppTest.from_file("pages/3_🕸️_Graph_Explorer.py")
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "3_🕸️_Graph_Explorer.py"))
     at.run()
     if at.sidebar.multiselect:
         # Select only LAW nodes
@@ -160,7 +166,7 @@ def test_edge_case_graph_explorer_filtering():
 
 def test_edge_case_temporal_table_slider():
     """Test Temporal Table with earliest date slider selection."""
-    at = AppTest.from_file("pages/4_⏱️_Temporal_Table.py")
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "4_⏱️_Temporal_Table.py"))
     at.run()
     if at.select_slider:
         at.select_slider[0].set_value("2022-01-15").run()
@@ -217,7 +223,7 @@ def test_news_feed_null_delta_resilience(monkeypatch):
     ]
     monkeypatch.setattr(dd, "get_all_news_data", lambda: mock_news)
     
-    at = AppTest.from_file("pages/2_📰_News_Feed.py").run()
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "2_📰_News_Feed.py")).run()
     assert not at.exception, f"News Feed threw on null delta_value: {at.exception}"
 
 
@@ -242,13 +248,13 @@ def test_law_registry_null_rule_resilience(monkeypatch):
     ]
     monkeypatch.setattr(dd, "get_all_laws_data", lambda: mock_laws)
 
-    at = AppTest.from_file("pages/1_📜_Law_Registry.py").run()
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "1_📜_Law_Registry.py")).run()
     assert not at.exception, f"Law Registry threw on null rule: {at.exception}"
 
 
 def test_graph_explorer_ego_network_mode():
     """Verify Graph Explorer ego-network radio option runs without throwing."""
-    at = AppTest.from_file("pages/3_🕸️_Graph_Explorer.py")
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "3_🕸️_Graph_Explorer.py"))
     at.run()
     if at.sidebar.radio:
         # Select Ego-Network (k-Hop Neighborhood)

@@ -82,12 +82,13 @@ class ConstructionRegimeHMM:
         Fits GaussianHMM and predicts current regime and state probabilities.
         """
         if not HAS_HMM or self.scaler is None or GaussianHMM is None or len(feat_df) < 15:
-            # Fallback for sparse history or missing hmmlearn
             return {
-                "current_regime": "NEUTRAL_CONSOLIDATION",
-                "confidence": 0.75,
-                "probabilities": {"BULL_EXPANSION": 0.15, "NEUTRAL_CONSOLIDATION": 0.70, "CAUTION_VOLATILE": 0.10, "DEFENSIVE_STRESS": 0.05},
-                "transition_matrix": []
+                "status": "unavailable",
+                "current_regime": None,
+                "confidence": None,
+                "probabilities": {},
+                "transition_matrix": [],
+                "error": "Insufficient history or HMM dependency unavailable"
             }
 
         X = feat_df[["log_return", "realized_vol", "trend_dist"]].values

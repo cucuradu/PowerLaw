@@ -12,17 +12,15 @@ from unittest.mock import patch, MagicMock
 
 import numpy as np
 
-from src.scrapers.news_scraper import (
-    EconomicNewsScraper,
-    generate_deterministic_embedding,
-    FALLBACK_NEWS_CORPUS
-)
+from src.scrapers.news_scraper import EconomicNewsScraper
+from tests.news_sample_data import make_news_events
 from src.schemas.extraction import (
     NewsEntities,
     EconomicAction,
     EconomicReaction,
     StructuredEconomicEvent
 )
+from src.schemas.ingestion import SourceDocument
 from src.schemas.lancedb import NewsItem
 from src.storage.graph_store import DualLayerGraphStore
 from src.models.dual_layer_model import NodeType, EdgeRelation
@@ -42,21 +40,6 @@ class TestNewsScraper(unittest.TestCase):
 
     def tearDown(self):
         self.temp_dir.cleanup()
-
-    # ---------------------------------------------------------------
-    # 1. Deterministic Embedding Tests
-    # ---------------------------------------------------------------
-    def test_deterministic_embedding(self):
-        text = "European carbon prices surge as ETS auction volumes tighten."
-        vec1 = generate_deterministic_embedding(text, dim=768)
-        vec2 = generate_deterministic_embedding(text, dim=768)
-
-        self.assertEqual(len(vec1), 768)
-        self.assertEqual(vec1, vec2, "Embedding must be 100% deterministic")
-        
-        # Check unit normalization
-        norm = np.linalg.norm(np.array(vec1))
-        self.assertAlmostEqual(norm, 1.0, places=4)
 
     # ---------------------------------------------------------------
     # 2. Entity and Actor Extraction Tests
@@ -79,6 +62,32 @@ class TestNewsScraper(unittest.TestCase):
         self.assertEqual(len(entities.companies), 0)
         self.assertEqual(len(entities.countries), 0)
         self.assertEqual(entities.geography, ["EU"])
+
+    def test_news_identity_is_stable_and_tracking_links_deduplicate(self):
+        first = self.scraper._article_identity("https://example.com/a?utm_source=feed&id=7", "Headline", "2024-01-01", "GUID-7")
+        second = self.scraper._article_identity("https://example.com/a?id=7&utm_medium=rss", "Headline", "2024-01-01", "GUID-7")
+        self.assertEqual(first, second)
+
+    def test_missing_date_and_unstated_reaction_do_not_fabricate(self):
+        self.assertEqual(self.scraper._parse_date(""), "")
+        event = self.scraper.extract_structured_event("General market note", "No action or market response is reported.", "https://example.com/a", "Example", "")
+        self.assertEqual(event.timestamp, "")
+        self.assertEqual(event.actions, [])
+        self.assertEqual(event.reactions, [])
+
+    def test_common_runner_event_adapter_and_cutoff_clustering(self):
+        content = b"ArcelorMittal cuts steel output by 20%."
+        document = SourceDocument.from_content(
+            source_id="OFFICIAL_NEWS",
+            canonical_url="https://example.com/article",
+            publisher="Example",
+            content_bytes=content,
+            batch_id="news-batch",
+            data_origin="test",
+        )
+        facts = self.scraper.extract_document_events(document, content.decode())
+        self.assertTrue(facts)
+        self.assertEqual(len(self.scraper.cluster_event_candidates(facts, document.recorded_at)), len(facts))
 
     # ---------------------------------------------------------------
     # 3. Action Extraction Tests
@@ -169,34 +178,13 @@ class TestNewsScraper(unittest.TestCase):
         self.assertTrue(len(evt.reactions) > 0)
 
     # ---------------------------------------------------------------
-    # 6. Fallback Offline Seed Generator Tests
-    # ---------------------------------------------------------------
-    def test_offline_seed_generator_benchmark(self):
-        count = 5
-        events = self.scraper.generate_offline_seeds(count=count, save_to_lancedb=False)
-
-        self.assertEqual(len(events), count)
-        for evt in events:
-            self.assertIsInstance(evt, StructuredEconomicEvent)
-            self.assertTrue(evt.event_id.startswith("NEWS_"))
-            self.assertTrue(len(evt.headline) > 10)
-            self.assertTrue(len(evt.actions) > 0)
-            self.assertTrue(len(evt.reactions) > 0)
-
-    def test_offline_seed_generator_synthetic(self):
-        count = len(FALLBACK_NEWS_CORPUS) + 5
-        events = self.scraper.generate_offline_seeds(count=count, save_to_lancedb=False)
-
-        self.assertEqual(len(events), count)
-        # Check that both benchmark and synthetic events are present
-        synth_events = [e for e in events if "SEED" in e.event_id]
-        self.assertTrue(len(synth_events) >= 5)
-
-    # ---------------------------------------------------------------
     # 7. LanceDB Storage and Retrieval Tests
     # ---------------------------------------------------------------
     def test_lancedb_save_and_load(self):
-        events = self.scraper.generate_offline_seeds(count=4, save_to_lancedb=True)
+        events = make_news_events(count=4)
+        self.scraper.offline = False
+        with patch("src.scrapers.news_scraper.get_embedding", return_value=[0.1] * 768), patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project"}):
+            self.assertEqual(self.scraper.save_to_lancedb(events), 4)
         self.assertEqual(len(events), 4)
 
         # Load back
@@ -227,7 +215,8 @@ class TestNewsScraper(unittest.TestCase):
             offline=True
         )
 
-        events = scraper_with_graph.generate_offline_seeds(count=3, save_to_lancedb=False)
+        events = make_news_events(count=3)
+        scraper_with_graph.ingest_news_into_graph_store(events)
         self.assertTrue(len(events) > 0)
 
         # Verify Action and Reaction nodes exist
@@ -282,7 +271,7 @@ class TestNewsScraper(unittest.TestCase):
     # 10. Explicit Edge Cases
     # ---------------------------------------------------------------
     def test_empty_and_whitespace_inputs(self):
-        # Empty inputs should not raise exceptions and return valid defaults
+        # Empty inputs remain explicitly unknown rather than inventing a reaction.
         evt = self.scraper.extract_structured_event(
             title="",
             summary="   ",
@@ -293,18 +282,16 @@ class TestNewsScraper(unittest.TestCase):
         self.assertIsInstance(evt, StructuredEconomicEvent)
         self.assertEqual(len(evt.actors.companies), 0)
         self.assertEqual(len(evt.actions), 0)
-        self.assertTrue(len(evt.reactions) > 0)
-        self.assertEqual(evt.reactions[0].direction, "STABLE")
+        self.assertEqual(evt.reactions, [])
 
     def test_date_parser_edge_cases(self):
         # Test various date formats and fallbacks
         self.assertEqual(self.scraper._parse_date("2024-11-25T14:30:00Z"), "2024-11-25")
         self.assertEqual(self.scraper._parse_date("25 Nov 2024"), "2024-11-25")
         self.assertEqual(self.scraper._parse_date("2024/08/04 12:00"), "2024-08-04")
-        # Empty string should return today's ISO date
-        today_prefix = datetime.now(timezone.utc).strftime("%Y-")
-        self.assertTrue(self.scraper._parse_date("").startswith(today_prefix))
-        self.assertTrue(self.scraper._parse_date("not-a-date").startswith(today_prefix))
+        # Unknown dates remain unknown.
+        self.assertEqual(self.scraper._parse_date(""), "")
+        self.assertEqual(self.scraper._parse_date("not-a-date"), "")
 
     def test_numeric_magnitude_edge_cases(self):
         # Negative percentage
@@ -352,7 +339,7 @@ class TestNewsScraper(unittest.TestCase):
         self.assertEqual(items[0]["source_url"], "https://energy.eu/equinor-gas")
 
     def test_json_disk_caching(self):
-        events = self.scraper.generate_offline_seeds(count=3, save_to_lancedb=False)
+        events = make_news_events(count=3)
         cache_path = self.data_dir / "test_cache.json"
         saved_path = self.scraper.cache_to_disk(events, output_file=cache_path)
 
@@ -383,7 +370,9 @@ class TestNewsScraper(unittest.TestCase):
             }
         }
         # Save to LanceDB
-        inserted = self.scraper.save_to_lancedb([dict_event])
+        self.scraper.offline = False
+        with patch("src.scrapers.news_scraper.get_embedding", return_value=[0.1] * 768), patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project"}):
+            inserted = self.scraper.save_to_lancedb([dict_event])
         self.assertEqual(inserted, 1)
 
         # Cache to disk
@@ -491,7 +480,7 @@ class TestNewsScraper(unittest.TestCase):
             offline=True
         )
         events = offline_scraper.scrape_all_feeds(save_to_db=False)
-        self.assertTrue(len(events) >= 10)
+        self.assertEqual(events, [])
         mock_get.assert_not_called()
 
     @patch("src.scrapers.news_scraper.get_completion_with_json")
@@ -526,7 +515,7 @@ class TestNewsScraper(unittest.TestCase):
         })
         mock_llm.return_value = mock_payload
 
-        with patch.dict(os.environ, {"GOOGLE_API_KEY": "fake_key"}):
+        with patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-cloud-project"}):
             llm_scraper = EconomicNewsScraper(use_llm=True, offline=False)
             evt = llm_scraper.extract_structured_event(
                 title="Thyssenkrupp Idles Blast Furnace",
@@ -545,7 +534,7 @@ class TestNewsScraper(unittest.TestCase):
         """Verify fallback to deterministic rule extraction when LLM call fails."""
         mock_llm.side_effect = Exception("API quota exceeded")
 
-        with patch.dict(os.environ, {"GOOGLE_API_KEY": "fake_key"}):
+        with patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-cloud-project"}):
             llm_scraper = EconomicNewsScraper(use_llm=True, offline=False)
             evt = llm_scraper.extract_structured_event(
                 title="ArcelorMittal cuts production by 15%",

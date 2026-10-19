@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ACT xmlns="http://publications.europa.eu/resource/authority/cdm">
+  <BIB.INSTANCE>
+    <DOCUMENT.REF>32023R0956</DOCUMENT.REF>
+    <DATE.DOCUMENT>2023-05-10</DATE.DOCUMENT>
+    <DATE.ENTRY.INTO.FORCE>2023-05-17</DATE.ENTRY.INTO.FORCE>
+    <TITLE>Regulation (EU) 2023/956 of the European Parliament and of the Council establishing a carbon border adjustment mechanism</TITLE>
+  </BIB.INSTANCE>
+  <PREAMBLE>
+    <RECITAL id="rec_1">Whereas carbon leakage risks in cement and steel production require a carbon border adjustment mechanism.</RECITAL>
+  </PREAMBLE>
+  <ENACTING.TERMS>
+    <ARTICLE id="art_1">
+      <TI.ART>Article 1</TI.ART>
+      <STI.ART>Subject matter</STI.ART>
+      <PARAGRAPH id="art_1_par_1">
+        <ALINEA>This Regulation establishes a carbon border adjustment mechanism (CBAM) to address greenhouse gas emissions embedded in goods listed in Annex I.</ALINEA>
+      </PARAGRAPH>
+    </ARTICLE>
+    <ARTICLE id="art_32">
+      <TI.ART>Article 32</TI.ART>
+      <STI.ART>Transitional period</STI.ART>
+      <PARAGRAPH id="art_32_par_1">
+        <ALINEA>During the transitional period from 2023-10-01 until 2025-12-31, the obligations of the importer under this Regulation shall be limited to reporting obligations.</ALINEA>
+      </PARAGRAPH>
+    </ARTICLE>
+    <ARTICLE id="art_36">
+      <TI.ART>Article 36</TI.ART>
+      <STI.ART>Entry into force and application</STI.ART>
+      <PARAGRAPH id="art_36_par_1">
+        <ALINEA>This Regulation shall enter into force on the day following that of its publication in the Official Journal of the European Union.</ALINEA>
+        <ALINEA>It shall apply from 2023-10-01.</ALINEA>
+        <ALINEA>Articles 5, 17, 20 and 22 shall apply from 2026-01-01.</ALINEA>
+      </PARAGRAPH>
+    </ARTICLE>
+  </ENACTING.TERMS>
+</ACT>

@@ -37,6 +37,11 @@ class Settings(BaseModel):
     
     # Extraction & AI Budget
     extraction_budget_usd: float = Field(default=0.0, description="Run-wide spending budget for paid LLM extraction in USD")
+    extraction_total_budget_eur: float = Field(default=0.0, ge=0, allow_inf_nan=False, description="Overall application spending ceiling in EUR")
+    extraction_eur_usd_rate: float = Field(default=1.0, gt=0, allow_inf_nan=False, description="Verified USD per EUR used to freeze the spending ceiling")
+    extraction_input_price_usd_per_1k: Optional[float] = Field(default=None, description="Verified paid input price")
+    extraction_output_price_usd_per_1k: Optional[float] = Field(default=None, description="Verified paid output price")
+    extraction_embedding_price_usd_per_1k: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False, description="Verified embedding model input-token price")
     google_api_key: Optional[str] = Field(default=None, description="Google Gemini API key")
 
     model_config = {"arbitrary_types_allowed": True}
@@ -45,6 +50,11 @@ class Settings(BaseModel):
     def database_path(self) -> Path:
         """Alias for canonical LanceDB database path."""
         return self.lancedb_path
+
+    @property
+    def extraction_total_budget_usd(self) -> float:
+        # Leave ten percent of the EUR ceiling unused for FX and billing differences.
+        return round(self.extraction_total_budget_eur * self.extraction_eur_usd_rate * 0.9, 6)
 
     def __repr__(self) -> str:
         """Redact sensitive keys from representation."""
@@ -102,6 +112,9 @@ def get_settings() -> Settings:
     temp_limit = int(os.getenv("POWERLAW_TEMP_LIMIT_BYTES", str(512 * 1024 * 1024)))
     disk_floor = int(os.getenv("POWERLAW_DISK_FLOOR_BYTES", str(2 * 1024 * 1024 * 1024)))
     extraction_budget = float(os.getenv("POWERLAW_EXTRACTION_BUDGET_USD", "0.0"))
+    input_price = os.getenv("POWERLAW_EXTRACTION_INPUT_PRICE_USD_PER_1K")
+    output_price = os.getenv("POWERLAW_EXTRACTION_OUTPUT_PRICE_USD_PER_1K")
+    embedding_price = os.getenv("POWERLAW_EXTRACTION_EMBEDDING_PRICE_USD_PER_1K")
 
     # Object storage
     object_backend = os.getenv("POWERLAW_OBJECT_BACKEND", "local")
@@ -112,7 +125,8 @@ def get_settings() -> Settings:
     object_bucket = os.getenv("POWERLAW_OBJECT_BUCKET", "powerlaw-evidence")
     object_prefix = os.getenv("POWERLAW_OBJECT_PREFIX", "powerlaw")
 
-    google_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    # Keep the legacy settings field for callers; authentication now uses ADC.
+    google_api_key = None
 
     _SETTINGS_INSTANCE = Settings(
         mode=mode,
@@ -132,6 +146,11 @@ def get_settings() -> Settings:
         temp_limit_bytes=temp_limit,
         disk_floor_bytes=disk_floor,
         extraction_budget_usd=extraction_budget,
+        extraction_total_budget_eur=float(os.getenv("POWERLAW_EXTRACTION_TOTAL_BUDGET_EUR", "0")),
+        extraction_eur_usd_rate=float(os.getenv("POWERLAW_EXTRACTION_EUR_USD_RATE", "1")),
+        extraction_input_price_usd_per_1k=float(input_price) if input_price else None,
+        extraction_output_price_usd_per_1k=float(output_price) if output_price else None,
+        extraction_embedding_price_usd_per_1k=float(embedding_price) if embedding_price else None,
         google_api_key=google_api_key
     )
     return _SETTINGS_INSTANCE
@@ -174,11 +193,15 @@ def validate_source_entry(source_id: str, entry: dict) -> None:
     3. No AI-training or commercial use restrictions.
     4. Verified rights check performed with terms documentation.
     """
-    access_fee = entry.get("access_fee", 0)
-    requires_sub = entry.get("requires_paid_subscription", False)
+    if "access_fee" not in entry or "requires_paid_subscription" not in entry:
+        raise ValueError(
+            f"Source {source_id} lacks explicit fee/subscription attestation. Both 'access_fee' (must be 0) and 'requires_paid_subscription' (must be False) are required."
+        )
+    access_fee = entry["access_fee"]
+    requires_sub = entry["requires_paid_subscription"]
 
     # 1. Zero fees and no paid subscriptions
-    if access_fee > 0 or requires_sub:
+    if access_fee != 0 or requires_sub is not False:
         raise ValueError(
             f"Source {source_id} violates free-source policy (access_fee={access_fee}, "
             f"requires_paid_subscription={requires_sub}). Paid sources cannot be enabled."

@@ -103,7 +103,7 @@ def execute_sparql(year: int) -> List[Dict]:
       ?work cdm:resource_legal_type ?type .
       
       FILTER (?date >= "{year}-01-01"^^xsd:date && ?date <= "{year}-12-31"^^xsd:date)
-      FILTER (REGEX(?celex, "^3[0-9]{{4}}[RL][0-9]{{4}}"))
+      FILTER (REGEX(?celex, "^3[0-9]{{4}}[RLD][0-9]+"))
       
       OPTIONAL {{ ?work cdm:work_is_about_concept_eurovoc ?eurovoc_uri . }}
       OPTIONAL {{ ?work cdm:resource_legal_date_end-of-validity ?end_date . }}

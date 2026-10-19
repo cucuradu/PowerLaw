@@ -1,0 +1,27 @@
+{
+  "retrieved_on": "2026-10-19",
+  "scope": "Unchanged public HTTP response bodies retained by the read-only readiness review. Request authorization headers and private credentials are excluded. These are current vintages, not historical release archives.",
+  "responses": {
+    "configured_destatis_genesis.zip": {
+      "url": "https://genesis.destatis.de/genesisWS/rest/2020/data/tablefile",
+      "method": "POST",
+      "public_parameters": {"name": "61261-0002", "area": "all", "format": "ffcsv", "language": "de", "startyear": "2025", "endyear": "2025", "job": "false"},
+      "sha256": "b83e19d549f98901c5b71c8f684c76d6fed1b826d055bd91c2836159795d393e"
+    },
+    "configured_eurostat_sts.json": {
+      "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/sts_copi_q?format=JSON&lang=EN&geo=DE&sinceTimePeriod=2025-01-01&untilTimePeriod=2025-12-31",
+      "method": "GET",
+      "sha256": "ce8c0ed5395fc86658e81077cefeb94b500c639009d23a6b8138205e759191f1"
+    },
+    "configured_ecb_sdmx.csv": {
+      "url": "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&startPeriod=2025-01-01&endPeriod=2025-12-31",
+      "method": "GET",
+      "sha256": "530d83d62b58dc020d2f177be9f26f3f89010f779d1640ad268f4f19e5db066b"
+    },
+    "configured_official_news.rss": {
+      "url": "https://ec.europa.eu/commission/presscorner/api/rss?language=en",
+      "method": "GET",
+      "sha256": "f07dc3931796a36fade30d4f9cfdef5a1be23be5b8fef87af3b790d00e79b0d6"
+    }
+  }
+}

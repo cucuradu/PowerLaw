@@ -1,4 +1,7 @@
 {
+  "fixture_type": "SYNTHETIC",
+  "is_synthetic": true,
+  "synthetic_disclaimer": "Synthetic offline fixture for contract testing; not an official live response.",
   "source": "DESTATIS_GENESIS",
   "table_id": "61261-0002",
   "table_name": "Baupreisindex für den Neubau von Wohngebäuden (einschl. USt)",

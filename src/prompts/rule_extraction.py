@@ -15,12 +15,13 @@ DO NOT extract partial fragments. If Article 2 prohibits "products in Annex I", 
 
 # CRITICAL INSTRUCTIONS
 1. **Combine Logic**: Connect the "Trigger" (Article) with the "Scope" (Annex/Definition).
-2. **Ignore Noise**: Skip procedural text (Committees, Entry into Force, Reporting).
-3. **Economic Actors Only**: Only extract rules that affect Producers, Traders, or Consumers.
-4. **Standardization**: 
-   - You MUST use **NACE Rev.2 Codes** for sectors (e.g., C24 for Steel, D35 for Energy).
-   - You MUST use **ISO 8601 Strings** ("YYYY-MM-DD") for dates. NEVER return Unix timestamps.
-5. **Summarization**: Provide a `summary` (1 sentence) and `background_context` (from recitals).
+2. **Real Obligations**: Extract both numeric and non-numeric obligations (product passports, certification, standards, mandatory declarations, reporting requirements, bans, quotas). Only skip purely internal administrative protocols (committee appointments, language protocols).
+3. **Preserve Conditions & Exceptions**: Capture explicit conditions, thresholds, and exceptions. Do not widen conditional or exempt scope into an unconditional mandate.
+4. **Economic Actors Only**: Extract rules that affect Producers, Traders, or Consumers.
+5. **Standardization**: 
+   - You MUST use **NACE Rev.2 Codes** for sectors (e.g., C24 for Steel, D35 for Energy). Leave empty if not specified in source.
+   - You MUST use **ISO 8601 Strings** ("YYYY-MM-DD") for dates. NEVER invent day/month if only year is given.
+6. **Summarization**: Provide a `summary` (1 sentence) and `background_context` (from recitals).
 6. **COMMODITY ACCURACY**: 
    - Extract the EXACT commodity mentioned (RICE, not WHEAT; COAL, not GAS).
    - If text says "milled rice", output "MILLED_RICE" or "RICE", NOT a generic cereal.

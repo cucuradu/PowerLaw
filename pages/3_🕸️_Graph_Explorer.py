@@ -210,16 +210,9 @@ with col_eng:
         horizontal=True
     )
 
-# Ensure interactive graph HTML exists
-html_viz_path = Path("visualizations/interactive_graph.html")
-if not html_viz_path.exists():
-    export_graph_visualization()
-
-with open(html_viz_path, "r", encoding="utf-8") as f:
-    updatable_html_content = f.read()
-
-json_viz_path = Path("visualizations/graph_data.json")
-json_data_content = json_viz_path.read_text(encoding="utf-8") if json_viz_path.exists() else "{}"
+# Downloads and the canvas use current configured storage, never bundled snapshots.
+graph_payload, updatable_html_content = export_graph_visualization(storage_dir=store.storage_dir, persist=False)
+json_data_content = json.dumps(graph_payload)
 
 with col_dl1:
     st.download_button(

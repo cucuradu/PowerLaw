@@ -43,11 +43,12 @@ except ImportError:
 
 try:
     import torch_geometric
-    from torch_geometric.data import Data as PyGData
+    from torch_geometric.data import Data as PyGData, HeteroData
     HAS_PYG = True
 except ImportError:
     torch_geometric = None
     PyGData = None
+    HeteroData = None
     HAS_PYG = False
 
 from src.storage.graph_store import DualLayerGraphStore
@@ -1454,3 +1455,472 @@ class GNNGraphExporter:
                 save_dict[f"y_{idx}"] = s["y"]
 
         np.savez_compressed(p, **save_dict)
+
+
+# =========================================================================
+# Canonical As-Of Point-in-Time Export & PyTorch Geometric HeteroData
+# =========================================================================
+
+CANONICAL_NODE_TYPES = [
+    "law", "rule", "event", "company",
+    "commodity", "sector", "geography", "series"
+]
+
+
+def _map_canonical_node_type(node: Dict[str, Any]) -> str:
+    nt = str(node.get("node_type", "")).upper()
+    st = str(node.get("node_subtype", "")).upper()
+    nid = str(node.get("id", ""))
+
+    if nt == "LAW":
+        return "law"
+    if nt in ("RULE", "LEGAL_RULE") or (nt == "ACTION" and st == "LEGAL_RULE"):
+        return "rule"
+    if nt in ("EVENT", "ECONOMIC_EVENT", "REACTION") or (nt == "ACTION" and st in ("ECONOMIC_EVENT", "EVENT")):
+        return "event"
+    if nt == "COMPANY":
+        return "company"
+    if nt == "COMMODITY":
+        return "commodity"
+    if nt == "SECTOR":
+        return "sector"
+    if nt == "GEOGRAPHY" or nid.startswith("geo:"):
+        return "geography"
+    if nt in ("ECONOMIC_INDEX", "SERIES") or nid.startswith("series:"):
+        return "series"
+    if nt == "ACTION":
+        return "event"
+    return "commodity"
+
+
+def export_as_of(
+    cutoff: Union[datetime, str],
+    mode: str = "public_as_of",
+    store: Any = None
+) -> Dict[str, Any]:
+    """
+    Produce a canonical point-in-time snapshot of graph topology and observations as of cutoff.
+    Shared by exporter, dataset, and trainer.
+    """
+    if store is None:
+        from src.storage.dual_layer_store import DualLayerStore
+        store = DualLayerStore()
+
+    if isinstance(cutoff, str):
+        cutoff = datetime.fromisoformat(cutoff.replace("Z", "+00:00"))
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.replace(tzinfo=timezone.utc)
+
+    graph_proj = store.project_graph(cutoff=cutoff, mode=mode)
+    obs_table = store.query_observations(cutoff=cutoff, mode=mode)
+    obs_list = obs_table.to_pylist() if hasattr(obs_table, "to_pylist") else []
+
+    return {
+        "cutoff": cutoff.isoformat(),
+        "mode": mode,
+        "nodes": graph_proj.get("nodes", []),
+        "edges": graph_proj.get("edges", []),
+        "observations": obs_list,
+        "metadata": graph_proj.get("metadata", {}),
+    }
+
+
+def to_heterodata(
+    snapshot: Dict[str, Any],
+    feature_profile: Optional[Dict[str, Any]] = None
+) -> Any:
+    """
+    Convert a canonical as-of snapshot dict into a PyTorch Geometric HeteroData structure
+    with 8 canonical node stores and 12-channel type-local edge attributes.
+    """
+    if not HAS_PYG or HeteroData is None:
+        raise ImportError("torch_geometric is required for to_heterodata")
+
+    hdata = HeteroData()
+    hdata["observations"] = snapshot.get("observations", [])
+    hdata["nodes"] = snapshot.get("nodes", [])
+    hdata["edges"] = snapshot.get("edges", [])
+    hdata["cutoff"] = snapshot.get("cutoff")
+
+    cutoff_str = snapshot.get("cutoff")
+    cutoff_dt = datetime.fromisoformat(cutoff_str.replace("Z", "+00:00")) if cutoff_str else datetime.now(timezone.utc)
+    if cutoff_dt.tzinfo is None:
+        cutoff_dt = cutoff_dt.replace(tzinfo=timezone.utc)
+
+    nodes = snapshot.get("nodes", [])
+    edges = snapshot.get("edges", [])
+    observations = snapshot.get("observations", [])
+
+    # Index observations by series_id
+    obs_by_series: Dict[str, List[Dict[str, Any]]] = {}
+    for obs in observations:
+        sid = obs.get("series_id")
+        if sid:
+            obs_by_series.setdefault(sid, []).append(obs)
+
+    # Group nodes by canonical type
+    nodes_by_type: Dict[str, List[Dict[str, Any]]] = {t: [] for t in CANONICAL_NODE_TYPES}
+    type_node2idx: Dict[str, Dict[str, int]] = {t: {} for t in CANONICAL_NODE_TYPES}
+    node2type: Dict[str, str] = {}
+
+    for n in nodes:
+        ctype = _map_canonical_node_type(n)
+        nid = n["id"]
+        type_node2idx[ctype][nid] = len(nodes_by_type[ctype])
+        nodes_by_type[ctype].append(n)
+        node2type[nid] = ctype
+
+    # Build node features per store (feature dimension F=8)
+    FEATURE_DIM = 8
+    for ctype in CANONICAL_NODE_TYPES:
+        c_nodes = nodes_by_type[ctype]
+        N = len(c_nodes)
+        node_ids = [n["id"] for n in c_nodes]
+
+        x = np.zeros((N, FEATURE_DIM), dtype=np.float32)
+        mask = np.zeros((N, FEATURE_DIM), dtype=np.float32)
+        active = np.ones((N,), dtype=bool)
+
+        for i, n in enumerate(c_nodes):
+            nid = n["id"]
+            if ctype == "series":
+                series_obs = obs_by_series.get(nid, [])
+                if series_obs:
+                    sorted_obs = sorted(
+                        series_obs,
+                        key=lambda o: str(o.get("period_start", ""))
+                    )
+                    vals = [float(o["value"]) for o in sorted_obs if o.get("value") is not None]
+                    if vals:
+                        latest_val = vals[-1]
+                        x[i, 0] = latest_val
+                        mask[i, 0] = 1.0
+                        if len(vals) >= 2 and vals[-2] != 0:
+                            x[i, 1] = (vals[-1] / vals[-2] - 1.0) * 100.0
+                            mask[i, 1] = 1.0
+                        if len(vals) >= 5 and vals[-5] != 0:
+                            x[i, 2] = (vals[-1] / vals[-5] - 1.0) * 100.0
+                            mask[i, 2] = 1.0
+                        if len(vals) >= 2:
+                            x[i, 3] = float(np.std(vals))
+                            mask[i, 3] = 1.0
+                        x[i, 4] = len(vals)
+                        mask[i, 4] = 1.0
+
+                    last_obs = sorted_obs[-1]
+                    avail = last_obs.get("available_at")
+                    if avail:
+                        avail_dt = datetime.fromisoformat(str(avail).replace("Z", "+00:00"))
+                        if avail_dt.tzinfo is None:
+                            avail_dt = avail_dt.replace(tzinfo=timezone.utc)
+                        age_days = max(0.0, (cutoff_dt - avail_dt).total_seconds() / 86400.0)
+                        x[i, 5] = math.log1p(age_days)
+                        mask[i, 5] = 1.0
+
+                    x[i, 6] = 1.0 if last_obs.get("provider_status") == "provisional" else 0.0
+                    mask[i, 6] = 1.0
+                    x[i, 7] = 1.0
+                    mask[i, 7] = 1.0
+                else:
+                    active[i] = bool(n.get("active", True))
+            elif ctype in ("commodity", "sector"):
+                x[i, 0] = 1.0
+                mask[i, 0] = 1.0
+                x[i, 7] = 1.0
+                mask[i, 7] = 1.0
+            elif ctype in ("law", "rule"):
+                x[i, 0] = 1.0
+                mask[i, 0] = 1.0
+                x[i, 1] = 1.0
+                mask[i, 1] = 1.0
+                x[i, 7] = 1.0
+                mask[i, 7] = 1.0
+            elif ctype == "event":
+                x[i, 0] = 1.0
+                mask[i, 0] = 1.0
+                x[i, 1] = 1.0
+                mask[i, 1] = 1.0
+                x[i, 7] = 1.0
+                mask[i, 7] = 1.0
+            elif ctype == "company":
+                x[i, 0] = 1.0
+                mask[i, 0] = 1.0
+                x[i, 7] = 1.0
+                mask[i, 7] = 1.0
+            elif ctype == "geography":
+                x[i, 0] = 0.0
+                mask[i, 0] = 1.0
+                x[i, 7] = 1.0
+                mask[i, 7] = 1.0
+
+        store = hdata[ctype]
+        store.node_id = node_ids
+        store.x = torch.from_numpy(x).to(torch.float32)
+        store.feature_observed_mask = torch.from_numpy(mask).to(torch.float32)
+        store.active_mask = torch.from_numpy(active).to(torch.bool)
+
+    # Group edges by relation type tuple: (src_type, rel_name, dst_type)
+    edge_index_dict: Dict[Tuple[str, str, str], List[Tuple[int, int]]] = {}
+    edge_attr_dict: Dict[Tuple[str, str, str], List[List[float]]] = {}
+
+    for e in edges:
+        if not e.get("is_active", True) or e.get("status") in ("expired", "withdrawn"):
+            continue
+        src_id = e.get("source_id")
+        dst_id = e.get("target_id")
+        if not src_id or not dst_id:
+            continue
+        src_type = node2type.get(src_id)
+        dst_type = node2type.get(dst_id)
+        if not src_type or not dst_type:
+            continue
+
+        rel_name = str(e.get("relation_type", "RELATED_TO")).upper()
+        rel_key = (src_type, rel_name, dst_type)
+
+        src_local = type_node2idx[src_type][src_id]
+        dst_local = type_node2idx[dst_type][dst_id]
+
+        # Compute 12-channel edge attributes (6 values + 6 masks)
+        avail = e.get("available_at")
+        if avail:
+            avail_dt = datetime.fromisoformat(str(avail).replace("Z", "+00:00"))
+            if avail_dt.tzinfo is None:
+                avail_dt = avail_dt.replace(tzinfo=timezone.utc)
+            val0 = math.log1p(max(0.0, (cutoff_dt - avail_dt).total_seconds() / 86400.0))
+            mask0 = 1.0
+        else:
+            val0, mask0 = 0.0, 0.0
+
+        valid_to = e.get("valid_to")
+        if valid_to:
+            vto_dt = datetime.fromisoformat(str(valid_to).replace("Z", "+00:00"))
+            if vto_dt.tzinfo is None:
+                vto_dt = vto_dt.replace(tzinfo=timezone.utc)
+            val1 = (vto_dt - cutoff_dt).total_seconds() / 86400.0
+            mask1 = 1.0
+        else:
+            val1, mask1 = 0.0, 0.0
+
+        payload_raw = e.get("payload")
+        payload = {}
+        if isinstance(payload_raw, str):
+            try:
+                payload = json.loads(payload_raw)
+            except Exception:
+                pass
+        elif isinstance(payload_raw, dict):
+            payload = payload_raw
+
+        if "exposure_share" in payload:
+            val2 = float(payload["exposure_share"])
+            mask2 = 1.0
+        else:
+            val2, mask2 = 0.0, 0.0
+
+        if "travel_time_days" in payload:
+            val3 = float(payload["travel_time_days"])
+            mask3 = 1.0
+        else:
+            val3, mask3 = 0.0, 0.0
+
+        val4 = 1.0 if e.get("claim_kind") == "reported" else 0.0
+        mask4 = 1.0
+
+        if "exact_scope_match" in payload:
+            val5 = 1.0 if payload["exact_scope_match"] else 0.0
+            mask5 = 1.0
+        else:
+            val5, mask5 = 0.0, 0.0
+
+        attr12 = [val0, val1, val2, val3, val4, val5, mask0, mask1, mask2, mask3, mask4, mask5]
+
+        edge_index_dict.setdefault(rel_key, []).append((src_local, dst_local))
+        edge_attr_dict.setdefault(rel_key, []).append(attr12)
+
+    # Computational routes:
+    # 1. Reverse of ('series', 'MEASURES', 'commodity') -> ('commodity', 'measured_by', 'series')
+    if ("series", "MEASURES", "commodity") in edge_index_dict:
+        rev_key = ("commodity", "measured_by", "series")
+        rev_indices = [(dst, src) for src, dst in edge_index_dict[("series", "MEASURES", "commodity")]]
+        rev_attrs = [list(attr) for attr in edge_attr_dict[("series", "MEASURES", "commodity")]]
+        edge_index_dict[rev_key] = rev_indices
+        edge_attr_dict[rev_key] = rev_attrs
+
+    # 2. Scoped context_for: ('rule', 'context_for', 'series') and ('event', 'context_for', 'series')
+    c_rule_key = ("rule", "context_for", "series")
+    edge_index_dict.setdefault(c_rule_key, [])
+    edge_attr_dict.setdefault(c_rule_key, [])
+
+    c_event_key = ("event", "context_for", "series")
+    edge_index_dict.setdefault(c_event_key, [])
+    edge_attr_dict.setdefault(c_event_key, [])
+
+    # Map rules and events to series through evidenced scope:
+    # 1. Direct active edges with relation CONTEXT_FOR or APPLIES_TO
+    # 2. Evidenced mappings where rule/event targets an entity (e.g. commodity, sector, geography) measured by series
+    rule_targets = {}
+    event_targets = {}
+    series_targets = {}
+    for e in edges:
+        if not e.get("is_active", True) or e.get("status") in ("expired", "withdrawn"):
+            continue
+        s_id = e.get("source_id")
+        t_id = e.get("target_id")
+        rel = str(e.get("relation_type", "")).upper()
+        if not s_id or not t_id:
+            continue
+        s_t = node2type.get(s_id)
+        t_t = node2type.get(t_id)
+        if s_t == "rule":
+            rule_targets.setdefault(s_id, set()).add((t_id, rel))
+        elif s_t == "event":
+            event_targets.setdefault(s_id, set()).add((t_id, rel))
+        elif s_t == "series":
+            series_targets.setdefault(s_id, set()).add((t_id, rel))
+        if t_t == "series":
+            series_targets.setdefault(t_id, set()).add((s_id, rel))
+
+    for r_id, r_edges in rule_targets.items():
+        if r_id not in type_node2idx.get("rule", {}):
+            continue
+        r_local = type_node2idx["rule"][r_id]
+        for s_id, s_edges in series_targets.items():
+            if s_id not in type_node2idx.get("series", {}):
+                continue
+            s_local = type_node2idx["series"][s_id]
+            direct = any(t == s_id and rel in ("CONTEXT_FOR", "APPLIES_TO", "REGULATES") for t, rel in r_edges)
+            r_tgts = {t for t, _ in r_edges}
+            s_tgts = {t for t, _ in s_edges}
+            shared = r_tgts & s_tgts
+            if direct or shared:
+                attr = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0]
+                edge_index_dict[c_rule_key].append((r_local, s_local))
+                edge_attr_dict[c_rule_key].append(attr)
+
+    for ev_id, ev_edges in event_targets.items():
+        if ev_id not in type_node2idx.get("event", {}):
+            continue
+        ev_local = type_node2idx["event"][ev_id]
+        for s_id, s_edges in series_targets.items():
+            if s_id not in type_node2idx.get("series", {}):
+                continue
+            s_local = type_node2idx["series"][s_id]
+            direct = any(t == s_id and rel in ("CONTEXT_FOR", "APPLIES_TO", "AFFECTS") for t, rel in ev_edges)
+            ev_tgts = {t for t, _ in ev_edges}
+            s_tgts = {t for t, _ in s_edges}
+            shared = ev_tgts & s_tgts
+            if direct or shared:
+                attr = [0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0]
+                edge_index_dict[c_event_key].append((ev_local, s_local))
+                edge_attr_dict[c_event_key].append(attr)
+
+    # Populate edge stores in hdata
+    for rel_key, pairs in edge_index_dict.items():
+        src_type, rel_name, dst_type = rel_key
+        attrs = edge_attr_dict[rel_key]
+        if pairs:
+            idx_arr = np.array(pairs, dtype=np.int64).T
+            attr_arr = np.array(attrs, dtype=np.float32)
+        else:
+            idx_arr = np.empty((2, 0), dtype=np.int64)
+            attr_arr = np.empty((0, 12), dtype=np.float32)
+
+        edge_store = hdata[src_type, rel_name, dst_type]
+        edge_store.edge_index = torch.from_numpy(idx_arr)
+        edge_store.edge_attr = torch.from_numpy(attr_arr)
+
+    if feature_profile:
+        hdata = apply_heterodata_transforms(hdata, feature_profile)
+
+    return hdata
+
+
+def fit_heterodata_transforms(snapshots: List[Any]) -> Dict[str, Any]:
+    """
+    Fit column-wise mean and std normalization parameters for node features across training snapshots.
+    Fit statistics only on observed, finite, active training values per column.
+    """
+    if not snapshots:
+        return {"normalization": {}}
+    from collections import defaultdict
+    valid_values_by_type = defaultdict(lambda: defaultdict(list))
+    for snap in snapshots:
+        if hasattr(snap, "node_types"):
+            for nt in snap.node_types:
+                store = snap[nt]
+                if hasattr(store, "x") and store.x is not None and store.x.numel() > 0:
+                    x = store.x.detach().cpu().to(torch.float32)
+                    num_nodes, num_cols = x.shape
+                    if hasattr(store, "active_mask") and store.active_mask is not None:
+                        active = store.active_mask.detach().cpu().bool().view(-1)
+                    else:
+                        active = torch.ones(num_nodes, dtype=torch.bool)
+                    if hasattr(store, "feature_observed_mask") and store.feature_observed_mask is not None:
+                        obs = (store.feature_observed_mask.detach().cpu() > 0.5)
+                    else:
+                        obs = torch.ones_like(x, dtype=torch.bool)
+                    
+                    finite = torch.isfinite(x)
+                    valid = active.view(-1, 1) & obs & finite
+                    for col in range(num_cols):
+                        vals = x[valid[:, col], col]
+                        if vals.numel() > 0:
+                            valid_values_by_type[nt][col].append(vals)
+
+    normalization = {}
+    for nt, col_dict in valid_values_by_type.items():
+        all_cols = sorted(col_dict.keys())
+        if not all_cols:
+            continue
+        max_col = max(all_cols) + 1
+        means = [0.0] * max_col
+        stds = [1.0] * max_col
+        for col in range(max_col):
+            t_list = col_dict.get(col, [])
+            if t_list:
+                all_v = torch.cat(t_list)
+                if all_v.numel() > 0:
+                    means[col] = float(all_v.mean().item())
+                    if all_v.numel() > 1:
+                        s = float(all_v.std().item())
+                        stds[col] = s if (s > 1e-7 and math.isfinite(s)) else 1.0
+                    else:
+                        stds[col] = 1.0
+        normalization[nt] = {"mean": means, "std": stds}
+    return {"normalization": normalization}
+
+
+def apply_heterodata_transforms(snapshot: Any, feature_profile: Optional[Dict[str, Any]]) -> Any:
+    """
+    Apply normalization transforms from feature_profile to a snapshot.
+    Keep missing/inactive/non-finite transformed values at zero with their masks.
+    """
+    if not feature_profile or "normalization" not in feature_profile:
+        return snapshot
+    norm_dict = feature_profile.get("normalization", {})
+    if hasattr(snapshot, "clone"):
+        cloned = snapshot.clone()
+        for nt in cloned.node_types:
+            if nt in norm_dict and hasattr(cloned[nt], "x") and cloned[nt].x is not None and cloned[nt].x.numel() > 0:
+                params = norm_dict[nt]
+                store = cloned[nt]
+                x = store.x
+                mean = torch.tensor(params["mean"], dtype=x.dtype, device=x.device)
+                std = torch.tensor(params.get("std", [1.0] * len(params["mean"])), dtype=x.dtype, device=x.device)
+                
+                num_nodes = x.shape[0]
+                if hasattr(store, "active_mask") and store.active_mask is not None:
+                    active = store.active_mask.bool().view(-1, 1)
+                else:
+                    active = torch.ones((num_nodes, 1), dtype=torch.bool, device=x.device)
+                if hasattr(store, "feature_observed_mask") and store.feature_observed_mask is not None:
+                    obs = (store.feature_observed_mask > 0.5)
+                else:
+                    obs = torch.ones_like(x, dtype=torch.bool, device=x.device)
+                
+                valid = active & obs & torch.isfinite(x)
+                normed = (x - mean) / std
+                store.x = torch.where(valid, normed, torch.zeros_like(x))
+        return cloned
+    return snapshot

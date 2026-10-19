@@ -11,7 +11,7 @@ import plotly.express as px
 
 from src.storage.dashboard_data import (
     get_all_news_data,
-    trigger_news_scrape,
+    submit_ingestion_job,
     get_graph_store
 )
 
@@ -38,27 +38,16 @@ with ctrl_col1:
     search_term = st.text_input("🔍 Search News (Headline, Signal, Asset, Summary)", "")
 
 with ctrl_col2:
-    if st.button("🔄 Scrape Live Feeds", width="stretch", help="Scrapes latest RSS feeds or refreshes curated corpus"):
-        with st.spinner("Fetching RSS feeds and extracting receptor signals..."):
-            try:
-                updated_news = trigger_news_scrape(force_refresh=True)
-                st.success(f"Successfully processed {len(updated_news)} articles!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Scraping error: {e}")
+    if st.button("🔄 Enqueue News Ingestion", width="stretch", help="Submits asynchronous ingestion job to queue"):
+        try:
+            job = submit_ingestion_job(source_id="OFFICIAL_NEWS", limit=50)
+            st.success(f"News ingestion job `{job['job_id']}` submitted to queue.")
+        except Exception as e:
+            st.error(f"Submission error: {e}")
 
 with ctrl_col3:
-    if st.button("⚡ Sync to Graph Store", width="stretch", help="Ingests news into DualLayerGraphStore as REACTION nodes"):
-        with st.spinner("Ingesting signals into DualLayerGraphStore..."):
-            try:
-                store = get_graph_store()
-                from src.scrapers.news_scraper import EconomicNewsScraper
-                scraper = EconomicNewsScraper(graph_store=store)
-                scraper.ingest_news_into_graph_store(news_items)
-                st.success("Synchronized news into DualLayerGraphStore!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Sync error: {e}")
+    if st.button("⚡ Sync to Graph Store", width="stretch", help="Sync graph store from committed canonical records"):
+        st.info("Direct mutations from UI are disabled. Ingestion jobs process asynchronously via CLI `python -m scripts.ops.ingest --consume-queue`.")
 
 # --- SIDEBAR FILTERS ---
 st.sidebar.header("Filter News Stream")
@@ -146,17 +135,18 @@ with tab1:
             receptor = item.get("receptor_signal", "MACRO_EVENT")
             asset = item.get("target_asset", "MARKET")
             metric = item.get("metric", "PRICE")
-            direction = item.get("direction", "STABLE")
+            direction = item.get("direction")
             raw_delta = item.get("delta_value")
             try:
-                delta_val = float(raw_delta) if raw_delta is not None else 0.0
+                delta_val = float(raw_delta) if raw_delta is not None else None
             except (ValueError, TypeError):
-                delta_val = 0.0
-            delta_unit = item.get("delta_unit") or "INDEX"
-            timeframe = item.get("timeframe") or "IMMEDIATE"
+                delta_val = None
+            delta_unit = item.get("delta_unit") or ""
+            delta_text = f"{delta_val:+.1f} {delta_unit}" if delta_val is not None else "Unavailable"
+            timeframe = item.get("timeframe") or "Unknown"
 
             dir_color = "#DC2626" if direction == "INCREASE" else ("#10B981" if direction == "DECREASE" else "#6B7280")
-            dir_icon = "▲ INCREASE" if direction == "INCREASE" else ("▼ DECREASE" if direction == "DECREASE" else "▶ STABLE")
+            dir_icon = "▲ INCREASE" if direction == "INCREASE" else ("▼ DECREASE" if direction == "DECREASE" else ("▶ STABLE" if direction == "STABLE" else "UNKNOWN"))
 
             with st.container():
                 st.markdown(f"""
@@ -179,7 +169,7 @@ with tab1:
                             📊 Metric: <strong>{metric}</strong>
                         </span>
                         <span style="background-color: {dir_color}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">
-                            {dir_icon} ({delta_val:+.1f} {delta_unit})
+                            {dir_icon} ({delta_text})
                         </span>
                         <span style="background-color: #111827; color: #9CA3AF; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #374151;">
                             ⏱️ Horizon: {timeframe}
@@ -271,32 +261,29 @@ with tab2:
 # TAB 3: GRAPH STORE INGESTION LOG
 # ============================================================================
 with tab3:
-    st.subheader("🕸️ Graph Store Mapping & Ingestion Pipeline")
+    st.subheader("🕸️ Stored News Evidence References")
     st.markdown("""
-    When synchronized, every economic news event generates:
-    1. A **`REACTION` Graph Node** (`REACT_{signal}_{id}`) representing the event in the topological network.
-    2. A directed **`IMPACTS` Graph Edge** connecting the reaction node to the target Asset or Sector.
-    3. A **`NodeStateRecord`** in the behind-the-graph tabular history tracking quantitative deltas across time.
+    Canonical fact and evidence references are shown when present in the stored record.
+    Missing references or measurements remain unknown.
     """)
 
     mapping_rows = []
     for item in filtered_news:
         nid = item.get("news_id", "")
-        rec_id = f"REACT_{item.get('receptor_signal', 'EVENT')}_{nid[:8]}"
         raw_val = item.get("delta_value")
         try:
-            val_f = float(raw_val) if raw_val is not None else 0.0
-            delta_str = f"{val_f:+.1f} {item.get('delta_unit') or 'INDEX'}"
+            val_f = float(raw_val) if raw_val is not None else None
+            delta_str = f"{val_f:+.1f} {item.get('delta_unit') or ''}" if val_f is not None else None
         except (ValueError, TypeError):
-            delta_str = f"0.0 {item.get('delta_unit') or 'INDEX'}"
+            delta_str = None
 
         mapping_rows.append({
             "Source News ID": nid,
             "Published": item.get("published_date"),
-            "Generated REACTION Node": rec_id,
-            "Target Graph Node": item.get("target_asset"),
-            "Edge Relation": "IMPACTS",
-            "Delta Applied": delta_str,
+            "Fact Version IDs": item.get("fact_version_ids", []),
+            "Evidence Document IDs": item.get("evidence_document_ids", []),
+            "Reported Target": item.get("target_asset"),
+            "Reported Change": delta_str,
             "Direction": item.get("direction")
         })
 

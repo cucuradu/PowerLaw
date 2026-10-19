@@ -555,8 +555,14 @@ class TestGNNGraphExporter(unittest.TestCase):
 
     def test_real_lancedb_data(self):
         """Verify GNNGraphExporter against real repository data in data/lancedb if present."""
-        real_lancedb_path = Path("data/lancedb")
-        if real_lancedb_path.exists() and (real_lancedb_path / "graph_nodes.parquet").exists():
+        source_path = Path("data/lancedb")
+        if source_path.exists() and (source_path / "graph_nodes.parquet").exists():
+            import shutil
+            real_lancedb_path = Path(self.temp_dir.name) / "legacy-copy"
+            real_lancedb_path.mkdir()
+            for name in ("graph_nodes.parquet", "graph_edges.parquet", "node_tabular_history.parquet"):
+                if (source_path / name).exists():
+                    shutil.copy2(source_path / name, real_lancedb_path / name)
             nodes_df = pd.read_parquet(real_lancedb_path / "graph_nodes.parquet")
             edges_df = pd.read_parquet(real_lancedb_path / "graph_edges.parquet") if (real_lancedb_path / "graph_edges.parquet").exists() else pd.DataFrame()
             expected_nodes = len(nodes_df)

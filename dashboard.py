@@ -18,7 +18,8 @@ from src.storage.dashboard_data import (
     get_graph_store,
     get_system_kpis,
     get_all_laws_data,
-    get_all_news_data
+    get_all_news_data,
+    get_construction_outlook
 )
 from src.quant import (
     compute_systemic_fragility,
@@ -114,8 +115,8 @@ st.markdown("""
                 <strong>contractor equity margins</strong>. Powered by a Dual-Layer Topological Knowledge Graph and Spatio-Temporal GNN.
             </p>
             <div>
-                <span class="badge-layer badge-layer-1">TOPOLOGICAL CAUSAL GRAPH (68 NODES • 109 EDGES)</span>
-                <span class="badge-layer badge-layer-2">BEHIND-THE-GRAPH TABULAR LEDGER (1,038 RECORDS)</span>
+                <span class="badge-layer badge-layer-1">TOPOLOGICAL GRAPH</span>
+                <span class="badge-layer badge-layer-2">BEHIND-THE-GRAPH TABULAR LEDGER</span>
                 <span class="badge-layer badge-layer-3">GNN IMPULSE RESPONSE & SHOCK FORECASTER</span>
             </div>
         </div>
@@ -170,17 +171,147 @@ with col5:
     )
 
 with col6:
-    gamma_val = kpis.get("gamma", 1.8)
+    gamma_val = kpis.get("gamma")
     st.metric(
         label="📐 Power-Law (γ)",
-        value=f"{gamma_val:.2f}",
-        delta="Scale-Free Topology" if 1.5 <= gamma_val <= 3.0 else "Sub-Exponential",
+        value=f"{gamma_val:.2f}" if gamma_val and kpis.get("total_edges") else "Unavailable",
+        delta="Estimated from stored graph" if kpis.get("total_edges") else "Insufficient graph data",
         delta_color="normal"
     )
 
 st.divider()
 
-# --- 2. QUANTITATIVE MACRO & SYSTEMIC RISK OVERLAY (Merged from ml-pipeline) ---
+# --- 2. OFFICIAL GERMAN CONSTRUCTION OUTLOOK & EVIDENCE (TASK 11) ---
+st.markdown("### 🏗️ German Construction Price & Regulatory Outlook")
+st.caption(
+    "Primary Target: Germany Producer Price Index for Residential Buildings (New Work), 2021=100 (Destatis 61261-0002). "
+    "Point-in-time public availability with separate observed, forecast, reported, and regulatory context."
+)
+
+try:
+    outlook = get_construction_outlook()
+
+    # 1. Target & Forecast Summary Bar
+    oc1, oc2, oc3, oc4 = st.columns(4)
+    with oc1:
+        latest = outlook.get("latest_observation")
+        if latest and latest.get("value") is not None:
+            st.metric(
+                label=f"Observed PPI ({latest.get('period', 'N/A')})",
+                value=f"{latest['value']:.2f}",
+                delta=f"Status: {latest.get('status', 'AVAILABLE')} (Published: {str(latest.get('published_at', 'N/A'))[:10]})",
+                delta_color="normal"
+            )
+        else:
+            st.metric(
+                label="Observed PPI",
+                value="Unavailable",
+                delta="No verified observations as of cutoff",
+                delta_color="off"
+            )
+
+    with oc2:
+        pt_fc = outlook.get("point_forecast")
+        t_period = outlook.get("target_period", "Next Q")
+        if pt_fc is not None:
+            st.metric(
+                label=f"Forecast PPI ({t_period})",
+                value=f"{pt_fc:.2f}",
+                delta=f"Model: {outlook.get('model_info', 'Baseline')}",
+                delta_color="normal"
+            )
+        else:
+            st.metric(
+                label=f"Forecast PPI ({t_period})",
+                value="Unavailable",
+                delta="Insufficient history",
+                delta_color="off"
+            )
+
+    with oc3:
+        interval = outlook.get("interval", {})
+        cal_status = interval.get("calibration_status", "unavailable")
+        if cal_status == "calibrated" and interval.get("lower") is not None and interval.get("upper") is not None:
+            st.metric(
+                label="90% Conformal Interval",
+                value=f"[{interval['lower']:.2f}, {interval['upper']:.2f}]",
+                delta="Calibrated (≥20 historical quarters)",
+                delta_color="normal"
+            )
+        else:
+            st.metric(
+                label="90% Conformal Interval",
+                value="Uncalibrated",
+                delta="<20 calibration quarters" if cal_status == "insufficient_calibration_history" else "Unavailable",
+                delta_color="off"
+            )
+
+    with oc4:
+        st.metric(
+            label="Target Benchmark",
+            value="Destatis 61261-0002",
+            delta="Strict Anti-Proxy (No Financial Substitution)",
+            delta_color="normal"
+        )
+
+    # 2. Tabs for Context, Gaps & Evidence
+    out_tab1, out_tab2, out_tab3, out_tab4 = st.tabs([
+        "📜 Regulatory Context (Active & Forthcoming)",
+        "🧱 Supply Context (Measured vs Reported)",
+        "⚠️ Data Gaps & Source Status",
+        "⚖️ Evidence Links & Limitations"
+    ])
+
+    with out_tab1:
+        reg_ctx = outlook.get("regulatory_context", [])
+        if reg_ctx:
+            reg_df = pd.DataFrame(reg_ctx)
+            cols = [c for c in ["label", "status", "valid_from", "law_id", "rule_id"] if c in reg_df.columns]
+            st.dataframe(reg_df[cols], use_container_width=True, hide_index=True)
+        else:
+            st.info("No active or forthcoming legal obligations recorded as of current cutoff.")
+
+    with out_tab2:
+        supply_ctx = outlook.get("supply_context", [])
+        if supply_ctx:
+            sup_df = pd.DataFrame(supply_ctx)
+            cols = [c for c in ["kind", "claim_status", "label", "value", "unit", "period"] if c in sup_df.columns]
+            st.dataframe(sup_df[cols], use_container_width=True, hide_index=True)
+            st.caption("Note: 'REPORTED' denotes unverified news claims/signals; 'MEASURED' denotes official statistical observations.")
+        else:
+            st.info("No physical or reported supply context items recorded.")
+
+    with out_tab3:
+        gaps = outlook.get("source_gaps", [])
+        if gaps:
+            for g in gaps:
+                st.warning(f"⚠️ {g}")
+        else:
+            st.success("No active data gaps or staleness detected for primary target series.")
+
+    with out_tab4:
+        ev_links = outlook.get("evidence", [])
+        if ev_links:
+            st.markdown("##### 🔗 Primary Evidence Links")
+            for ev in ev_links:
+                url = ev.get("url")
+                pub = ev.get("publisher", "Official Publisher")
+                doc_id = ev.get("document_id", "Document")
+                if url:
+                    st.markdown(f"- **[{pub} — {doc_id}]({url})**")
+                else:
+                    st.markdown(f"- **{pub}** (`{doc_id}`)")
+
+        st.markdown("##### 🛡️ Causal & Anti-Proxy Limitations")
+        for lim in outlook.get("limitations", []):
+            st.caption(f"• {lim}")
+
+except Exception as e:
+    st.info(f"Construction outlook panel initializing: {e}")
+
+st.divider()
+
+# --- 3. QUANTITATIVE MACRO & SYSTEMIC RISK OVERLAY (Merged from ml-pipeline) ---
 st.markdown("### 🏗️ Construction Macro & Quantitative Risk Intelligence")
 st.caption("Cross-asset systemic fragility, HMM market regimes, keyless FRED credit spreads, and GARCH volatility forecasting.")
 
@@ -201,21 +332,21 @@ try:
 
     qc1, qc2, qc3, qc4 = st.columns(4)
     with qc1:
-        reg_name = regime_data.get("current_regime", "NEUTRAL_CONSOLIDATION")
-        reg_conf = regime_data.get("confidence", 0.8) * 100
-        st.metric("Market Regime (HMM)", reg_name.replace("_", " "), f"{reg_conf:.1f}% Confidence")
+        reg_name = regime_data.get("current_regime")
+        reg_conf = regime_data.get("confidence")
+        st.metric("Market Regime (HMM)", reg_name.replace("_", " ") if reg_name else "Unavailable", f"{reg_conf * 100:.1f}% Confidence" if reg_conf is not None else None)
     with qc2:
-        ar_val = frag_data.get("absorption_ratio", 0.5) * 100
-        ar_status = frag_data.get("status", "NORMAL")
-        st.metric("Systemic Fragility (Absorption Ratio)", f"{ar_val:.1f}%", f"Status: {ar_status}")
+        ar_val = frag_data.get("absorption_ratio")
+        ar_status = frag_data.get("status", "unavailable")
+        st.metric("Systemic Fragility (Absorption Ratio)", f"{ar_val * 100:.1f}%" if ar_val is not None else "Unavailable", f"Status: {ar_status}")
     with qc3:
-        m_risk = macro_data.get("macro_risk", 0.4)
-        yc = macro_data.get("yield_curve_spread", 0.0)
-        st.metric("Macro Credit Risk (FRED)", f"{m_risk:.2f}", f"10Y-3M Curve: {yc:+.2f}%")
+        m_risk = macro_data.get("macro_risk")
+        yc = macro_data.get("yield_curve_spread")
+        st.metric("Macro Credit Risk (FRED)", f"{m_risk:.2f}" if m_risk is not None else "Unavailable", f"10Y-3M Curve: {yc:+.2f}%" if yc is not None else None)
     with qc4:
-        v_1d = garch_rebar.get("garch_1d_pct", 15.0)
-        v_term = garch_rebar.get("term_structure", "FALLING")
-        st.metric("Rebar Volatility (GARCH 1d)", f"{v_1d:.1f}%", f"Term: {v_term}")
+        v_1d = garch_rebar.get("garch_1d_pct")
+        v_term = garch_rebar.get("term_structure")
+        st.metric("Rebar Volatility (GARCH 1d)", f"{v_1d:.1f}%" if v_1d is not None else "Unavailable", f"Term: {v_term}" if v_term else None)
 except Exception as e:
     st.info(f"Quant risk overlay initializing: {e}")
 

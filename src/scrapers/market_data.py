@@ -182,7 +182,7 @@ class MarketDataIngester:
     ) -> Dict[str, Any]:
         """
         Fetches historical data for all tracked instruments via yfinance
-        (with offline synthetic fallback) and writes nodes, edges, and tabular history.
+        (without fabricated offline prices) and writes nodes, edges, and tabular history.
 
         Args:
             period: Time window (e.g. '6mo', '1y', '2y')
@@ -248,13 +248,10 @@ class MarketDataIngester:
 
             df = self._fetch_history(ticker, period)
             if df is None or df.empty:
-                if settings.mode == "demo":
-                    df = self._generate_synthetic_history(ticker, currency)
-                else:
-                    if "instruments_failed" not in results:
-                        results["instruments_failed"] = []
-                    results["instruments_failed"].append(ticker)
-                    df = None
+                if "instruments_failed" not in results:
+                    results["instruments_failed"] = []
+                results["instruments_failed"].append(ticker)
+                df = None
 
             # Sample records
             records_count = 0
@@ -322,29 +319,3 @@ class MarketDataIngester:
         except Exception as e:
             logger.warning(f"Failed to fetch market data for {ticker} from yfinance: {e}")
             return None
-
-    def _generate_synthetic_history(self, ticker: str, currency: str) -> pd.DataFrame:
-        """Fallback deterministic realistic market price series."""
-        base_prices = {
-            "MT": 28.50,
-            "TKA.DE": 6.80,
-            "RWE.DE": 38.20,
-            "BAS.DE": 46.50,
-            "KRBN": 32.10,
-            "TTF=F": 34.50,
-            "EURUSD=X": 1.08
-        }
-        base_price = base_prices.get(ticker, 50.0)
-        
-        # 52 weekly points
-        dates = pd.date_range(end=datetime.now(), periods=52, freq="W")
-        np.random.seed(abs(hash(ticker)) % 1000000)
-        returns = np.random.normal(0.002, 0.03, len(dates))
-        prices = base_price * np.cumprod(1 + returns)
-        volumes = np.random.randint(500000, 3000000, len(dates))
-
-        return pd.DataFrame({
-            "Close": prices,
-            "Volume": volumes,
-            "Return_Pct": returns * 100.0
-        }, index=dates)

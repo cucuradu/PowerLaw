@@ -238,12 +238,15 @@ class LawTOC(BaseModel):
 
 """
 from google import genai
+from google.genai import types
 import extraction_schemas
 
 # Configure structured output
-response = genai.GenerativeModel('gemini-2.0-flash').generate_content(
-    prompt,
-    generation_config=genai.GenerationConfig(
+client = genai.Client(vertexai=True, project="YOUR_PROJECT_ID", location="us-central1")  # Uses ADC.
+response = client.models.generate_content(
+    model="gemini-3.8-flash",
+    contents=prompt,
+    config=types.GenerateContentConfig(
         response_mime_type="application/json",
         response_schema=extraction_schemas.NewsExtraction
     )

@@ -19,7 +19,7 @@ if str(repo_root) not in sys.path:
 import networkx as nx
 from src.storage.dashboard_data import get_graph_store
 
-def export_graph_visualization(output_paths=None, storage_dir="data/lancedb"):
+def export_graph_visualization(output_paths=None, storage_dir=None, *, persist=True):
     store = get_graph_store(storage_dir=storage_dir)
     nodes = store.get_nodes()
     edges = store.get_edges()
@@ -72,7 +72,7 @@ def export_graph_visualization(output_paths=None, storage_dir="data/lancedb"):
             "type": ntype,
             "description": n.description,
             "jurisdiction": n.jurisdiction or "EU",
-            "activation_date": n.activation_date or "2023-01-01",
+            "activation_date": n.activation_date or None,
             "in_degree": in_degrees.get(nid, 0),
             "out_degree": out_degrees.get(nid, 0),
             "total_degree": total_degrees.get(nid, 0),
@@ -105,21 +105,18 @@ def export_graph_visualization(output_paths=None, storage_dir="data/lancedb"):
         "edges": viz_edges
     }
 
-    # Save JSON
+    html_content = generate_html_viewer(payload)
+    if not persist:
+        return payload, html_content
+
+    # Save JSON only from the explicit export command, never from dashboard reads.
     json_path = repo_root / "visualizations" / "graph_data.json"
     json_path.parent.mkdir(parents=True, exist_ok=True)
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
-    # Compile self-contained HTML
-    html_content = generate_html_viewer(payload)
-
     if output_paths is None:
-        brain_dir = Path(r"C:\Users\Radu\.gemini\antigravity\brain\ed333c76-61dd-4458-b012-9e062bb88a1d")
-        output_paths = [
-            repo_root / "visualizations" / "interactive_graph.html",
-            brain_dir / "interactive_graph.html"
-        ]
+        output_paths = [repo_root / "visualizations" / "interactive_graph.html"]
 
     for p in output_paths:
         try:
@@ -405,7 +402,7 @@ def generate_html_viewer(payload):
         </div>
         <div>
           <span class="text-slate-500 uppercase text-[10px] font-semibold">Activation Date</span>
-          <div id="metaDate" class="text-white font-medium text-xs mt-0.5">2024-05-20</div>
+          <div id="metaDate" class="text-white font-medium text-xs mt-0.5">Unknown</div>
         </div>
         <div>
           <span class="text-slate-500 uppercase text-[10px] font-semibold">In / Out Degree</span>
@@ -474,7 +471,7 @@ def generate_html_viewer(payload):
       </button>
       <div class="flex-1 flex flex-col gap-1">
         <div class="flex items-center justify-between text-[11px] text-slate-400">
-          <span>Temporal Playback As-Of: <b id="currentTimelineDate" class="text-white font-mono">2026-10-18</b></span>
+          <span>Temporal Playback As-Of: <b id="currentTimelineDate" class="text-white font-mono">Unknown</b></span>
           <span class="text-slate-500">2021 — 2026</span>
         </div>
         <input 
@@ -532,7 +529,7 @@ def generate_html_viewer(payload):
           </div>
           <div>
             <label class="block text-slate-400 uppercase text-[10px] font-semibold mb-1">Activation Date</label>
-            <input id="inputNodeDate" type="date" value="2024-10-01" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-blue-500" />
+            <input id="inputNodeDate" type="date" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-blue-500" />
           </div>
         </div>
 
@@ -619,7 +616,7 @@ def generate_html_viewer(payload):
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-slate-400 uppercase text-[10px] font-semibold mb-1">Timestamp</label>
-            <input id="inputStateDate" type="date" value="2024-10-18" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-blue-500" />
+            <input id="inputStateDate" type="date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-white focus:outline-none focus:border-blue-500" />
           </div>
           <div>
             <label class="block text-slate-400 uppercase text-[10px] font-semibold mb-1">State Value</label>
@@ -710,8 +707,10 @@ def generate_html_viewer(payload):
       let timelineIndex = 100;
       let isTimelinePlaying = false;
       let timelineTimer = null;
-      let minDate = new Date('2021-01-01').getTime();
-      let maxDate = new Date('2026-10-18').getTime();
+      const storedDates = rawData.nodes.flatMap(n => [n.activation_date, ...(n.history || []).map(h => h.timestamp)])
+        .concat(rawData.edges.map(e => e.timestamp)).filter(Boolean).map(d => new Date(d).getTime()).filter(Number.isFinite);
+      let minDate = storedDates.length ? Math.min(...storedDates) : null;
+      let maxDate = storedDates.length ? Math.max(...storedDates) : null;
 
       // Initialize Nodes & Edges
       function initData() {{
@@ -722,7 +721,7 @@ def generate_html_viewer(payload):
           const maxDeg = Math.max(...rawData.nodes.map(x => x.total_degree || 1));
           const deg = n.total_degree || 1;
           const radius = 13 + (deg / maxDeg) * 22; // scale radius 13..35
-          const actDate = new Date(n.activation_date || '2023-01-01').getTime();
+          const actDate = n.activation_date ? new Date(n.activation_date).getTime() : null;
 
           return {{
             ...n,
@@ -1049,7 +1048,7 @@ def generate_html_viewer(payload):
         nodes.forEach(n => {{
           if (!activeTypes.has(n.type)) return;
 
-          const isTimeActive = n.actDate <= curTime;
+          const isTimeActive = n.actDate !== null && n.actDate <= curTime;
           if (!isTimeActive) return;
 
           const isSelected = selectedNode && selectedNode.id === n.id;
@@ -1538,7 +1537,7 @@ def generate_html_viewer(payload):
       function updateTimelineDate(val) {{
         timelineIndex = parseInt(val);
         const t = minDate + (timelineIndex / 100) * (maxDate - minDate);
-        curDateLabel.textContent = new Date(t).toISOString().slice(0, 10);
+        curDateLabel.textContent = minDate === null ? 'Unknown' : new Date(t).toISOString().slice(0, 10);
       }}
 
       timelineSlider.addEventListener('input', (e) => {{
@@ -1605,7 +1604,7 @@ def generate_html_viewer(payload):
         e.preventDefault();
         const label = document.getElementById('inputNodeLabel').value.trim();
         const type = document.getElementById('selectNodeType').value;
-        const actDate = document.getElementById('inputNodeDate').value || '2024-10-01';
+        const actDate = document.getElementById('inputNodeDate').value || null;
         const desc = document.getElementById('inputNodeDesc').value.trim();
 
         // Generate clean ID
@@ -1620,7 +1619,7 @@ def generate_html_viewer(payload):
           description: desc,
           jurisdiction: 'EU',
           activation_date: actDate,
-          actDate: new Date(actDate).getTime(),
+          actDate: actDate ? new Date(actDate).getTime() : null,
           in_degree: 0,
           out_degree: 0,
           total_degree: 0,

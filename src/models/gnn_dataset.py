@@ -149,3 +149,142 @@ class DualLayerGNNDataset:
         for d in sorted(date_list):
             snapshots.append(self.build_snapshot(as_of_date=d))
         return snapshots
+
+
+# =========================================================================
+# Release-Aware Real Forecasting Dataset Generator
+# =========================================================================
+
+from datetime import date, timezone
+
+
+def _quarter_bounds(year: int, quarter: int) -> Tuple[date, date, str]:
+    start_month = 3 * (quarter - 1) + 1
+    start_d = date(year, start_month, 1)
+    if quarter == 4:
+        end_d = date(year + 1, 1, 1)
+    else:
+        end_d = date(year, start_month + 3, 1)
+    label = f"{year}-Q{quarter}"
+    return start_d, end_d, label
+
+
+def _dt_to_quarter(dt: datetime) -> Tuple[int, int]:
+    month = dt.month
+    quarter = (month - 1) // 3 + 1
+    return dt.year, quarter
+
+
+def _add_quarters(year: int, quarter: int, delta: int) -> Tuple[int, int]:
+    total_q = year * 4 + (quarter - 1) + delta
+    new_year = total_q // 4
+    new_quarter = (total_q % 4) + 1
+    return new_year, new_quarter
+
+
+def build_forecast_dataset(
+    target_series_id: str, origins: List[datetime], horizon_periods: int = 1,
+    mode: str = "public_as_of", store: Any = None, window_size: int = 8,
+    label_cutoff: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Freeze quarterly inputs and evidenced first-release growth labels separately."""
+    import hashlib
+    import json
+    import math
+    from src.gnn.graph_exporter import export_as_of, to_heterodata, CANONICAL_NODE_TYPES, HAS_PYG
+    from src.storage.dual_layer_store import DualLayerStore
+
+    if horizon_periods != 1 or window_size < 1:
+        raise ValueError("The registered target requires a one-quarter horizon and positive window")
+    store = store or DualLayerStore()
+    label_cutoff = store._utc(label_cutoff or datetime.now(timezone.utc)) if hasattr(store, "_utc") else (label_cutoff or datetime.now(timezone.utc))
+    origins = sorted(store._utc(o) for o in origins)
+    if len(set(origins)) != len(origins):
+        raise ValueError("Duplicate forecast origins")
+    definitions = {d.series_id: d for d in store.query_series(label_cutoff, mode)}
+    definition = definitions.get(target_series_id)
+    if definition is None or definition.frequency.upper() not in {"Q", "QUARTERLY"}:
+        raise ValueError("A committed quarterly target definition is required")
+    if definition.dataset_id != "61261-0002" or definition.geography_id not in {"DE", "geo:DE"}:
+        raise ValueError("The primary target is German residential construction PPI 61261-0002")
+    if definition.measurement_kind.upper() not in {"PRODUCER_PRICE_INDEX", "PRODUCER_PRICE"}:
+        raise ValueError("Input costs, material prices and consumer prices cannot replace construction PPI")
+
+    def digest(value):
+        return hashlib.sha256(json.dumps(value, sort_keys=True, default=str, separators=(",", ":")).encode()).hexdigest()
+
+    revisions = [o for o in store.query_observation_revisions(label_cutoff, mode)
+                 if o.series_id == target_series_id and o.vintage_id and o.unit == definition.unit]
+    # A current download of old periods cannot establish their historical release dates.
+    verified = []
+    for obs in revisions:
+        docs = [d for d in store.documents_for(obs, label_cutoff, mode)
+                if d.availability_basis in {"provider_vintage", "archived_release"}]
+        if docs:
+            links = [e for e in store.evidence_for(obs, label_cutoff, mode)
+                     if e.document_version_id in {d.version_id for d in docs}]
+            release = min(max(store._available(obs), store._available(e),
+                              store._available(next(d for d in docs if d.version_id == e.document_version_id))) for e in links)
+            verified.append((obs, release))
+    samples, snapshot_hashes, label_lineage = [], [], []
+    for origin in origins:
+        if origin > label_cutoff:
+            raise ValueError("Forecast origin is later than the dataset label cutoff")
+        year, quarter = _dt_to_quarter(origin)
+        denom_start, denom_end, denom_label = _quarter_bounds(year, quarter)
+        ty, tq = _add_quarters(year, quarter, horizon_periods)
+        target_start, target_end, target_label = _quarter_bounds(ty, tq)
+        snapshots, hashes = [], []
+        for step in range(window_size):
+            delta = step - window_size + 1
+            sy, sq = _add_quarters(year, quarter, delta)
+            _, end, _ = _quarter_bounds(sy, sq)
+            cutoff = origin if delta == 0 else datetime.combine(end, datetime.min.time(), timezone.utc) - pd.Timedelta(microseconds=1)
+            raw = export_as_of(cutoff, mode=mode, store=store)
+            # Global generation changes do not change the historical feature identity.
+            hashes.append(digest({k: raw.get(k) for k in ("cutoff", "mode", "nodes", "edges", "observations")}))
+            snapshots.append(to_heterodata(raw) if HAS_PYG else raw)
+        snapshot_hashes.append(hashes)
+        last = snapshots[-1]
+        ids = list(last["series"].node_id) if HAS_PYG else sorted(n["id"] for n in last.get("nodes", []) if n["id"].startswith("series:"))
+        index = ids.index(target_series_id) if target_series_id in ids else -1
+        candidates = []
+        for denominator, da in verified:
+            if (denominator.period_start, denominator.period_end_exclusive) != (str(denom_start), str(denom_end)):
+                continue
+            for numerator, na in verified:
+                if (numerator.period_start, numerator.period_end_exclusive) != (str(target_start), str(target_end)):
+                    continue
+                if numerator.vintage_id != denominator.vintage_id or not numerator.source_unit or numerator.source_unit != denominator.source_unit:
+                    continue
+                if denominator.value == 0:
+                    continue
+                release = max(da, na)
+                if release <= label_cutoff:
+                    candidates.append((release, numerator.vintage_id, denominator.revision_id,
+                                       numerator.revision_id, denominator, numerator))
+        chosen = min(candidates, key=lambda c: c[:4]) if candidates else None
+        value = 100 * (chosen[5].value / chosen[4].value - 1) if chosen else math.nan
+        valid = chosen is not None and math.isfinite(value)
+        sample = {"origin": origin, "target_series_id": target_series_id,
+                  "target_period_start": str(target_start), "target_period_end_exclusive": str(target_end),
+                  "target_period_label": target_label, "denominator_period_label": denom_label,
+                  "snapshots": snapshots, "cutoff": origin, "target_series_index": np.array([index], dtype=np.int64),
+                  "target_series_present": index >= 0, "y": np.array([[value]], dtype=np.float32),
+                  "y_mask": np.array([[valid]], dtype=bool), "vintage_id": chosen[1] if valid else None,
+                  "first_release_available_at": chosen[0] if valid else None,
+                  "label_revision_ids": list(chosen[2:4]) if valid else [],
+                  "label_missing_reason": None if valid else "no_eligible_comparable_verified_release"}
+        samples.append(sample)
+        label_lineage.append({k: sample[k] for k in ("origin", "vintage_id", "first_release_available_at", "label_revision_ids")})
+    feature_profile = {"feature_dim": 8, "node_types": CANONICAL_NODE_TYPES, "edge_dim": 12, "window_size": window_size}
+    manifest = {"schema_version": 1, "num_samples": len(samples), "target_series_id": target_series_id,
+                "mode": mode, "horizon_periods": horizon_periods, "window_size": window_size,
+                "origins": [o.isoformat() for o in origins], "label_cutoff": label_cutoff.isoformat(),
+                "committed_generation": store.generation, "input_table_versions": store._state.get("tables", {}),
+                "target_spec_id": digest(definition.model_dump(mode="json")), "feature_profile_id": digest(feature_profile),
+                "snapshot_hashes": snapshot_hashes, "labels": label_lineage}
+    dataset_id = "dataset:" + digest(manifest)
+    return {"dataset_id": dataset_id, "target_series_id": target_series_id, "mode": mode,
+            "horizon_periods": horizon_periods, "samples": samples, "feature_profile": feature_profile,
+            "manifest": {**manifest, "dataset_id": dataset_id}}

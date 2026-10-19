@@ -23,11 +23,11 @@ def restore_law(celex_id):
                 f.write(r.content)
             print(f"   ✅ Downloaded local: {pdf_path}")
             
-            # 2. Metadata (dummy/minimal for now, just to have the file)
-            # Or fetch SPARQL? Let's just create minimal so pipeline works.
+            # A successful download does not establish the act's legal status.
             meta = {
                 "celex_id": celex_id,
-                "status": "in_force", # assumption for restoration
+                "status": None,
+                "status_missing_reason": "Legal status was not verified during download",
                 "restored": True
             }
             with open(BASE_DIR / f"{celex_id}.json", 'w') as f:

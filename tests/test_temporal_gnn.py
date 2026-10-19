@@ -17,7 +17,7 @@ import torch
 
 from src.gnn.temporal_gnn import GraphConvLayer, TemporalLawReactionGNN, HAS_TORCH
 from src.gnn.trainer import TGNNTrainer
-from src.storage.dashboard_data import get_demo_graph_store
+from tests.sample_data import get_fixture_graph_store
 from src.storage.graph_store import DualLayerGraphStore
 
 
@@ -25,7 +25,7 @@ from src.storage.graph_store import DualLayerGraphStore
 def sample_graph_store(tmp_path, monkeypatch):
     """Instantiates a populated graph store with seed data for tests."""
     monkeypatch.setenv("POWERLAW_MODE", "demo")
-    return get_demo_graph_store(storage_dir=str(tmp_path / "gnn_db"))
+    return get_fixture_graph_store(storage_dir=str(tmp_path / "gnn_db"))
 
 
 def test_has_torch():

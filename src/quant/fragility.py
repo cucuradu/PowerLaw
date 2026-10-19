@@ -45,9 +45,9 @@ def compute_systemic_fragility(
     history_df = store.get_history_df()
     if history_df.empty:
         return {
-            "absorption_ratio": 0.50,
-            "status": "NORMAL",
-            "variance_explained_pct": 50.0,
+            "absorption_ratio": None,
+            "status": "unavailable",
+            "variance_explained_pct": None,
             "num_assets": 0,
             "error": "No history records found in store."
         }
@@ -56,9 +56,9 @@ def compute_systemic_fragility(
     price_df = history_df[history_df["metric_name"].isin(["price", "rebar_ex_works", "cement_cem1_price", "eua_spot_price", "ttf_day_ahead"])].copy()
     if price_df.empty or "node_id" not in price_df.columns or "timestamp" not in price_df.columns:
         return {
-            "absorption_ratio": 0.50,
-            "status": "NORMAL",
-            "variance_explained_pct": 50.0,
+            "absorption_ratio": None,
+            "status": "unavailable",
+            "variance_explained_pct": None,
             "num_assets": 0,
             "error": "Insufficient price metrics."
         }
@@ -83,11 +83,11 @@ def compute_systemic_fragility(
     num_assets = returns_window.shape[1]
     if num_assets < min_assets:
         return {
-            "absorption_ratio": 0.52,
-            "status": "NORMAL",
-            "variance_explained_pct": 52.0,
+            "absorption_ratio": None,
+            "status": "unavailable",
+            "variance_explained_pct": None,
             "num_assets": num_assets,
-            "warning": f"Only {num_assets} assets available (< {min_assets}); returning default baseline."
+            "warning": f"Only {num_assets} assets available (< {min_assets})."
         }
 
     # Correlation matrix & Eigenvalue decomposition
@@ -97,7 +97,7 @@ def compute_systemic_fragility(
     total_var = float(eigvals.sum())
 
     if total_var <= 0:
-        return {"absorption_ratio": 0.50, "status": "NORMAL", "variance_explained_pct": 50.0, "num_assets": num_assets}
+        return {"absorption_ratio": None, "status": "unavailable", "variance_explained_pct": None, "num_assets": num_assets}
 
     max_idx = int(np.argmax(eigvals))
     lambda_max = float(eigvals[max_idx])

@@ -79,7 +79,7 @@ def test_invalid_date_and_timestamps():
 
     scraper = EconomicNewsScraper()
     parsed = scraper._parse_date("not-a-valid-date-at-all")
-    assert len(parsed) == 10  # Fallback to today YYYY-MM-DD
+    assert parsed == ""  # Unknown dates remain unknown, no synthetic today fallback
 
 
 def test_extreme_and_negative_metric_values():

@@ -3,6 +3,7 @@ Tests for centralized ingestion configuration, DB resolution, and production ori
 """
 
 import os
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -82,12 +83,11 @@ class TestIngestionConfig(unittest.TestCase):
                 self.assertEqual(len(store.get_history()), 0, "Production store must have 0 history records")
 
                 # Ensure structured rules also stays empty in production
-                dd.ensure_structured_rules_table(storage_dir=str(prod_db))
                 laws = dd.get_all_laws_data(storage_dir=str(prod_db))
                 self.assertEqual(len(laws), 0, "Production structured_rules table must not inject benchmark seed rules")
 
-    def test_demo_mode_opts_in_to_seed_data(self):
-        """Demo mode must explicitly opt in to populate benchmark seed data."""
+    def test_demo_mode_does_not_inject_sample_data(self):
+        """Changing execution mode must not generate sample records."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             demo_db = Path(tmp_dir) / "demo_db"
             demo_db.mkdir(parents=True, exist_ok=True)
@@ -97,13 +97,9 @@ class TestIngestionConfig(unittest.TestCase):
                     src.config.clear_settings_cache()
 
                 import src.storage.dashboard_data as dd
-                # In demo mode, explicit demo store or get_demo_graph_store populates seeds
-                if hasattr(dd, "get_demo_graph_store"):
-                    store = dd.get_demo_graph_store(storage_dir=str(demo_db))
-                else:
-                    store = dd.get_graph_store(storage_dir=str(demo_db))
-                self.assertGreater(len(store.get_nodes()), 0, "Demo mode must populate seed nodes")
-                self.assertGreater(len(store.get_edges()), 0, "Demo mode must populate seed edges")
+                store = dd.get_graph_store(storage_dir=str(demo_db))
+                self.assertEqual(store.get_nodes(), [])
+                self.assertEqual(store.get_edges(), [])
 
     def test_failed_market_fetch_in_production_produces_no_synthetic_rows(self):
         """When yfinance fails in production mode, MarketDataIngester must NOT generate synthetic rows."""
@@ -185,6 +181,10 @@ class TestIngestionConfig(unittest.TestCase):
             "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "BUNDESBANK_SDMX",
             "SMARD_DE", "EURLEX_CELLAR", "OFFICIAL_NEWS", "GISCO_GEOGRAPHY"
         ]
+        verified_enabled = {
+            "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
+            "BUNDESBANK_SDMX", "SMARD_DE", "EURLEX_CELLAR",
+        }
         for ck in core_keys:
             self.assertIn(ck, sources, f"Core source {ck} must be present in register")
             meta = sources[ck]
@@ -192,8 +192,9 @@ class TestIngestionConfig(unittest.TestCase):
             self.assertFalse(meta.get("requires_paid_subscription"))
             self.assertTrue(len(meta.get("rights", "")) > 0)
             self.assertTrue(len(meta.get("attribution", "")) > 0)
-            # Untested candidates must be disabled
-            self.assertFalse(meta.get("enabled", True), f"Candidate {ck} must remain disabled until tested")
+            self.assertEqual(meta.get("enabled"), ck in verified_enabled)
+            if ck in verified_enabled:
+                self.assertTrue(meta.get("rights_checked"), f"Enabled source {ck} must be rights-checked")
 
     def test_paid_source_candidate_rejected(self):
         """A candidate requiring payment or subscription must be rejected by validator."""
@@ -287,8 +288,9 @@ class TestIngestionConfig(unittest.TestCase):
             prod_dir = Path(tmp_dir) / "data" / "production"
             raw_news_dir = prod_dir / "raw" / "news"
             raw_news_dir.mkdir(parents=True, exist_ok=True)
+            lancedb_dir = prod_dir / "lancedb"
 
-            # Write a probe with mixed demo and production records into news cache
+            # Write a probe with mixed demo and loose records into uncommitted raw news cache
             probe_news = [
                 {
                     "news_id": "NEWS_DEMO_01",
@@ -301,20 +303,36 @@ class TestIngestionConfig(unittest.TestCase):
                     "headline": "Synthetic Headline Should Not Leak",
                     "data_origin": "synthetic"
                 },
-                {
-                    "news_id": "NEWS_PROD_01",
-                    "headline": "Official Production Event",
-                    "data_origin": "production",
-                    "origin": "production"
-                }
             ]
             import json
             with open(raw_news_dir / "scraped_news.json", "w", encoding="utf-8") as f:
                 json.dump(probe_news, f)
 
+            # Stage verified canonical production news into the store
+            from datetime import datetime, timezone
+            from src.storage.dual_layer_store import DualLayerStore
+            from src.schemas.ingestion import Fact, Entity, BatchManifest, SourceDocument, EvidenceLink
+            store = DualLayerStore(lancedb_dir)
+            doc = SourceDocument.from_content("SRC", "https://example.com/doc", "Publisher", b"content", "b_news",
+                                             available_at=datetime(2024, 1, 1, tzinfo=timezone.utc), data_origin="live")
+            fact = Fact(subject_id="EVENT_prod", predicate="ABOUT", object_id="sector:steel", source_id="SRC",
+                        available_at=datetime(2024, 1, 1, tzinfo=timezone.utc), recorded_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                        batch_id="b_news", data_origin="live",
+                        payload_json=json.dumps({"kind": "action", "article_id": "NEWS_PROD_01", "event_id": "EVENT_prod",
+                            "evidence_text": "Official Production Event", "action": {"action_type": "FACILITY_SHUTDOWN",
+                            "actor": "Plant", "target": "sector:steel", "description": "Official Production Event", "magnitude": None}}))
+            entities = [Entity(entity_id=k, entity_type=t, canonical_label=k, created_at=datetime(2024, 1, 1, tzinfo=timezone.utc), batch_id="b_news", data_origin="live")
+                        for k, t in [("EVENT_prod", "ACTION"), ("sector:steel", "SECTOR")]]
+            ev = EvidenceLink(assertion_version_id=fact.fact_version_id, document_version_id=doc.version_id,
+                              quoted_text="Official Production Event", available_at=fact.available_at, batch_id="b_news", data_origin="live")
+            b_news = BatchManifest(batch_id="b_news", source_id="SRC", data_origin="live")
+            store.stage_batch(b_news, documents=[doc], facts=[fact], observations=[], entities=entities, evidence_links=[ev])
+            store.commit_batch("b_news")
+
             with patch.dict(os.environ, {
                 "POWERLAW_MODE": "production",
-                "POWERLAW_DATA_DIR": str(prod_dir)
+                "POWERLAW_DATA_DIR": str(prod_dir),
+                "LANCEDB_PATH": str(lancedb_dir)
             }):
                 import src.config
                 if hasattr(src.config, "clear_settings_cache"):
@@ -391,11 +409,342 @@ class TestIngestionConfig(unittest.TestCase):
         self.assertIn("verification_evidence", target)
         ev = target["verification_evidence"]
         self.assertEqual(ev["status"], "VERIFIED_OFFICIAL_RESPONSE")
+        self.assertEqual(ev["fixture_type"], "OFFICIAL_RESPONSE_FIELDS")
+        self.assertEqual(ev["credential_method_used"], "API_TOKEN")
+        self.assertIsNotNone(ev["verified_at"])
+        self.assertIsNone(rel["next_scheduled_release"])
+        self.assertFalse(ev["historical_release_vintages_verified"])
+
         fixture_path = Path(ev["fixture_path"])
         self.assertTrue(fixture_path.exists(), f"Fixture file {fixture_path} must exist on disk")
 
-        # Verify fixture SHA256 integrity
+        # Inspect the provider's real response rather than a synthetic data envelope.
+        with open(fixture_path, "r", encoding="utf-8") as f:
+            fixture_data = json.load(f)
+        self.assertEqual(fixture_data["Status"]["Code"], 0)
+        content = fixture_data["Object"]["Content"]
+        self.assertIn("Tabelle: 61261-0002", content)
+        self.assertIn("2021=100", content)
+        self.assertIn("2025;Wohngebäude;Bauleistungen am Bauwerk;132,6;132,6;133,6", content)
+        self.assertNotIn("Parameter", fixture_data)
+
+        # Verify fixture SHA256 integrity (verifies fixture file integrity without treating checksum as official proof)
         import hashlib
         with open(fixture_path, "rb") as f:
             actual_sha256 = hashlib.sha256(f.read()).hexdigest()
         self.assertEqual(actual_sha256, ev["fixture_sha256"])
+
+    def test_audit_provenance_classification_zero_partial_complete_mixed(self):
+        """
+        _classify_dataset and _validate_raw_references must accurately classify
+        zero, partial, complete, and mixed provenance without falsely marking mixed datasets as verified.
+        """
+        from scripts.ops.migrate_data import _validate_raw_references, _classify_dataset
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            sample_file = tmp_path / "raw_doc.pdf"
+            sample_file.write_bytes(b"%PDF-1.4 sample content")
+
+            # 1. Zero provenance: URLs only (http://...), no archived raw file
+            df_zero = pd.DataFrame([
+                {"id": 1, "data_origin": "production", "source_url": "https://example.com/law1"},
+                {"id": 2, "data_origin": "production", "source_url": "https://example.com/law2"},
+            ])
+            ref_zero = _validate_raw_references(df_zero)
+            self.assertEqual(ref_zero["archived_provenance_count"], 0)
+            self.assertEqual(ref_zero["source_url_only_count"], 2)
+            self.assertEqual(ref_zero["coverage_rate"], 0.0)
+            class_zero = _classify_dataset(list(df_zero.columns), {"production": 2}, ref_zero)
+            self.assertEqual(class_zero, "quarantined_legacy")
+
+            # 2. Partial provenance: 1 out of 10 rows has valid raw document reference
+            rows_partial = [{"id": i, "data_origin": "production", "source_url": "https://example.com"} for i in range(10)]
+            rows_partial[0]["raw_file"] = str(sample_file)
+            df_partial = pd.DataFrame(rows_partial)
+            ref_partial = _validate_raw_references(df_partial)
+            self.assertEqual(ref_partial["valid_count"], 1)
+            self.assertEqual(ref_partial["total_records"], 10)
+            self.assertEqual(ref_partial["coverage_rate"], 0.1)
+            class_partial = _classify_dataset(list(df_partial.columns), {"production": 10}, ref_partial)
+            # MUST NOT be labeled "verified"!
+            self.assertEqual(class_partial, "partially_verified")
+
+            # 3. Complete provenance: 100% of rows have verified archived raw document references
+            rows_complete = [{"id": i, "data_origin": "production", "raw_file": str(sample_file)} for i in range(5)]
+            df_complete = pd.DataFrame(rows_complete)
+            ref_complete = _validate_raw_references(df_complete)
+            self.assertEqual(ref_complete["valid_count"], 5)
+            self.assertEqual(ref_complete["coverage_rate"], 1.0)
+            class_complete = _classify_dataset(list(df_complete.columns), {"production": 5}, ref_complete)
+            self.assertEqual(class_complete, "verified")
+
+            # 4. Mixed origins: production + demo rows in same dataset
+            df_mixed = pd.DataFrame([
+                {"id": 1, "data_origin": "production", "raw_file": str(sample_file)},
+                {"id": 2, "data_origin": "demo", "raw_file": str(sample_file)},
+            ])
+            ref_mixed = _validate_raw_references(df_mixed)
+            class_mixed = _classify_dataset(list(df_mixed.columns), {"production": 1, "demo": 1}, ref_mixed)
+            self.assertEqual(class_mixed, "mixed_provenance")
+
+    def test_audit_minio_inspection_strictly_read_only(self):
+        """
+        audit_sources MinIO inspection must be strictly read-only:
+        no bucket creation, no object upload, and no deletion.
+        """
+        from scripts.ops.migrate_data import audit_sources
+        from unittest.mock import MagicMock, patch
+
+        # Create mock MinIO client
+        mock_minio = MagicMock()
+        mock_minio.bucket_exists.return_value = True
+        fake_obj = MagicMock()
+        fake_obj.size = 1234
+        mock_minio.list_objects.return_value = [fake_obj]
+
+        mock_client_wrapper = MagicMock()
+        mock_client_wrapper.client = mock_minio
+
+        with patch.dict(os.environ, {
+            "POWERLAW_OBJECT_BACKEND": "s3",
+            "MINIO_ENDPOINT": "localhost:9000",
+            "POWERLAW_OBJECT_BUCKET": "test-evidence-bucket",
+            "POWERLAW_OBJECT_PREFIX": "test_prefix"
+        }):
+            import src.config
+            if hasattr(src.config, "clear_settings_cache"):
+                src.config.clear_settings_cache()
+
+            with patch("src.utils.minio_client.MinioClient", return_value=mock_client_wrapper):
+                report = audit_sources([], inspect_minio=True)
+
+                # Verify connection report
+                minio_rep = report["minio_inspection"]
+                self.assertEqual(minio_rep["status"], "verified_connected")
+                self.assertTrue(minio_rep["accessible"])
+                self.assertEqual(minio_rep["objects_count"], 1)
+                self.assertEqual(minio_rep["total_bytes"], 1234)
+
+                # Strict assert: NO bucket creation, upload, or deletion occurred
+                mock_minio.make_bucket.assert_not_called()
+                mock_minio.put_object.assert_not_called()
+                mock_minio.fput_object.assert_not_called()
+                mock_minio.remove_object.assert_not_called()
+
+        # Test missing bucket status
+        mock_minio.bucket_exists.return_value = False
+        with patch.dict(os.environ, {
+            "POWERLAW_OBJECT_BACKEND": "s3",
+            "MINIO_ENDPOINT": "localhost:9000",
+            "POWERLAW_OBJECT_BUCKET": "nonexistent-bucket"
+        }):
+            import src.config
+            if hasattr(src.config, "clear_settings_cache"):
+                src.config.clear_settings_cache()
+
+            with patch("src.utils.minio_client.MinioClient", return_value=mock_client_wrapper):
+                report = audit_sources([], inspect_minio=True)
+                self.assertEqual(report["minio_inspection"]["status"], "missing_bucket")
+                self.assertFalse(report["minio_inspection"]["accessible"])
+                mock_minio.make_bucket.assert_not_called()
+
+    def test_archive_provenance_nonexistent_remote_object(self):
+        """Production row with raw_uri='s3://nonexistent-bucket/missing-object' must NOT become verified."""
+        from scripts.ops.migrate_data import _validate_raw_references, _classify_dataset
+        df = pd.DataFrame([{
+            "id": 1,
+            "data_origin": "production",
+            "raw_uri": "s3://nonexistent-bucket/missing-object"
+        }])
+        ref_info = _validate_raw_references(df)
+        self.assertEqual(ref_info["archived_provenance_count"], 0)
+        self.assertEqual(ref_info["valid_count"], 0)
+        self.assertEqual(ref_info["coverage_rate"], 0.0)
+        self.assertEqual(ref_info["unverified_count"], 1)
+
+        classification = _classify_dataset(list(df.columns), {"production": 1}, ref_info)
+        self.assertEqual(classification, "quarantined_legacy")
+
+    def test_archive_provenance_unresolved_document_id(self):
+        """Production row with document_id='doc_' + 64 chars must NOT become verified without resolving retained document."""
+        from scripts.ops.migrate_data import _validate_raw_references, _classify_dataset
+        fake_doc_id = "doc_" + "a" * 64
+        df = pd.DataFrame([{
+            "id": 1,
+            "data_origin": "production",
+            "document_id": fake_doc_id
+        }])
+        ref_info = _validate_raw_references(df)
+        self.assertEqual(ref_info["archived_provenance_count"], 0)
+        self.assertEqual(ref_info["valid_count"], 0)
+        self.assertEqual(ref_info["coverage_rate"], 0.0)
+        self.assertEqual(ref_info["unverified_count"], 1)
+
+        classification = _classify_dataset(list(df.columns), {"production": 1}, ref_info)
+        self.assertEqual(classification, "quarantined_legacy")
+
+    def test_archive_provenance_checksum_mismatch(self):
+        """Local file exists but checksum mismatches row expected hash: must report unverified."""
+        from scripts.ops.migrate_data import _validate_raw_references, _classify_dataset
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            f = Path(tmp_dir) / "evidence.pdf"
+            f.write_bytes(b"%PDF-1.4 Real Content")
+            df = pd.DataFrame([{
+                "id": 1,
+                "data_origin": "production",
+                "raw_file": str(f),
+                "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"  # Wrong hash
+            }])
+            ref_info = _validate_raw_references(df)
+            self.assertEqual(ref_info["valid_count"], 0)
+            self.assertEqual(ref_info["coverage_rate"], 0.0)
+            classification = _classify_dataset(list(df.columns), {"production": 1}, ref_info)
+            self.assertEqual(classification, "quarantined_legacy")
+
+    def test_archive_provenance_unavailable_remote_storage(self):
+        """When MinIO client is unavailable or unconfigured, remote S3 URIs must report unverified."""
+        from scripts.ops.migrate_data import _validate_raw_references, _classify_dataset
+        df = pd.DataFrame([{
+            "id": 1,
+            "data_origin": "production",
+            "raw_uri": "s3://some-bucket/document.pdf"
+        }])
+        ref_info = _validate_raw_references(df, minio_client=None)
+        self.assertEqual(ref_info["valid_count"], 0)
+        self.assertEqual(ref_info["coverage_rate"], 0.0)
+        classification = _classify_dataset(list(df.columns), {"production": 1}, ref_info)
+        self.assertEqual(classification, "quarantined_legacy")
+
+    def test_archive_provenance_valid_retained_evidence_local_and_remote(self):
+        """Test valid retained evidence: matching local file checksum and valid read-only remote object stat."""
+        from scripts.ops.migrate_data import _validate_raw_references, _classify_dataset
+        from unittest.mock import MagicMock
+        import hashlib
+        import tempfile
+
+        # 1. Valid local file with matching checksum
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            f = Path(tmp_dir) / "doc.pdf"
+            content = b"%PDF-1.4 Verified Content"
+            f.write_bytes(content)
+            expected_hash = hashlib.sha256(content).hexdigest()
+
+            df_local = pd.DataFrame([{
+                "id": 1,
+                "data_origin": "production",
+                "raw_file": str(f),
+                "content_sha256": expected_hash
+            }])
+            ref_local = _validate_raw_references(df_local)
+            self.assertEqual(ref_local["valid_count"], 1)
+            self.assertEqual(ref_local["coverage_rate"], 1.0)
+            self.assertEqual(_classify_dataset(list(df_local.columns), {"production": 1}, ref_local), "verified")
+
+            # 2. Valid resolved document_id in archive manifest pointing to local file
+            doc_id = "doc_" + expected_hash
+            manifest = {doc_id: {"file_path": str(f)}}
+            df_doc = pd.DataFrame([{
+                "id": 1,
+                "data_origin": "production",
+                "document_id": doc_id
+            }])
+            ref_doc = _validate_raw_references(df_doc, archive_manifest=manifest)
+            self.assertEqual(ref_doc["valid_count"], 1)
+            self.assertEqual(ref_doc["coverage_rate"], 1.0)
+            self.assertEqual(_classify_dataset(list(df_doc.columns), {"production": 1}, ref_doc), "verified")
+
+        # 3. Valid remote object via strictly read-only MinIO mock
+        mock_minio = MagicMock()
+        mock_minio.bucket_exists.return_value = True
+        fake_stat = MagicMock()
+        fake_stat.etag = "abc123etag"
+        fake_stat.metadata = {}
+        fake_stat.is_mismatch = False
+        mock_minio.stat_object.return_value = fake_stat
+
+        mock_wrapper = MagicMock()
+        mock_wrapper.client = mock_minio
+
+        df_remote = pd.DataFrame([{
+            "id": 1,
+            "data_origin": "production",
+            "raw_uri": "s3://valid-bucket/verified-doc.pdf"
+        }])
+        ref_remote = _validate_raw_references(df_remote, minio_client=mock_wrapper)
+        self.assertEqual(ref_remote["valid_count"], 1)
+        self.assertEqual(ref_remote["coverage_rate"], 1.0)
+        self.assertEqual(_classify_dataset(list(df_remote.columns), {"production": 1}, ref_remote), "verified")
+
+        # Verify read-only: no write operations
+        mock_minio.make_bucket.assert_not_called()
+        mock_minio.put_object.assert_not_called()
+        mock_minio.remove_object.assert_not_called()
+
+    def test_archive_provenance_mixed_dataset_counts_accurate(self):
+        """Mixed and partial datasets must retain accurate verified/quarantined counts without falsely verifying invalid rows."""
+        from scripts.ops.migrate_data import _validate_raw_references, audit_sources
+        import tempfile
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            valid_file = tmp_path / "valid.pdf"
+            content = b"%PDF-1.4 Valid Retained Document"
+            valid_file.write_bytes(content)
+            valid_hash = hashlib.sha256(content).hexdigest()
+
+            # Parquet file with:
+            # Row 0: production, valid file + hash -> verified
+            # Row 1: production, nonexistent s3 object -> unverified/quarantined
+            # Row 2: production, unresolved doc_ id -> unverified/quarantined
+            # Row 3: demo, valid file -> quarantined (demo origin)
+            df = pd.DataFrame([
+                {"id": 1, "data_origin": "production", "raw_file": str(valid_file), "content_sha256": valid_hash},
+                {"id": 2, "data_origin": "production", "raw_uri": "s3://nonexistent-bucket/missing-object"},
+                {"id": 3, "data_origin": "production", "document_id": "doc_" + "a" * 64},
+                {"id": 4, "data_origin": "demo", "raw_file": str(valid_file), "content_sha256": valid_hash},
+            ])
+            pq_path = tmp_path / "mixed.parquet"
+            df.to_parquet(pq_path)
+
+            report = audit_sources([tmp_path], inspect_minio=False)
+            file_report = report["paths_inspected"][0]["parquet_files"]["mixed.parquet"]
+
+            self.assertEqual(file_report["rows"], 4)
+            # Exactly 1 row has verified production provenance
+            self.assertEqual(file_report["verified_count"], 1)
+            # The other 3 rows (unresolved S3, unresolved doc_id, demo origin) must be quarantined
+            self.assertEqual(file_report["quarantined_count"], 3)
+            self.assertEqual(file_report["classification"], "mixed_provenance")
+
+    def test_migrate_data_row_level_provenance_isolation(self):
+        """migrate_data must evaluate provenance at row level; an invalid row must never be verified even if another row in the same file is valid."""
+        from scripts.ops.migrate_data import migrate_data
+        import tempfile
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as src_dir, tempfile.TemporaryDirectory() as tgt_dir:
+            s_path = Path(src_dir)
+            valid_file = s_path / "retained.pdf"
+            content = b"%PDF-1.4 Evidence"
+            valid_file.write_bytes(content)
+            valid_hash = hashlib.sha256(content).hexdigest()
+
+            # nodes.parquet with 1 valid live node, 1 nonexistent S3 live node, 1 unresolved doc_id live node, 1 demo node
+            nodes_df = pd.DataFrame([
+                {"id": "node_valid", "label": "Valid Node", "data_origin": "live", "raw_file": str(valid_file), "content_sha256": valid_hash},
+                {"id": "node_s3_missing", "label": "Missing S3", "data_origin": "live", "raw_uri": "s3://nonexistent-bucket/missing-object"},
+                {"id": "node_doc_unresolved", "label": "Unresolved Doc", "data_origin": "live", "document_id": "doc_" + "b" * 64},
+                {"id": "node_demo", "label": "Demo Node", "data_origin": "demo", "raw_file": str(valid_file), "content_sha256": valid_hash},
+            ])
+            nodes_df.to_parquet(s_path / "nodes.parquet")
+
+            report = migrate_data(source_dirs=[s_path], target_dir=tgt_dir, dry_run=True)
+            self.assertEqual(report["entities_mapped"], 4)
+            # Exactly 1 row must be verified
+            self.assertEqual(report["verified_records"], 1)
+            # 3 rows must be quarantined
+            self.assertEqual(report["quarantined_records"], 3)

@@ -1,0 +1,91 @@
+{
+  "type": "FeatureCollection",
+  "name": "NUTS_RG_20M_2024_4326",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "NUTS_ID": "DE",
+        "LEVL_CODE": 0,
+        "CNTR_CODE": "DE",
+        "NAME_LATN": "Deutschland",
+        "NUTS_NAME": "Deutschland",
+        "MOUNT_TYPE": 0,
+        "URBN_TYPE": null,
+        "COAST_TYPE": 0,
+        "FID": "DE"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [9.0, 50.0],
+            [10.0, 50.0],
+            [10.0, 51.0],
+            [9.0, 51.0],
+            [9.0, 50.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NUTS_ID": "DE1",
+        "LEVL_CODE": 1,
+        "CNTR_CODE": "DE",
+        "NAME_LATN": "Baden-Württemberg",
+        "NUTS_NAME": "Baden-Württemberg",
+        "MOUNT_TYPE": 0,
+        "URBN_TYPE": null,
+        "COAST_TYPE": 0,
+        "FID": "DE1"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [9.1, 48.5],
+            [9.8, 48.5],
+            [9.8, 49.0],
+            [9.1, 49.0],
+            [9.1, 48.5]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "NUTS_ID": "FR",
+        "LEVL_CODE": 0,
+        "CNTR_CODE": "FR",
+        "NAME_LATN": "France",
+        "NUTS_NAME": "France",
+        "MOUNT_TYPE": 0,
+        "URBN_TYPE": null,
+        "COAST_TYPE": 0,
+        "FID": "FR"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [2.0, 48.0],
+            [3.0, 48.0],
+            [3.0, 49.0],
+            [2.0, 49.0],
+            [2.0, 48.0]
+          ]
+        ]
+      }
+    }
+  ]
+}
+

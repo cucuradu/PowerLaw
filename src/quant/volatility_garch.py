@@ -54,14 +54,7 @@ class GARCHVolatilityEngine:
         returns = np.diff(np.log(prices))
 
         if len(returns) < 12 or not HAS_ARCH:
-            rv = float(np.std(returns) * np.sqrt(252) * 100.0) if len(returns) > 2 else 22.5
-            return {
-                "node_id": target_node_id,
-                "garch_1d_pct": round(rv, 2),
-                "garch_5d_pct": round(rv * 1.05, 2),
-                "term_structure": "RISING",
-                "method": "Realized Volatility Fallback"
-            }
+            return self._fallback_vol_result(target_node_id)
 
         try:
             # Scale returns by 100 for optimizer stability
@@ -96,8 +89,10 @@ class GARCHVolatilityEngine:
     def _fallback_vol_result(self, node_id: str) -> Dict[str, Any]:
         return {
             "node_id": node_id,
-            "garch_1d_pct": 24.50,
-            "garch_5d_pct": 25.80,
-            "term_structure": "RISING",
-            "method": "Baseline Benchmark"
+            "status": "unavailable",
+            "garch_1d_pct": None,
+            "garch_5d_pct": None,
+            "term_structure": None,
+            "method": None,
+            "error": "Insufficient valid history, missing GARCH dependency, or model fit failed"
         }

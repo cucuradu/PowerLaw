@@ -17,6 +17,12 @@ from __future__ import annotations
 
 import json
 import logging
+import hashlib
+import math
+import tempfile
+import threading
+from contextlib import contextmanager
+from functools import wraps
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Union
 from datetime import datetime, timezone
@@ -36,6 +42,8 @@ except ImportError:
     lancedb = None
     HAS_LANCEDB = False
 
+import os
+import pyarrow as pa
 from src.schemas.graph_temporal import (
     BaseGraphNode,
     LawNode,
@@ -58,8 +66,245 @@ from src.schemas.graph_temporal import (
     parse_iso_or_date_to_utc,
     _is_nan,
 )
+from src.schemas.ingestion import (
+    SourceDocument,
+    Entity,
+    EntityAlias,
+    Fact,
+    EvidenceLink,
+    SeriesDefinition,
+    Observation,
+    BatchManifest,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _locked_legacy_write(method):
+    @wraps(method)
+    def write(self, *args, **kwargs):
+        if getattr(self, "_legacy_writer_thread", None) == threading.get_ident():
+            return method(self, *args, **kwargs)
+        with self._canonical_mutation():
+            self._legacy_writer_thread = threading.get_ident()
+            try:
+                for name, table in (("nodes", self._nodes_tbl), ("edges", self._edges_tbl), ("history", self._history_tbl)):
+                    table.checkout_latest()
+                    committed_version = self._state["legacy_tables"][name]
+                    if table.version != committed_version:
+                        table.restore(committed_version)
+                result = method(self, *args, **kwargs)
+                self._save_canonical()
+                return result
+            finally:
+                self._legacy_writer_thread = None
+    return write
+
+
+class WriterLockError(RuntimeError):
+    """Raised when another writer currently holds the storage execution lock."""
+    pass
+
+
+class _WriterLock:
+    """OS-held lock: process exit releases ownership without a stale lock file."""
+
+    def __init__(self, lock_file: Path):
+        self.lock_file = Path(lock_file)
+        self._acquired = False
+        self._fd = None
+
+    def acquire(self) -> None:
+        self.lock_file.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self._fd = os.open(str(self.lock_file), os.O_CREAT | os.O_RDWR)
+            if os.name == "nt":
+                import msvcrt
+                if os.fstat(self._fd).st_size == 0:
+                    os.write(self._fd, b"\0")
+                os.lseek(self._fd, 0, os.SEEK_SET)
+                msvcrt.locking(self._fd, msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._acquired = True
+        except OSError:
+            if self._fd is not None:
+                os.close(self._fd)
+                self._fd = None
+            raise WriterLockError(f"Storage writer lock already held at {self.lock_file}")
+
+    def release(self) -> None:
+        if self._acquired:
+            os.close(self._fd)
+            self._fd = None
+            self._acquired = False
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release()
+
+
+# Canonical PyArrow schemas for typed append-only version tables
+DOCUMENTS_SCHEMA = pa.schema([
+    pa.field("document_id", pa.string()),
+    pa.field("version_id", pa.string()),
+    pa.field("source_id", pa.string()),
+    pa.field("upstream_id", pa.string()),
+    pa.field("canonical_url", pa.string()),
+    pa.field("final_url", pa.string()),
+    pa.field("publisher", pa.string()),
+    pa.field("language", pa.string()),
+    pa.field("content_type", pa.string()),
+    pa.field("content_sha256", pa.string()),
+    pa.field("raw_uri", pa.string()),
+    pa.field("text_uri", pa.string()),
+    pa.field("byte_count", pa.int64()),
+    pa.field("published_at", pa.timestamp("us", tz="UTC")),
+    pa.field("source_updated_at", pa.timestamp("us", tz="UTC")),
+    pa.field("available_at", pa.timestamp("us", tz="UTC")),
+    pa.field("fetched_at", pa.timestamp("us", tz="UTC")),
+    pa.field("recorded_at", pa.timestamp("us", tz="UTC")),
+    pa.field("availability_basis", pa.string()),
+    pa.field("date_precision", pa.string()),
+    pa.field("rights_json", pa.string()),
+    pa.field("parser_version", pa.string()),
+    pa.field("coverage_status", pa.string()),
+    pa.field("schema_version", pa.string()),
+    pa.field("batch_id", pa.string()),
+    pa.field("data_origin", pa.string()),
+])
+
+FACTS_SCHEMA = pa.schema([
+    pa.field("fact_id", pa.string()),
+    pa.field("fact_version_id", pa.string()),
+    pa.field("subject_id", pa.string()),
+    pa.field("predicate", pa.string()),
+    pa.field("object_id", pa.string()),
+    pa.field("payload_json", pa.string()),
+    pa.field("event_at", pa.timestamp("us", tz="UTC")),
+    pa.field("valid_from", pa.timestamp("us", tz="UTC")),
+    pa.field("valid_to", pa.timestamp("us", tz="UTC")),
+    pa.field("available_at", pa.timestamp("us", tz="UTC")),
+    pa.field("recorded_at", pa.timestamp("us", tz="UTC")),
+    pa.field("source_id", pa.string()),
+    pa.field("supersedes_version_id", pa.string()),
+    pa.field("is_retracted", pa.bool_()),
+    pa.field("claim_kind", pa.string()),
+    pa.field("quality_state", pa.string()),
+    pa.field("extractor_version", pa.string()),
+    pa.field("batch_id", pa.string()),
+    pa.field("data_origin", pa.string()),
+])
+
+OBSERVATIONS_SCHEMA = pa.schema([
+    pa.field("observation_id", pa.string()),
+    pa.field("revision_id", pa.string()),
+    pa.field("series_id", pa.string()),
+    pa.field("period_start", pa.string()),
+    pa.field("period_end_exclusive", pa.string()),
+    pa.field("value", pa.float64()),
+    pa.field("original_value_text", pa.string()),
+    pa.field("source_unit", pa.string()),
+    pa.field("unit", pa.string()),
+    pa.field("vintage_id", pa.string()),
+    pa.field("published_at", pa.timestamp("us", tz="UTC")),
+    pa.field("available_at", pa.timestamp("us", tz="UTC")),
+    pa.field("recorded_at", pa.timestamp("us", tz="UTC")),
+    pa.field("source_updated_at", pa.timestamp("us", tz="UTC")),
+    pa.field("provider_status", pa.string()),
+    pa.field("missing_reason", pa.string()),
+    pa.field("quality_state", pa.string()),
+    pa.field("supersedes_revision_id", pa.string()),
+    pa.field("is_retracted", pa.bool_()),
+    pa.field("conversion_lineage_json", pa.string()),
+    pa.field("batch_id", pa.string()),
+    pa.field("data_origin", pa.string()),
+])
+
+BATCHES_SCHEMA = pa.schema([
+    pa.field("batch_id", pa.string()),
+    pa.field("source_id", pa.string()),
+    pa.field("status", pa.string()),
+    pa.field("discovered_count", pa.int64()),
+    pa.field("fetched_count", pa.int64()),
+    pa.field("staged_count", pa.int64()),
+    pa.field("accepted_count", pa.int64()),
+    pa.field("review_count", pa.int64()),
+    pa.field("rejected_count", pa.int64()),
+    pa.field("duplicate_count", pa.int64()),
+    pa.field("committed_count", pa.int64()),
+    pa.field("created_at", pa.timestamp("us", tz="UTC")),
+    pa.field("staged_at", pa.timestamp("us", tz="UTC")),
+    pa.field("committed_at", pa.timestamp("us", tz="UTC")),
+    pa.field("error_message", pa.string()),
+    pa.field("manifest_uri", pa.string()),
+    pa.field("manifest_sha256", pa.string()),
+    pa.field("archive_sha256", pa.string()),
+    pa.field("data_origin", pa.string()),
+])
+
+EVIDENCE_SCHEMA = pa.schema([
+    pa.field("evidence_id", pa.string()),
+    pa.field("assertion_version_id", pa.string()),
+    pa.field("assertion_kind", pa.string()),
+    pa.field("document_version_id", pa.string()),
+    pa.field("selector_type", pa.string()),
+    pa.field("selector_json", pa.string()),
+    pa.field("quoted_text", pa.string()),
+    pa.field("support_type", pa.string()),
+    pa.field("available_at", pa.timestamp("us", tz="UTC")),
+    pa.field("recorded_at", pa.timestamp("us", tz="UTC")),
+    pa.field("batch_id", pa.string()),
+])
+
+SERIES_SCHEMA = pa.schema([
+    pa.field("series_id", pa.string()),
+    pa.field("source_id", pa.string()),
+    pa.field("dataset_id", pa.string()),
+    pa.field("provider_series_key", pa.string()),
+    pa.field("dimensions_json", pa.string()),
+    pa.field("metric_name", pa.string()),
+    pa.field("unit", pa.string()),
+    pa.field("currency", pa.string()),
+    pa.field("frequency", pa.string()),
+    pa.field("geography_id", pa.string()),
+    pa.field("classification_version", pa.string()),
+    pa.field("base_period", pa.string()),
+    pa.field("adjustment", pa.string()),
+    pa.field("measurement_kind", pa.string()),
+    pa.field("available_at", pa.timestamp("us", tz="UTC")),
+    pa.field("recorded_at", pa.timestamp("us", tz="UTC")),
+    pa.field("batch_id", pa.string()),
+])
+
+ENTITIES_SCHEMA = pa.schema([
+    pa.field("entity_id", pa.string()),
+    pa.field("entity_type", pa.string()),
+    pa.field("entity_subtype", pa.string()),
+    pa.field("canonical_label", pa.string()),
+    pa.field("created_at", pa.timestamp("us", tz="UTC")),
+    pa.field("jurisdiction", pa.string()),
+    pa.field("metadata_json", pa.string()),
+    pa.field("batch_id", pa.string()),
+    pa.field("data_origin", pa.string()),
+])
+
+ALIASES_SCHEMA = pa.schema([
+    pa.field("alias_id", pa.string()),
+    pa.field("entity_id", pa.string()),
+    pa.field("scheme", pa.string()),
+    pa.field("external_id", pa.string()),
+    pa.field("source_id", pa.string()),
+    pa.field("available_at", pa.timestamp("us", tz="UTC")),
+    pa.field("recorded_at", pa.timestamp("us", tz="UTC")),
+    pa.field("fact_version_id", pa.string()),
+    pa.field("batch_id", pa.string()),
+])
+
 
 
 def _sanitize_record_dict(d: Dict[str, Any]) -> Dict[str, Any]:
@@ -69,6 +314,17 @@ def _sanitize_record_dict(d: Dict[str, Any]) -> Dict[str, Any]:
         if _is_nan(v):
             continue
         clean[k] = v
+        if k in ("metadata_json", "properties_json") and isinstance(v, str):
+            try:
+                json.loads(v)
+            except json.JSONDecodeError:
+                try:
+                    import ast
+                    parsed = ast.literal_eval(v)
+                    if isinstance(parsed, dict):
+                        clean[k] = json.dumps(parsed)
+                except (ValueError, SyntaxError):
+                    pass
     return clean
 
 
@@ -99,14 +355,94 @@ class DualLayerStore:
         self._nodes: Dict[str, BaseGraphNode] = {}
         self._edges: Dict[str, GraphEdge] = {}
         self._history: List[TabularNodeHistory] = []
+        self._history_loaded: bool = False
+
+        # Single writer lock & committed generation tracker
+        self._lock_file = self.storage_dir / "ingestion.lock"
+        self._state_path = self.storage_dir / "canonical_state.json"
+        self._state = self._read_canonical_state()
+        self._generation: int = self._get_disk_generation()
+        self._observations_loaded = False
+
+        # Canonical in-memory indices for rapid query and as-of resolution
+        self._canonical_batches: Dict[str, BatchManifest] = {}
+        self._canonical_documents: Dict[str, SourceDocument] = {}
+        self._canonical_facts: Dict[str, Fact] = {}
+        self._canonical_observations: Dict[str, Observation] = {}
+        self._canonical_evidence: Dict[str, EvidenceLink] = {}
+        self._canonical_series: Dict[str, SeriesDefinition] = {}
+        self._canonical_entities: Dict[str, Entity] = {}
+        self._canonical_aliases: Dict[str, EntityAlias] = {}
 
         # Initialize LanceDB connection and tables
         if HAS_LANCEDB and lancedb is not None:
             self.db = lancedb.connect(str(self.storage_dir))
             self._init_tables()
+            self._init_canonical_tables()
             self._load_from_storage()
         else:
             self.db = None
+
+        # Load canonical datasets from persistent storage (observations loaded on demand)
+        self._load_canonical_from_storage()
+        self._refresh_canonical_projection()
+
+    @property
+    def generation(self) -> int:
+        return self._generation
+
+    def _get_disk_generation(self) -> int:
+        state = self._read_canonical_state()
+        if state:
+            return int(state["generation"])
+        gen_path = self.storage_dir / "generation.json"
+        if gen_path.exists():
+            try:
+                with open(gen_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return int(data.get("generation", 0))
+            except Exception:
+                pass
+        b_path = self.storage_dir / "canonical_batches.parquet"
+        if b_path.exists():
+            try:
+                df = pd.read_parquet(b_path)
+                return int((df["status"] == "committed").sum())
+            except Exception:
+                pass
+        return 0
+
+    def _persist_generation(self) -> None:
+        self._atomic_json(self.storage_dir / "generation.json", {"generation": self._generation})
+
+    def _read_canonical_state(self) -> dict:
+        if not self._state_path.exists():
+            return {}
+        with self._state_path.open(encoding="utf-8") as handle:
+            state = json.load(handle)
+        if not isinstance(state.get("tables"), dict) or not isinstance(state.get("revision"), int):
+            raise ValueError("Invalid canonical state manifest; restore a verified backup")
+        return state
+
+    @staticmethod
+    def _atomic_json(path: Path, value: dict) -> None:
+        fd, temporary = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(value, handle, sort_keys=True)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+
+    def _check_stale_instance(self) -> None:
+        disk_gen = self._get_disk_generation()
+        if disk_gen > self._generation or self._read_canonical_state().get("revision", 0) != self._state.get("revision", 0):
+            raise RuntimeError(
+                f"Stale store instance: on-disk generation ({disk_gen}) is ahead of local generation ({self._generation}). Cannot overwrite committed data."
+            )
 
     def _init_tables(self) -> None:
         """Initialize LanceDB tables with pydantic schemas safely without concurrency races."""
@@ -125,9 +461,34 @@ class DualLayerStore:
         self._edges_tbl = _get_or_create(self.edges_table_name, GraphEdge)
         self._history_tbl = _get_or_create(self.history_table_name, TabularNodeHistory)
 
+    def _init_canonical_tables(self) -> None:
+        """Initialize LanceDB canonical append-only version tables with explicit Arrow schemas."""
+        if self.db is None:
+            return
+        def _get_or_create_arrow(name: str, schema: pa.Schema):
+            try:
+                if name in self.db:
+                    return self.db.open_table(name)
+            except Exception:
+                pass
+            try:
+                return self.db.create_table(name, schema=schema, exist_ok=True)
+            except Exception:
+                return self.db.open_table(name)
+
+        self._docs_tbl = _get_or_create_arrow("canonical_documents", DOCUMENTS_SCHEMA)
+        self._facts_tbl = _get_or_create_arrow("canonical_facts", FACTS_SCHEMA)
+        self._obs_tbl = _get_or_create_arrow("canonical_observations", OBSERVATIONS_SCHEMA)
+        self._batches_tbl = _get_or_create_arrow("canonical_batches", BATCHES_SCHEMA)
+        self._evidence_tbl = _get_or_create_arrow("canonical_evidence", EVIDENCE_SCHEMA)
+        self._series_tbl = _get_or_create_arrow("canonical_series", SERIES_SCHEMA)
+        self._entities_tbl = _get_or_create_arrow("canonical_entities", ENTITIES_SCHEMA)
+        self._aliases_tbl = _get_or_create_arrow("canonical_aliases", ALIASES_SCHEMA)
+
     def _load_from_storage(self) -> None:
-        """Load persisted entities from LanceDB tables into the in-memory working cache."""
+        """Load persisted graph entities from LanceDB tables into the in-memory working cache."""
         try:
+            self._pin_legacy_tables()
             # Load Nodes
             if len(self._nodes_tbl) > 0:
                 nodes_df = self._nodes_tbl.to_pandas()
@@ -146,21 +507,191 @@ class DualLayerStore:
                     edge = edge_from_dict(clean_r)
                     self._edges[edge.id] = edge
 
-            # Load Tabular History
-            if len(self._history_tbl) > 0:
-                history_df = self._history_tbl.to_pandas()
-                records = history_df.to_dict(orient="records")
-                for r in records:
-                    clean_r = _sanitize_record_dict(r)
-                    rec = TabularNodeHistory(**clean_r)
-                    self._history.append(rec)
+            # Parquet fallback for nodes
+            nodes_p = self.storage_dir / "graph_nodes.parquet"
+            if not self._state and nodes_p.exists():
+                try:
+                    ndf = pd.read_parquet(nodes_p)
+                    for _, r in ndf.iterrows():
+                        clean_r = _sanitize_record_dict(r.to_dict())
+                        nid = str(clean_r.get("id", ""))
+                        if nid and nid not in self._nodes:
+                            node = node_from_dict(clean_r)
+                            self._nodes[nid] = node
+                except Exception as e:
+                    logger.debug(f"Fallback loading graph_nodes.parquet: {e}")
+
+            # Parquet fallback for edges
+            edges_p = self.storage_dir / "graph_edges.parquet"
+            if not self._state and len(self._edges_tbl) == 0 and edges_p.exists():
+                try:
+                    edf = pd.read_parquet(edges_p)
+                    occurrences = {}
+                    for _, r in edf.iterrows():
+                        clean_r = _sanitize_record_dict(r.to_dict())
+                        if "source_id" in clean_r and "source" not in clean_r:
+                            clean_r["source"] = clean_r["source_id"]
+                        if "target_id" in clean_r and "target" not in clean_r:
+                            clean_r["target"] = clean_r["target_id"]
+                        if "relation_type" in clean_r and "relationship_type" not in clean_r:
+                            clean_r["relationship_type"] = clean_r["relation_type"]
+                        fingerprint = hashlib.sha256(json.dumps(clean_r, sort_keys=True, default=str).encode()).hexdigest()
+                        base_id = clean_r.get("id") or f"legacy-edge:{fingerprint}"
+                        occurrence = occurrences.get(base_id, 0)
+                        occurrences[base_id] = occurrence + 1
+                        eid = base_id if occurrence == 0 else f"{base_id}#{occurrence}"
+                        clean_r["id"] = eid
+                        if eid not in self._edges:
+                            edge = edge_from_dict(clean_r)
+                            self._edges[eid] = edge
+                except Exception as e:
+                    logger.debug(f"Fallback loading graph_edges.parquet: {e}")
+
+            # Avoid eagerly loading complete observations or full tabular history into memory at initialization.
         except Exception as e:
             logger.warning(f"Error loading records from LanceDB: {e}")
+
+    def _canonical_tables(self):
+        return (
+            ("batches", "batch_id", BatchManifest, BATCHES_SCHEMA, self._batches_tbl),
+            ("documents", "version_id", SourceDocument, DOCUMENTS_SCHEMA, self._docs_tbl),
+            ("facts", "fact_version_id", Fact, FACTS_SCHEMA, self._facts_tbl),
+            ("observations", "revision_id", Observation, OBSERVATIONS_SCHEMA, self._obs_tbl),
+            ("evidence", "evidence_id", EvidenceLink, EVIDENCE_SCHEMA, self._evidence_tbl),
+            ("series", "series_id", SeriesDefinition, SERIES_SCHEMA, self._series_tbl),
+            ("entities", "entity_id", Entity, ENTITIES_SCHEMA, self._entities_tbl),
+            ("aliases", "alias_id", EntityAlias, ALIASES_SCHEMA, self._aliases_tbl),
+        )
+
+    def _read_canonical_table(self, name, table):
+        if self._state:
+            entry = self._state["tables"][name]
+            table.checkout(entry["version"])
+            return table.to_arrow().to_pylist()
+        # Existing pre-manifest Parquet stores remain readable and untouched.
+        legacy = self.storage_dir / f"canonical_{name}.parquet"
+        return pd.read_parquet(legacy).to_dict("records") if legacy.exists() else []
+
+    def _load_canonical_from_storage(self) -> None:
+        """Load one pinned multi-table snapshot; malformed authoritative data fails closed."""
+        if self.db is None:
+            raise RuntimeError("LanceDB is required for the canonical store")
+        for name, key, model, schema, table in self._canonical_tables():
+            if name == "observations":
+                if self._state:
+                    table.checkout(self._state["tables"][name]["version"])
+                continue
+            target = getattr(self, f"_canonical_{name}")
+            target.clear()
+            for raw in self._read_canonical_table(name, table):
+                record = model(**_sanitize_record_dict(raw))
+                target[getattr(record, key)] = record
+
+    def _ensure_observations_loaded(self) -> None:
+        if not self._observations_loaded:
+            self._canonical_observations.clear()
+            for raw in self._read_canonical_table("observations", self._obs_tbl):
+                record = Observation(**_sanitize_record_dict(raw))
+                self._canonical_observations[record.revision_id] = record
+            self._observations_loaded = True
+
+    def _ensure_history_loaded(self) -> None:
+        """On-demand load of tabular node history from LanceDB (avoiding eager load at init)."""
+        if self._history_loaded and (self._history or len(self._history_tbl) == 0):
+            return
+        if len(self._history) == 0 and len(self._history_tbl) > 0:
+            try:
+                hist_df = self._history_tbl.to_pandas()
+                records = hist_df.to_dict(orient="records")
+                for r in records:
+                    clean_r = _sanitize_record_dict(r)
+                    self._history.append(TabularNodeHistory(**clean_r))
+            except Exception as e:
+                logger.warning(f"Error loading history from LanceDB: {e}")
+
+        if len(self._history) == 0 and not self._state:
+            hist_pq = self.storage_dir / "node_tabular_history.parquet"
+            if hist_pq.exists():
+                try:
+                    hdf = pd.read_parquet(hist_pq)
+                    if not hdf.empty:
+                        for _, row in hdf.iterrows():
+                            r_dict = row.to_dict()
+                            clean_r = _sanitize_record_dict(r_dict)
+                            if "effective_timestamp" not in clean_r and "timestamp" in clean_r:
+                                clean_r["effective_timestamp"] = clean_r["timestamp"]
+                            self._history.append(TabularNodeHistory(**clean_r))
+                except Exception as e:
+                    logger.warning(f"Error loading history from Parquet: {e}")
+        self._history_loaded = True
+
+    def _pin_legacy_tables(self):
+        for name, table in (("nodes", self._nodes_tbl), ("edges", self._edges_tbl), ("history", self._history_tbl)):
+            version = self._state.get("legacy_tables", {}).get(name)
+            if version is not None:
+                table.checkout(version)
+
+    def _save_canonical(self) -> None:
+        """Publish a pinned set of immutable Lance versions after every table succeeds."""
+        self._ensure_observations_loaded()
+        if not self._state:
+            # Preserve old compatibility files when first publishing a canonical manifest.
+            self._ensure_history_loaded()
+            fact_ids = {fact.fact_id for fact in self._canonical_facts.values()}
+            for table, records in ((self._nodes_tbl, [v for k, v in self._nodes.items() if k not in self._canonical_entities]),
+                                   (self._edges_tbl, [v for k, v in self._edges.items() if k not in fact_ids]),
+                                   (self._history_tbl, self._history)):
+                if records:
+                    table.checkout_latest()
+                    table.add(records, mode="overwrite")
+        entries = dict(self._state.get("tables", {}))
+        for name, key, model, schema, table in self._canonical_tables():
+            records = getattr(self, f"_canonical_{name}")
+            rows = [records[k].model_dump() for k in sorted(records)]
+            digest = hashlib.sha256(json.dumps(rows, sort_keys=True, default=str).encode()).hexdigest()
+            if entries.get(name, {}).get("sha256") == digest:
+                continue
+            for row in rows:
+                for field in schema:
+                    if pa.types.is_timestamp(field.type) and isinstance(row.get(field.name), str):
+                        row[field.name] = self._utc(row[field.name])
+            arrow = pa.Table.from_pylist(rows, schema=schema)
+            table.checkout_latest()
+            # shortcut: changed tables use retained Lance snapshots; use delta writes for large backfills.
+            table.add(arrow, mode="overwrite")
+            entries[name] = {"version": table.version, "sha256": digest}
+        state = {"revision": self._state.get("revision", 0) + 1,
+                 "generation": self._generation, "tables": entries,
+                 "legacy_tables": {"nodes": self._nodes_tbl.version, "edges": self._edges_tbl.version,
+                                   "history": self._history_tbl.version}}
+        for name, key, model, schema, table in self._canonical_tables():
+            table.checkout(state["tables"][name]["version"])
+        for name, table in (("nodes", self._nodes_tbl), ("edges", self._edges_tbl), ("history", self._history_tbl)):
+            table.checkout(state["legacy_tables"][name])
+        self._atomic_json(self._state_path, state)
+        self._state = state
+
+    def _refresh_canonical_projection(self) -> None:
+        """Rebuild disposable compatibility caches from accepted committed facts."""
+        self._nodes = {k: v for k, v in self._nodes.items() if k not in self._canonical_entities}
+        fact_ids = {f.fact_id for f in self._canonical_facts.values()}
+        self._edges = {k: v for k, v in self._edges.items() if k not in fact_ids}
+        projection = self.project_graph(datetime.now(timezone.utc))
+        for node in projection["nodes"]:
+            if node["node_type"] != "UNKNOWN":
+                self._nodes[node["id"]] = BaseGraphNode(**node)
+        for edge in projection["edges"]:
+            self._edges[edge["edge_id"]] = GraphEdge(
+                id=edge["edge_id"], source=edge["source_id"], target=edge["target_id"] or "",
+                relationship_type=edge["relation_type"], valid_from=edge["valid_from"],
+                valid_to=edge["valid_to"], claim_kind=edge["claim_kind"], quality_state=edge["quality_state"],
+                properties=json.loads(edge["payload"]) if edge["payload"] else {})
 
     # =========================================================================
     # 1. NODE OPERATIONS (Layer 1 - Graph)
     # =========================================================================
 
+    @_locked_legacy_write
     def add_node(self, node: Union[BaseGraphNode, Dict[str, Any]]) -> BaseGraphNode:
         """
         Add or update a graph node in LanceDB and in-memory cache.
@@ -183,6 +714,7 @@ class DualLayerStore:
         self._nodes[node_obj.id] = node_obj
         return node_obj
 
+    @_locked_legacy_write
     def add_nodes(self, nodes: List[Union[BaseGraphNode, Dict[str, Any]]]) -> List[BaseGraphNode]:
         """Batch add or update multiple graph nodes with deduplication."""
         node_objs = [
@@ -237,6 +769,7 @@ class DualLayerStore:
             return [n for n in nodes if n.node_type.upper() == target_type]
         return nodes
 
+    @_locked_legacy_write
     def delete_node(
         self,
         node_id: str,
@@ -310,6 +843,7 @@ class DualLayerStore:
     # 2. EDGE OPERATIONS (Layer 1 - Graph)
     # =========================================================================
 
+    @_locked_legacy_write
     def add_edge(self, edge: Union[GraphEdge, Dict[str, Any]]) -> GraphEdge:
         """Add or update a directional edge in LanceDB and in-memory cache."""
         if isinstance(edge, dict):
@@ -328,6 +862,7 @@ class DualLayerStore:
         self._edges[edge_obj.id] = edge_obj
         return edge_obj
 
+    @_locked_legacy_write
     def add_edges(self, edges: List[Union[GraphEdge, Dict[str, Any]]]) -> List[GraphEdge]:
         """Batch add or update directional edges with deduplication."""
         edge_objs = [
@@ -403,6 +938,7 @@ class DualLayerStore:
             matched = [e for e in matched if e.relationship_type == relationship_type]
         return matched
 
+    @_locked_legacy_write
     def delete_edge(
         self,
         source: str,
@@ -507,9 +1043,9 @@ class DualLayerStore:
             "edges": list(collected_edges.values()),
         }
 
-    def to_networkx(self) -> nx.DiGraph:
-        """Build and return a NetworkX directed graph from current nodes and edges."""
-        G = nx.DiGraph()
+    def to_networkx(self) -> nx.MultiDiGraph:
+        """Build and return a NetworkX directed multigraph from current nodes and edges."""
+        G = nx.MultiDiGraph()
         for node in self._nodes.values():
             vec = list(node.vector) if hasattr(node.vector, "__iter__") else node.vector
             G.add_node(
@@ -523,16 +1059,19 @@ class DualLayerStore:
             )
 
         for edge in self._edges.values():
+            rel = edge.relationship_type.value if hasattr(edge.relationship_type, "value") else str(edge.relationship_type)
             G.add_edge(
                 edge.source,
                 edge.target,
+                key=edge.id,
                 id=edge.id,
-                relationship_type=edge.relationship_type,
-                relation_type=edge.relationship_type,
+                relationship_type=rel,
+                relation_type=rel,
                 weight=float(edge.weight),
                 weights=float(edge.weight),
                 timestamp=edge.timestamp,
                 metadata=edge.metadata_dict,
+                properties=edge.properties if hasattr(edge, "properties") else {},
             )
         return G
 
@@ -614,6 +1153,7 @@ class DualLayerStore:
     # 4. TEMPORAL TABULAR OPERATIONS & POINT-IN-TIME (AS-OF) QUERIES (Layer 2)
     # =========================================================================
 
+    @_locked_legacy_write
     def add_history_record(
         self,
         record: Union[TabularNodeHistory, Dict[str, Any]]
@@ -626,10 +1166,12 @@ class DualLayerStore:
         else:
             raise TypeError(f"Expected TabularNodeHistory or dict, got {type(record)}")
 
+        self._ensure_history_loaded()
         self._history_tbl.add([rec_obj])
         self._history.append(rec_obj)
         return rec_obj
 
+    @_locked_legacy_write
     def add_history_records(
         self,
         records: List[Union[TabularNodeHistory, Dict[str, Any]]]
@@ -642,10 +1184,12 @@ class DualLayerStore:
         if not rec_objs:
             return []
 
+        self._ensure_history_loaded()
         self._history_tbl.add(rec_objs)
         self._history.extend(rec_objs)
         return rec_objs
 
+    @_locked_legacy_write
     def delete_history(self, node_id: str) -> int:
         """Delete historical records for a specific node from LanceDB and cache."""
         initial_count = len([r for r in self._history if r.node_id == node_id])
@@ -679,8 +1223,7 @@ class DualLayerStore:
           representing the state of all nodes as of timestamp $t$.
         """
         # Sync if memory cache is empty but table has data
-        if len(self._history) == 0 and len(self._history_tbl) > 0:
-            self._load_from_storage()
+        self._ensure_history_loaded()
 
         t_utc = parse_iso_or_date_to_utc(timestamp)
 
@@ -719,8 +1262,7 @@ class DualLayerStore:
         optionally filtered by node_id and metric_name.
         Returns records sorted chronologically ascending.
         """
-        if len(self._history) == 0 and len(self._history_tbl) > 0:
-            self._load_from_storage()
+        self._ensure_history_loaded()
 
         records = list(self._history)
 
@@ -745,8 +1287,7 @@ class DualLayerStore:
         metric_name: Optional[str] = None
     ) -> Union[Optional[TabularNodeHistory], Dict[str, TabularNodeHistory]]:
         """Retrieve the absolute latest state record for a node or for all nodes."""
-        if len(self._history) == 0 and len(self._history_tbl) > 0:
-            self._load_from_storage()
+        self._ensure_history_loaded()
 
         records = [
             r for r in self._history
@@ -770,8 +1311,7 @@ class DualLayerStore:
         Retrieve state transitions for a node ordered by time,
         recording whenever the categorical state_value changed.
         """
-        if len(self._history) == 0 and len(self._history_tbl) > 0:
-            self._load_from_storage()
+        self._ensure_history_loaded()
 
         node_records = sorted(
             [r for r in self._history if r.node_id == node_id],
@@ -938,8 +1478,533 @@ class DualLayerStore:
         }
 
     # =========================================================================
+    # 5B. CANONICAL INGESTION & AS-OF CONTRACTS (Task 3)
+    # =========================================================================
+
+    def acquire_writer_lock(self) -> _WriterLock:
+        """Acquire single-writer execution lock. Competing writers are rejected."""
+        return _WriterLock(self._lock_file)
+
+    @contextmanager
+    def _canonical_mutation(self):
+        with self.acquire_writer_lock():
+            self._check_stale_instance()
+            if not self._state:
+                self._save_canonical()
+            snapshots = {name: dict(getattr(self, f"_canonical_{name}"))
+                         for name, *_ in self._canonical_tables()}
+            snapshots["batches"] = {k: v.model_copy(deep=True) for k, v in self._canonical_batches.items()}
+            previous_generation, previous_state = self._generation, self._state
+            previous_nodes, previous_edges = dict(self._nodes), dict(self._edges)
+            previous_history, previous_history_loaded = list(self._history), self._history_loaded
+            try:
+                yield
+            except BaseException:
+                for name, records in snapshots.items():
+                    setattr(self, f"_canonical_{name}", records)
+                self._generation, self._state = previous_generation, previous_state
+                self._nodes, self._edges = previous_nodes, previous_edges
+                self._history, self._history_loaded = previous_history, previous_history_loaded
+                self._observations_loaded = False
+                self._pin_legacy_tables()
+                raise
+
+    @staticmethod
+    def _record_content(record):
+        content = record.model_dump(mode="json", exclude={"batch_id", "recorded_at", "fetched_at", "created_at", "available_at"})
+        for key, value in list(content.items()):
+            if key.endswith("_json") and isinstance(value, str):
+                try:
+                    content[key] = json.loads(value)
+                except json.JSONDecodeError:
+                    pass
+            elif isinstance(value, str) and len(value) <= 35 and any(term in key for term in ("date", "time", "_at", "_from", "_to", "period", "timestamp", "valid", "available")):
+                try:
+                    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    else:
+                        dt = dt.astimezone(timezone.utc)
+                    content[key] = dt.isoformat()
+                except (ValueError, OSError, OverflowError):
+                    pass
+        return content
+
+    def _insert_immutable(self, target, records, key):
+        for record in records:
+            identity = getattr(record, key)
+            previous = target.get(identity)
+            if previous is not None:
+                if self._record_content(previous) != self._record_content(record):
+                    raise ValueError(f"Conflicting content for immutable record {identity}")
+            else:
+                target[identity] = record.model_copy(deep=True)
+
+    def register_entities(self, entities: List[Entity]) -> None:
+        with self._canonical_mutation():
+            self._insert_immutable(self._canonical_entities, entities, "entity_id")
+            self._save_canonical()
+
+    def register_series(self, series: List[SeriesDefinition]) -> None:
+        with self._canonical_mutation():
+            self._insert_immutable(self._canonical_series, series, "series_id")
+            self._save_canonical()
+
+    def register_aliases(self, aliases: List[EntityAlias]) -> None:
+        with self._canonical_mutation():
+            self._insert_immutable(self._canonical_aliases, aliases, "alias_id")
+            self._save_canonical()
+
+    def stage_batch(
+        self, batch: BatchManifest, documents: List[SourceDocument], facts: List[Fact],
+        observations: List[Observation], evidence_links: Optional[List[EvidenceLink]] = None,
+        entities: Optional[List[Entity]] = None, series: Optional[List[SeriesDefinition]] = None,
+    ) -> None:
+        """Durably stage validated references; exact replay never changes original ownership."""
+        from src.schemas.ingestion import ALLOWED_RELATION_ENDPOINTS
+        entities, series, evidence_links = entities or [], series or [], evidence_links or []
+        for link in evidence_links:
+            if link.batch_id and link.batch_id != batch.batch_id:
+                raise ValueError("Evidence batch_id does not match staging batch")
+        evidence_links = [link.model_copy(update={"batch_id": batch.batch_id}) for link in evidence_links]
+        series = [s.model_copy(update={"batch_id": batch.batch_id}) if not getattr(s, "batch_id", None) else s for s in series]
+        with self._canonical_mutation():
+            self._ensure_observations_loaded()
+            committed = {key for key, b in self._canonical_batches.items() if b.status == "committed"}
+            fact_map = {key: row for key, row in self._canonical_facts.items() if row.batch_id in committed}
+            obs_map = {key: row for key, row in self._canonical_observations.items() if row.batch_id in committed}
+            fact_map.update((row.fact_version_id, row) for row in facts)
+            obs_map.update((row.revision_id, row) for row in observations)
+            doc_map = {key: row for key, row in self._canonical_documents.items() if row.batch_id in committed}
+            doc_map.update((row.version_id, row) for row in documents)
+            normalized_evidence = []
+            for link in evidence_links:
+                if link.assertion_version_id in fact_map and link.assertion_version_id in obs_map:
+                    raise ValueError("Evidence assertion ID is ambiguous between fact and observation")
+                expected_kind = "OBSERVATION" if link.assertion_version_id in obs_map else "FACT"
+                assertion = (obs_map if expected_kind == "OBSERVATION" else fact_map).get(link.assertion_version_id)
+                doc = doc_map.get(link.document_version_id)
+                if assertion is None or doc is None:
+                    raise ValueError("Evidence refers to a missing or uncommitted document or assertion")
+                if "assertion_kind" in link.model_fields_set and link.assertion_kind != expected_kind:
+                    raise ValueError("Evidence assertion_kind does not match its assertion")
+                if assertion.data_origin != doc.data_origin or assertion.data_origin != batch.data_origin:
+                    raise ValueError("Evidence document/assertion origin does not match staging batch origin")
+                normalized_evidence.append(link.model_copy(update={"assertion_kind": expected_kind}))
+            evidence_links = normalized_evidence
+            groups = (("documents", "version_id", documents), ("facts", "fact_version_id", facts),
+                      ("observations", "revision_id", observations), ("entities", "entity_id", entities),
+                      ("series", "series_id", series), ("evidence", "evidence_id", evidence_links))
+            payload = {name: sorted((self._record_content(r) for r in records),
+                                   key=lambda row: json.dumps(row, sort_keys=True))
+                       for name, key, records in groups}
+            payload["batch"] = {"source_id": batch.source_id, "data_origin": batch.data_origin}
+            digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+            existing = self._canonical_batches.get(batch.batch_id)
+            if existing:
+                if existing.manifest_sha256 == digest:
+                    return
+                raise ValueError(f"Cannot restage or reuse committed batch ID or staged batch ID {batch.batch_id!r} with conflicting records")
+            for record in documents + facts + observations + entities:
+                if record.batch_id != batch.batch_id:
+                    raise ValueError("Record batch_id does not match the staging batch")
+                if getattr(record, "data_origin", None) and record.data_origin != batch.data_origin:
+                    raise ValueError(f"Record data_origin ({record.data_origin}) does not match staging batch data_origin ({batch.data_origin})")
+            committed = {key for key, b in self._canonical_batches.items() if b.status == "committed"}
+            known_docs = {key for key, doc in self._canonical_documents.items() if doc.batch_id in committed}
+            known_docs.update(doc.version_id for doc in documents)
+            assertions = {f.fact_version_id for f in facts} | {o.revision_id for o in observations}
+            assertions.update(f.fact_version_id for f in self._canonical_facts.values() if f.batch_id in committed)
+            assertions.update(o.revision_id for o in self._canonical_observations.values() if o.batch_id in committed)
+            for link in evidence_links:
+                if link.document_version_id not in known_docs or link.assertion_version_id not in assertions:
+                    raise ValueError("Evidence refers to a missing or uncommitted document or assertion")
+
+            endpoints = {key for key, ent in self._canonical_entities.items()
+                         if ent.batch_id in committed or ent.batch_id == batch.batch_id or not getattr(ent, "batch_id", None)}
+            endpoints.update(self._nodes.keys() - self._canonical_entities.keys())
+            endpoints.update(ent.entity_id for ent in entities)
+            endpoints.update(sid for sid, s in self._canonical_series.items()
+                             if getattr(s, "batch_id", None) in committed or getattr(s, "batch_id", None) is None or getattr(s, "batch_id", None) == batch.batch_id)
+            endpoints.update(item.series_id for item in series)
+            endpoints.update(f.fact_id for f in self._canonical_facts.values() if f.batch_id in committed)
+            endpoints.update(f.fact_id for f in facts)
+
+            from src.schemas.ingestion import ALLOWED_RELATION_ENDPOINTS, resolve_entity_type
+
+            entity_types = {}
+            for k, ent in self._canonical_entities.items():
+                if ent.batch_id in committed:
+                    entity_types[k] = getattr(ent, "entity_type", None)
+            for ent in entities:
+                entity_types[ent.entity_id] = getattr(ent, "entity_type", None)
+
+            evidence_assertions = {link.assertion_version_id for link in evidence_links if link.support_type == "DIRECT"}
+            for link in self._canonical_evidence.values():
+                assertion = fact_map.get(link.assertion_version_id) or obs_map.get(link.assertion_version_id)
+                doc = doc_map.get(link.document_version_id)
+                if (assertion is not None and doc is not None and link.batch_id in committed
+                        and doc.data_origin == assertion.data_origin == batch.data_origin and link.support_type == "DIRECT"):
+                    evidence_assertions.add(link.assertion_version_id)
+
+            for f in facts:
+                if f.subject_id not in endpoints or (f.object_id and f.object_id not in endpoints):
+                    raise ValueError(f"Fact {f.fact_id} refers to a missing or uncommitted endpoint: subject={f.subject_id}, object={f.object_id}")
+                if f.predicate not in ALLOWED_RELATION_ENDPOINTS:
+                    raise ValueError(f"Fact {f.fact_id} has unsupported predicate/relation: {f.predicate!r}")
+                rule = ALLOWED_RELATION_ENDPOINTS[f.predicate]
+                if not rule.get("allow_null_object", False) and not f.object_id:
+                    raise ValueError(f"Fact {f.fact_id} with predicate {f.predicate} requires non-null object_id")
+
+                subj_type = entity_types.get(f.subject_id) or resolve_entity_type(f.subject_id, f.payload_json, role="subject", predicate=f.predicate)
+                obj_type = entity_types.get(f.object_id) or resolve_entity_type(f.object_id, f.payload_json, role="object", predicate=f.predicate) if f.object_id else None
+                if subj_type and subj_type not in rule["subject_types"]:
+                    raise ValueError(f"Fact {f.fact_id} subject type {subj_type} not in allowed subject types {rule['subject_types']} for {f.predicate}")
+                if obj_type and obj_type not in rule["object_types"]:
+                    raise ValueError(f"Fact {f.fact_id} object type {obj_type} not in allowed object types {rule['object_types']} for {f.predicate}")
+
+                if f.quality_state == "accepted" and not f.is_retracted:
+                    if f.fact_version_id not in evidence_assertions:
+                        raise ValueError(f"Accepted fact {f.fact_id} ({f.fact_version_id}) has no supporting document or evidence link")
+
+            available_series_map = {s.series_id: s for s in series}
+            for sid, s in self._canonical_series.items():
+                s_batch = getattr(s, "batch_id", None)
+                if s_batch in committed or s_batch is None:
+                    available_series_map[sid] = s
+
+            for obs in observations:
+                if obs.series_id not in available_series_map:
+                    raise ValueError(f"Observation refers to unregistered or uncommitted series: {obs.series_id}")
+                s_def = available_series_map[obs.series_id]
+                if obs.unit != s_def.unit:
+                    raise ValueError(f"Observation unit ({obs.unit}) does not match series definition unit ({s_def.unit}) for {obs.series_id}")
+                if obs.period_start >= obs.period_end_exclusive:
+                    raise ValueError(f"Observation period_start ({obs.period_start}) must be strictly earlier than period_end_exclusive ({obs.period_end_exclusive})")
+                if obs.value is not None:
+                    if not math.isfinite(obs.value):
+                        raise ValueError(f"Observation value must be finite, got {obs.value}")
+                elif not obs.missing_reason and not obs.is_retracted:
+                    raise ValueError("Observation with null value must have explicit missing_reason")
+                if obs.quality_state == "accepted" and not obs.is_retracted:
+                    if obs.revision_id not in evidence_assertions:
+                        raise ValueError(f"Accepted observation {obs.observation_id} ({obs.revision_id}) has no supporting document or evidence link")
+            for name, key, records in groups:
+                self._insert_immutable(getattr(self, f"_canonical_{name}"), records, key)
+            record = batch.model_copy(deep=True)
+            record.status = "staged"
+            record.staged_at = batch.staged_at or datetime.now(timezone.utc)
+            record.staged_count = len(documents) + len(facts) + len(observations)
+            record.manifest_sha256 = digest
+            self._canonical_batches[batch.batch_id] = record
+            self._save_canonical()
+
+    def commit_batch(self, batch_id: str, committed_at: Optional[datetime] = None) -> None:
+        with self._canonical_mutation():
+            if batch_id not in self._canonical_batches:
+                raise ValueError(f"Batch {batch_id} not found in staged batches")
+            batch = self._canonical_batches[batch_id]
+            if batch.status == "committed":
+                return
+            if batch.status != "staged":
+                raise ValueError(f"Cannot commit batch in status {batch.status!r}")
+            self._ensure_observations_loaded()
+            now = committed_at or getattr(batch, "staged_at", None) or datetime.now(timezone.utc)
+            batch.status = "committed"
+            batch.committed_at = now.replace(tzinfo=timezone.utc) if now.tzinfo is None else now
+            batch.committed_count = sum(f.batch_id == batch_id for f in self._canonical_facts.values())
+            batch.committed_count += sum(o.batch_id == batch_id for o in self._canonical_observations.values())
+            self._generation += 1
+            self._refresh_canonical_projection()
+            self._persist_generation()
+            self._save_canonical()
+
+    @staticmethod
+    def _utc(value):
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+    def _eligible_batches(self, cutoff, mode):
+        return {key for key, batch in self._canonical_batches.items()
+                if batch.status == "committed" and
+                (mode == "public_as_of" or (batch.committed_at is not None and self._utc(batch.committed_at) <= cutoff))}
+
+    def _available(self, record):
+        if getattr(record, "available_at", None):
+            return self._utc(record.available_at)
+        if hasattr(record, "document_version_id") and record.document_version_id in self._canonical_documents:
+            doc = self._canonical_documents[record.document_version_id]
+            if getattr(doc, "available_at", None):
+                return self._utc(doc.available_at)
+        if hasattr(record, "revision_id") or hasattr(record, "fact_version_id"):
+            v_id = getattr(record, "revision_id", None) or getattr(record, "fact_version_id", None)
+            for ev in self._canonical_evidence.values():
+                if ev.assertion_version_id == v_id and ev.available_at:
+                    return self._utc(ev.available_at)
+        if isinstance(record, SeriesDefinition):
+            if record.available_at:
+                return self._utc(record.available_at)
+            if record.batch_id and record.batch_id in self._canonical_batches:
+                batch_docs = [d for d in self._canonical_documents.values()
+                              if d.batch_id == record.batch_id and getattr(d, "available_at", None)]
+                if batch_docs:
+                    return min(self._utc(d.available_at) for d in batch_docs)
+                batch_obs = [o for o in self._canonical_observations.values()
+                             if o.batch_id == record.batch_id and getattr(o, "available_at", None)]
+                if batch_obs:
+                    return min(self._utc(o.available_at) for o in batch_obs)
+                batch = self._canonical_batches[record.batch_id]
+                if getattr(batch, "committed_at", None):
+                    return self._utc(batch.committed_at)
+                if getattr(batch, "staged_at", None):
+                    return self._utc(batch.staged_at)
+            if getattr(record, "batch_id", None) is None:
+                return datetime.min.replace(tzinfo=timezone.utc)
+            if "recorded_at" in getattr(record, "model_fields_set", set()):
+                return self._utc(record.recorded_at)
+            return datetime.max.replace(tzinfo=timezone.utc)
+        if isinstance(record, Entity):
+            if getattr(record, "created_at", None):
+                return self._utc(record.created_at)
+            if record.batch_id and record.batch_id in self._canonical_batches:
+                batch_docs = [d for d in self._canonical_documents.values()
+                              if d.batch_id == record.batch_id and getattr(d, "available_at", None)]
+                if batch_docs:
+                    return min(self._utc(d.available_at) for d in batch_docs)
+                batch = self._canonical_batches[record.batch_id]
+                if getattr(batch, "committed_at", None):
+                    return self._utc(batch.committed_at)
+                if getattr(batch, "staged_at", None):
+                    return self._utc(batch.staged_at)
+            if getattr(record, "batch_id", None) is None:
+                return datetime.min.replace(tzinfo=timezone.utc)
+            return datetime.max.replace(tzinfo=timezone.utc)
+        if getattr(record, "batch_id", None) and record.batch_id in self._canonical_batches:
+            batch = self._canonical_batches[record.batch_id]
+            if getattr(batch, "committed_at", None):
+                return self._utc(batch.committed_at)
+            if getattr(batch, "staged_at", None):
+                return self._utc(batch.staged_at)
+        if getattr(record, "recorded_at", None):
+            return self._utc(record.recorded_at)
+        return datetime.max.replace(tzinfo=timezone.utc)
+
+    def _latest_facts(self, cutoff, mode, eligible):
+        latest = {}
+        for fact in self._canonical_facts.values():
+            if fact.batch_id not in eligible or self._available(fact) > cutoff:
+                continue
+            if mode == "system_as_of" and self._utc(fact.recorded_at) > cutoff:
+                continue
+            key = (self._available(fact), self._utc(fact.recorded_at), fact.fact_version_id)
+            previous = latest.get(fact.fact_id)
+            if previous is None or key > previous[0]:
+                latest[fact.fact_id] = (key, fact)
+        return [fact for _, fact in latest.values() if not fact.is_retracted and fact.quality_state == "accepted"]
+
+    def _evidence_for_record(self, record, cutoff, mode, eligible):
+        """Use the same provenance boundary for graph, observations and public readers."""
+        kind = "OBSERVATION" if isinstance(record, Observation) else "FACT"
+        version = record.revision_id if kind == "OBSERVATION" else record.fact_version_id
+        result = []
+        for link in self._canonical_evidence.values():
+            doc = self._canonical_documents.get(link.document_version_id)
+            owner = self._canonical_batches.get(link.batch_id)
+            if (link.assertion_version_id != version or link.assertion_kind != kind
+                    or link.support_type != "DIRECT" or link.batch_id not in eligible
+                    or doc is None or doc.batch_id not in eligible
+                    or doc.data_origin != record.data_origin
+                    or owner is None or owner.data_origin != record.data_origin):
+                continue
+            if self._available(link) > cutoff or self._available(doc) > cutoff:
+                continue
+            if mode == "system_as_of" and (self._utc(link.recorded_at) > cutoff or self._utc(doc.recorded_at) > cutoff):
+                continue
+            result.append(link)
+        return result
+
+    def evidence_for(self, record, cutoff: datetime, mode: str = "public_as_of") -> List[EvidenceLink]:
+        if mode not in ("public_as_of", "system_as_of"):
+            raise ValueError(f"Invalid mode: {mode!r}")
+        cutoff = self._utc(cutoff)
+        return [link.model_copy(deep=True) for link in self._evidence_for_record(record, cutoff, mode, self._eligible_batches(cutoff, mode))]
+
+    def documents_for(self, record, cutoff: datetime, mode: str = "public_as_of") -> List[SourceDocument]:
+        ids = {link.document_version_id for link in self.evidence_for(record, cutoff, mode)}
+        return [self._canonical_documents[key].model_copy(deep=True) for key in sorted(ids)]
+
+    def query_facts(self, cutoff: datetime, mode: str = "public_as_of", *, include_expired: bool = False) -> List[Fact]:
+        """Latest committed nonretracted facts with eligible supporting evidence."""
+        if mode not in ("public_as_of", "system_as_of"):
+            raise ValueError(f"Invalid mode: {mode!r}")
+        cutoff = self._utc(cutoff)
+        eligible = self._eligible_batches(cutoff, mode)
+        return [fact.model_copy(deep=True) for fact in self._latest_facts(cutoff, mode, eligible)
+                if (include_expired or not fact.valid_to or self._utc(fact.valid_to) > cutoff)
+                and self._evidence_for_record(fact, cutoff, mode, eligible)]
+
+    def query_series(self, cutoff: datetime, mode: str = "public_as_of") -> List[SeriesDefinition]:
+        """Definitions are subject to the same committed, temporal boundary as measurements."""
+        if mode not in ("public_as_of", "system_as_of"):
+            raise ValueError(f"Invalid mode: {mode!r}")
+        cutoff = self._utc(cutoff)
+        eligible = self._eligible_batches(cutoff, mode)
+        return [definition.model_copy(deep=True) for definition in self._canonical_series.values()
+                if (definition.batch_id is None or definition.batch_id in eligible)
+                and self._available(definition) <= cutoff
+                and (mode == "public_as_of" or (self._utc(definition.recorded_at) if "recorded_at" in getattr(definition, "model_fields_set", set()) else self._available(definition)) <= cutoff)]
+
+    def query_observation_revisions(self, cutoff: datetime, mode: str = "public_as_of") -> List[Observation]:
+        """Eligible release history; a withdrawn logical observation revokes its old labels."""
+        if mode not in ("public_as_of", "system_as_of"):
+            raise ValueError(f"Invalid mode: {mode!r}")
+        cutoff = self._utc(cutoff)
+        self._ensure_observations_loaded()
+        eligible = self._eligible_batches(cutoff, mode)
+        definitions = {s.series_id for s in self.query_series(cutoff, mode)}
+        visible = [o for o in self._canonical_observations.values()
+                   if o.batch_id in eligible and self._available(o) <= cutoff
+                   and (mode == "public_as_of" or self._utc(o.recorded_at) <= cutoff)]
+        latest = {}
+        for obs in visible:
+            key = (self._available(obs), self._utc(obs.recorded_at), obs.revision_id)
+            if obs.observation_id not in latest or key > latest[obs.observation_id][0]:
+                latest[obs.observation_id] = (key, obs)
+        withdrawn = {key for key, (_, obs) in latest.items() if obs.is_retracted or obs.quality_state != "accepted"}
+        revoked = {obs.supersedes_revision_id for obs in visible if obs.is_retracted}
+        return [o.model_copy(deep=True) for o in visible
+                if o.observation_id not in withdrawn and o.revision_id not in revoked
+                and not o.is_retracted and o.quality_state == "accepted"
+                and o.series_id in definitions and o.period_start < o.period_end_exclusive
+                and o.value is not None and math.isfinite(o.value)
+                and self._evidence_for_record(o, cutoff, mode, eligible)]
+
+    def query_observations(self, cutoff: datetime, mode: str = "public_as_of",
+                           entity_ids: Optional[List[str]] = None) -> pa.Table:
+        """Read accepted latest revisions from this instance's pinned committed snapshot."""
+        if mode not in ("public_as_of", "system_as_of"):
+            raise ValueError(f"Invalid mode: {mode!r}")
+        cutoff = self._utc(cutoff)
+        self._ensure_observations_loaded()
+        eligible = self._eligible_batches(cutoff, mode)
+        latest = {}
+        for obs in self._canonical_observations.values():
+            if obs.batch_id not in eligible or self._available(obs) > cutoff:
+                continue
+            if mode == "system_as_of" and self._utc(obs.recorded_at) > cutoff:
+                continue
+            key = (self._available(obs), self._utc(obs.recorded_at), obs.revision_id)
+            previous = latest.get(obs.observation_id)
+            if previous is None or key > previous[0]:
+                latest[obs.observation_id] = (key, obs)
+        records = [obs for _, obs in latest.values()
+                   if not obs.is_retracted and obs.quality_state == "accepted"]
+        records = [obs for obs in records if self._evidence_for_record(obs, cutoff, mode, eligible)]
+        valid_records = []
+        for obs in records:
+            if obs.period_start >= obs.period_end_exclusive:
+                continue
+            if obs.value is not None and not math.isfinite(obs.value):
+                continue
+            s_def = self._canonical_series.get(obs.series_id)
+            if s_def is None and obs.series_id not in self._canonical_series:
+                continue
+            if s_def is not None and (
+                (s_def.batch_id is not None and s_def.batch_id not in eligible)
+                or self._available(s_def) > cutoff
+                or (mode == "system_as_of" and (self._utc(s_def.recorded_at) if "recorded_at" in getattr(s_def, "model_fields_set", set()) else self._available(s_def)) > cutoff)
+            ):
+                continue
+            valid_records.append(obs)
+        records = valid_records
+        if entity_ids is not None:
+            targets = set(entity_ids)
+            matches = set(targets)
+            for sid, definition in self._canonical_series.items():
+                if ((definition.batch_id is not None and definition.batch_id not in eligible)
+                        or self._available(definition) > cutoff
+                        or (mode == "system_as_of" and (self._utc(definition.recorded_at) if "recorded_at" in getattr(definition, "model_fields_set", set()) else self._available(definition)) > cutoff)
+                        or ("recorded_at" in getattr(definition, "model_fields_set", set()) and self._utc(definition.recorded_at) > cutoff)):
+                    continue
+                geo = definition.geography_id
+                if geo and (geo in targets or f"geo:{geo}" in targets):
+                    matches.add(sid)
+            for fact in self.query_facts(cutoff, mode):
+                if fact.predicate != "MEASURES":
+                    continue
+                if fact.valid_from and self._utc(fact.valid_from) > cutoff:
+                    continue
+                if fact.valid_to and self._utc(fact.valid_to) <= cutoff:
+                    continue
+                payload = json.loads(fact.payload_json) if fact.payload_json else {}
+                if fact.object_id in targets or (payload.get("subject_kind") == "edge" and payload.get("subject_id") in targets):
+                    matches.add(fact.subject_id)
+            records = [obs for obs in records if obs.series_id in matches]
+        return pa.Table.from_pylist([obs.model_dump() for obs in records], schema=OBSERVATIONS_SCHEMA)
+
+    def project_graph(self, cutoff: datetime, mode: str = "public_as_of") -> Dict[str, Any]:
+        """Project latest versions, then apply retractions, quality and validity intervals."""
+        if mode not in ("public_as_of", "system_as_of"):
+            raise ValueError(f"Invalid mode: {mode!r}")
+        cutoff = self._utc(cutoff)
+        eligible = self._eligible_batches(cutoff, mode)
+        edges, referenced = [], set()
+        for fact in self.query_facts(cutoff, mode, include_expired=True):
+            if fact.subject_id.startswith("series:"):
+                s_def = self._canonical_series.get(fact.subject_id)
+                if s_def and getattr(s_def, "batch_id", None) and s_def.batch_id not in eligible:
+                    continue
+            if fact.object_id and fact.object_id.startswith("series:"):
+                s_def = self._canonical_series.get(fact.object_id)
+                if s_def and getattr(s_def, "batch_id", None) and s_def.batch_id not in eligible:
+                    continue
+
+            valid_from = self._utc(fact.valid_from) if fact.valid_from else None
+            valid_to = self._utc(fact.valid_to) if fact.valid_to else None
+            status = "upcoming" if valid_from and valid_from > cutoff else "active"
+            if valid_to and valid_to <= cutoff:
+                status = "expired"
+            evidence = self._evidence_for_record(fact, cutoff, mode, eligible)
+            if fact.quality_state == "accepted" and not evidence:
+                continue
+            edges.append({
+                "edge_id": fact.fact_id, "fact_version_id": fact.fact_version_id,
+                "source_id": fact.subject_id, "target_id": fact.object_id, "relation_type": fact.predicate,
+                "valid_from": valid_from.isoformat() if valid_from else None,
+                "valid_to": valid_to.isoformat() if valid_to else None,
+                "is_active": status == "active", "status": status, "claim_kind": fact.claim_kind,
+                "quality_state": fact.quality_state, "payload": fact.payload_json,
+                "provider_source_id": fact.source_id, "available_at": self._available(fact).isoformat(),
+                "recorded_at": self._utc(fact.recorded_at).isoformat(), "batch_id": fact.batch_id,
+                "data_origin": fact.data_origin, "evidence_ids": [link.evidence_id for link in evidence],
+                "document_version_ids": sorted({link.document_version_id for link in evidence}),
+            })
+            referenced.add(fact.subject_id)
+            if fact.object_id:
+                referenced.add(fact.object_id)
+        node_ids = set(referenced)
+        for key, ent in self._canonical_entities.items():
+            if ent.batch_id in eligible and self._utc(ent.created_at) <= cutoff:
+                node_ids.add(key)
+        nodes = []
+        for key in sorted(node_ids):
+            ent = self._canonical_entities.get(key)
+            legacy = self._nodes.get(key)
+            nodes.append({"id": key, "label": ent.canonical_label if ent else legacy.label if legacy else key,
+                          "node_type": ent.entity_type if ent else legacy.node_type if legacy else "UNKNOWN",
+                          "node_subtype": ent.entity_subtype if ent else None,
+                          "jurisdiction": ent.jurisdiction if ent else getattr(legacy, "jurisdiction", None)})
+        return {"nodes": nodes, "edges": edges,
+                "metadata": {"cutoff": cutoff.isoformat(), "mode": mode, "generation": self._generation,
+                             "snapshot_revision": self._state.get("revision", 0),
+                             "node_count": len(nodes), "edge_count": len(edges),
+                             "active_edge_count": sum(edge["is_active"] for edge in edges)}}
+
+    # =========================================================================
     # 6. DATAFRAME & PERSISTENCE HELPERS
     # =========================================================================
+
 
     def get_nodes_df(self) -> pd.DataFrame:
         """Return nodes as a pandas DataFrame."""
@@ -953,17 +2018,36 @@ class DualLayerStore:
 
     def get_history_df(self, node_id: Optional[str] = None) -> pd.DataFrame:
         """Return tabular history as a chronologically sorted pandas DataFrame."""
+        self._ensure_history_loaded()
         records = [r for r in self._history if r.node_id == node_id] if node_id else list(self._history)
         data = [r.to_dict() for r in records]
         if not data:
-            return pd.DataFrame(columns=["record_id", "node_id", "effective_timestamp", "state_value", "metric_value"])
+            return pd.DataFrame(columns=["record_id", "node_id", "effective_timestamp", "timestamp", "state_value", "metric_value"])
         df = pd.DataFrame(data)
+        if "effective_timestamp" in df.columns and "timestamp" not in df.columns:
+            df["timestamp"] = df["effective_timestamp"]
+        if "timestamp" in df.columns and "effective_timestamp" not in df.columns:
+            df["effective_timestamp"] = df["timestamp"]
         if "timestamp_utc" in df.columns:
             df = df.sort_values("timestamp_utc", ascending=True)
         return df
 
+    def get_history(self, node_id: Optional[str] = None) -> List[TabularNodeHistory]:
+        """Return tabular history as a list of TabularNodeHistory objects."""
+        self._ensure_history_loaded()
+        if node_id:
+            return [r for r in self._history if r.node_id == node_id]
+        return list(self._history)
+
+
     def save(self) -> None:
-        """Explicitly persist working state and export Parquet backups safely."""
+        """Persist under the same writer boundary as ingestion."""
+        with self._canonical_mutation():
+            self._save_legacy_views()
+            self._save_canonical()
+
+    def _save_legacy_views(self) -> None:
+        """Export compatibility views; canonical reads never depend on these files."""
         nodes_df = self.get_nodes_df().copy()
         edges_df = self.get_edges_df().copy()
         history_df = self.get_history_df().copy()
@@ -981,14 +2065,21 @@ class DualLayerStore:
         # Parquet backup
         nodes_df.to_parquet(self.storage_dir / "graph_nodes.parquet", index=False)
         edges_df.to_parquet(self.storage_dir / "graph_edges.parquet", index=False)
-        history_df.to_parquet(self.storage_dir / "node_tabular_history.parquet", index=False)
+        if len(history_df) > 0 or not (self.storage_dir / "node_tabular_history.parquet").exists():
+            history_df.to_parquet(self.storage_dir / "node_tabular_history.parquet", index=False)
 
     def load(self) -> None:
         """Reload state from storage."""
         self._nodes.clear()
         self._edges.clear()
         self._history.clear()
+        self._history_loaded = False
+        self._observations_loaded = False
+        self._state = self._read_canonical_state()
+        self._generation = self._get_disk_generation()
         self._load_from_storage()
+        self._load_canonical_from_storage()
+        self._refresh_canonical_projection()
 
 
 # Class Aliases for seamless drop-in interoperability

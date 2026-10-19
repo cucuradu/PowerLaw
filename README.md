@@ -69,7 +69,138 @@ Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Add your `GOOGLE_API_KEY` (optional for local/offline mock execution).
+Configure Vertex AI with Application Default Credentials (ADC). No API key is
+read or required by the Gemini adapter. Keep credentials outside Git.
+
+#### Install the modern SDK
+
+```powershell
+python -m pip install --upgrade google-genai
+# For this project's uv-managed environment instead:
+uv pip install --python .venv\Scripts\python.exe "google-genai>=2.31.0"
+```
+
+#### Authenticate locally on Windows
+
+Install the free [Google Cloud CLI](https://cloud.google.com/sdk/docs/install#windows)
+with its PATH option, then close and reopen PowerShell. A Python virtual
+environment does not install the gcloud CLI. Sign in yourself in Google's browser
+window; do not share passwords, credential JSON, refresh tokens or login codes.
+
+If `gcloud` is not recognized, launch Google's Windows installer first:
+
+```powershell
+$installer = Join-Path $env:TEMP "GoogleCloudSDKInstaller.exe"
+Invoke-WebRequest "https://dl.google.com/dl/cloudsdk/channels/rapid/GoogleCloudSDKInstaller.exe" -OutFile $installer
+Start-Process -FilePath $installer -Wait
+```
+
+Select "Add gcloud to PATH", finish installation, and open a new PowerShell
+window before running the following commands.
+
+```powershell
+gcloud --version
+gcloud auth login
+gcloud config set project project-05d7ff31-502b-4fe3-8ff
+gcloud auth application-default login
+gcloud auth application-default set-quota-project project-05d7ff31-502b-4fe3-8ff
+```
+
+The CLI login and application-default login serve different clients. These
+commands do not upgrade your billing account. If Vertex AI is not enabled, an
+authorized project administrator must enable `aiplatform.googleapis.com`; an
+administrator must also grant your account the required Vertex AI permissions.
+Do not relax organization policies to create an API key.
+
+In the private `.env` (or the current PowerShell environment), configure:
+
+```dotenv
+GOOGLE_CLOUD_PROJECT=project-05d7ff31-502b-4fe3-8ff
+GOOGLE_CLOUD_LOCATION=global
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+For the current PowerShell session, the equivalent is:
+
+```powershell
+$env:GOOGLE_CLOUD_PROJECT = "project-05d7ff31-502b-4fe3-8ff"
+$env:GOOGLE_CLOUD_LOCATION = "global"
+$env:GEMINI_MODEL = "gemini-3.8-flash"
+```
+
+On 2026-10-18, this project's ADC request to Gemini 3.8 Flash succeeded on
+`global`; `us-central1` returned HTTP 404. The global endpoint does not guarantee
+a processing region. See [Google's endpoint documentation](https://docs.cloud.google.com/gemini-enterprise-agent-platform/resources/locations).
+
+The adapter loads the private `.env` without overriding existing environment
+variables. It creates a client lazily using `from google import genai`,
+`google.auth.default()` and `genai.Client(vertexai=True, project=..., location=...,
+credentials=...)`. Explicit ADC credentials prevent old API-key variables from
+selecting a different authentication route. Missing ADC or denied access fails
+without falling back to API keys or another provider.
+
+#### Send a prompt
+
+From the project root, after completing ADC login:
+
+```python
+from src.utils.api_wrapper import get_completion, initialize_api
+
+client = initialize_api()  # Uses local ADC, without an API key.
+answer = get_completion("Explain construction price inflation in three sentences.", max_output_tokens=256)
+print(answer)
+```
+
+The default model is `gemini-3.8-flash`; `GEMINI_MODEL` selects a model explicitly.
+`use_pro=True` requests higher thinking on that same model. There is no automatic
+fallback to another model or provider. Authentication and permission errors are
+not retried. Existing JSON, 768-dimensional embedding and PDF helpers use the
+modern SDK too. PDFs are passed inline, limited to 20 MiB by this helper; larger
+documents need a GCS URI integration. Regional model availability must be verified
+on the selected project before live ingestion.
+
+#### Trial credits and billing
+
+ADC authenticates the account; it does not establish credit eligibility or a
+spending cap. Check the selected project's linked billing account, promotional
+credit balance and expiry in [Cloud Billing](https://console.cloud.google.com/billing).
+A successful response and token counts do not prove which credits covered its
+cost. Check the billing report after its reporting delay; there is no need to
+exhaust an AI Studio free-tier quota as a billing test.
+
+For new Cloud Billing accounts opened after March 2, 2026, Google's welcome
+credits cannot pay for Gemini Developer API / AI Studio usage. This project uses
+the separate Vertex AI service. See Google's [Gemini billing rules](https://ai.google.dev/gemini-api/docs/billing/)
+and [Cloud Free Trial FAQ](https://cloud.google.com/signup-faqs). Keep a
+credit-only account on its Free Trial rather than upgrading to unrestricted paid
+billing. The SDK migration does not implement the ingestion plan's durable
+spending ledger; leave bulk extraction disabled until its budget controls are
+verified.
+
+#### Ingestion & Operations: Tasks 1–9
+
+The data ingestion pipeline provides unified, bounded, recoverable collection across 8 official sources (`EURLEX_CELLAR`, `OFFICIAL_NEWS`, `DESTATIS_GENESIS`, `EUROSTAT_STS`, `ECB_SDMX`, `BUNDESBANK_SDMX`, `SMARD_DE`, `GISCO_GEOGRAPHY`):
+
+- **CLI Operations**:
+  ```powershell
+  # Check status & health overview
+  python -m scripts.ops.ingest --status
+
+  # Execute dry-run across all verified pilot sources
+  python -m scripts.ops.ingest --pilot --dry-run
+
+  # Bounded historical backfill
+  python -m scripts.ops.ingest --source DESTATIS_GENESIS --since 2010-01-01 --until 2024-12-31 --limit 100
+
+  # Enforce cache & temp budgets without deleting sole unverified copies
+  python -m scripts.ops.ingest --enforce-cache
+
+  # Verify and restore batch from manifest
+  python -m scripts.ops.ingest --verify-restore <manifest_uri> --restore-dir ./data/restored_test
+  ```
+
+- **Automation & Scheduling**:
+  Windows Task Scheduler configurations for hourly news, daily pilot collection, weekly legal reconciliation, and monthly statistical revision updates are documented in [`docs/operations/scheduled_ingestion.md`](docs/operations/scheduled_ingestion.md).
 
 ### 3. Launch the Multi-Page Application
 ```bash
@@ -118,7 +249,6 @@ PowerLaw/
 │   │                                # adjacency matrices A, and temporal NPZ/JSON snapshots
 │   └── utils/
 │       ├── api_wrapper.py           # Google Gemini API wrapper (Flash + Pro)
-│       ├── seed_dual_layer.py       # Verified EU legal-economic seed data generator
 │       └── minio_client.py          # MinIO raw PDF & document object storage
 ├── scripts/                         # Maintenance and diagnostic scripts
 │   ├── ops/                         # Data ingestion, MinIO, and LanceDB operations

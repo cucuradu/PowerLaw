@@ -23,9 +23,9 @@ You will receive a JSON rule extracted from an EU law. Check for and fix the fol
 - **FIX**: If summary mentions "supply arrangement", "eligible quantity", or "subsidy threshold" but strictness is HARD, change to SOFT.
 
 ## 3. DATE FORMAT
-- ALL dates MUST be ISO 8601 strings: "YYYY-MM-DD".
+- ALL dates MUST be ISO 8601 strings: "YYYY-MM-DD" or null.
 - **FIX**: If you see a Unix timestamp (integer like 1735689600), convert to ISO string.
-- If activation_date is null or missing, set to "1900-01-01".
+- If activation_date is null or missing, preserve as null. DO NOT invent dates (do NOT use "1900-01-01" or today).
 
 ## 4. NULL vs ZERO VALUES
 - Use `null` for "no limit specified" or "unlimited".
@@ -71,23 +71,32 @@ def fix_ecu_to_eur(rule: dict, law_id: str) -> dict:
 
 
 def fix_date_format(rule: dict) -> dict:
-    """Ensure dates are ISO strings, not timestamps."""
+    """Ensure dates are ISO strings, not timestamps. Preserves null activation dates."""
     timeline = rule.get('timeline', {})
     
     # Check activation_date
     act_date = timeline.get('activation_date')
     if isinstance(act_date, int):
-        # Convert timestamp to ISO
-        from datetime import datetime
-        timeline['activation_date'] = datetime.utcfromtimestamp(act_date).strftime('%Y-%m-%d')
-    elif act_date is None:
-        timeline['activation_date'] = '1900-01-01'
+        from datetime import datetime, timezone
+        timeline['activation_date'] = datetime.fromtimestamp(act_date, tz=timezone.utc).strftime('%Y-%m-%d')
+    elif act_date is not None:
+        s = str(act_date).strip()
+        if not s or s.lower() in ("null", "none") or s.startswith("1900-01-01") or s.startswith("1970-01-01"):
+            timeline['activation_date'] = None
+        else:
+            timeline['activation_date'] = s
     
     # Check expiration_date
     exp_date = timeline.get('expiration_date')
     if isinstance(exp_date, int):
-        from datetime import datetime
-        timeline['expiration_date'] = datetime.utcfromtimestamp(exp_date).strftime('%Y-%m-%d')
+        from datetime import datetime, timezone
+        timeline['expiration_date'] = datetime.fromtimestamp(exp_date, tz=timezone.utc).strftime('%Y-%m-%d')
+    elif exp_date is not None:
+        s = str(exp_date).strip()
+        if not s or s.lower() in ("null", "none") or s.startswith("1900-01-01") or s.startswith("1970-01-01"):
+            timeline['expiration_date'] = None
+        else:
+            timeline['expiration_date'] = s
     
     rule['timeline'] = timeline
     return rule
@@ -104,10 +113,13 @@ def validate_rule_python(rule: dict, law_id: str) -> dict:
 # Input: ONLY the JSON draft from Flash (not full law text)
 # This saves ~90% on input tokens for Pro
 RULE_REVIEW_PROMPT = """
-You are a senior legal analyst reviewing extracted GNN rules for logical errors.
+You are a senior legal analyst reviewing extracted GNN rules for logical errors against the official source text.
+
+## SOURCE TEXT
+{source_text}
 
 ## INPUT
-A JSON array of rules extracted by a junior analyst. Your job is to FIX errors, not re-extract.
+A JSON array of rules extracted by a junior analyst. Your job is to verify against the SOURCE TEXT and FIX errors, not re-extract.
 
 ## COMMON ERRORS TO FIX
 
@@ -119,9 +131,9 @@ A JSON array of rules extracted by a junior analyst. Your job is to FIX errors, 
    - "supply arrangement", "eligible quota", "subsidy threshold" → **SOFT** (not HARD)
    - "ban", "embargo", "prohibition" → **HARD**
 
-3. **DATES**: Must be "YYYY-MM-DD" strings. If missing activation_date, use "1900-01-01".
+3. **DATES**: Must be "YYYY-MM-DD" strings or null. If missing activation_date, keep null (do NOT invent "1900-01-01" or January 1st for year-only dates).
 
-4. **VALUES**: `null` = unlimited, `0.0` = banned/prohibited only.
+4. **VALUES**: `null` = unlimited or qualitative/reporting obligation, `0.0` = banned/prohibited only.
 
 5. **REGIONS**: Canary Islands="ES-CN", Azores="PT-20", Madeira="PT-30"
 

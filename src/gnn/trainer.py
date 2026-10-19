@@ -8,6 +8,8 @@ Orchestrates:
 """
 
 import logging
+import copy
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any, Union
 import numpy as np
@@ -15,11 +17,12 @@ import pandas as pd
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 
 from src.storage.graph_store import DualLayerGraphStore
 from src.gnn.graph_exporter import GNNGraphExporter
-from src.gnn.temporal_gnn import TemporalLawReactionGNN
+from src.gnn.temporal_gnn import TemporalLawReactionGNN, TemporalHeteroGNN
 from src.models.dual_layer_model import NodeType
 
 logger = logging.getLogger(__name__)
@@ -80,7 +83,7 @@ class TGNNTrainer:
         N = len(self.node_ids)
         node_to_idx = {nid: i for i, nid in enumerate(self.node_ids)}
 
-        # Build dates from tabular history or synthetic chronological split
+        # Training chronology must come from actual history.
         if not history_df.empty and "timestamp" in history_df.columns:
             sorted_dates = sorted(list(history_df["timestamp"].dropna().unique()))
             if len(sorted_dates) >= num_snapshots:
@@ -89,10 +92,10 @@ class TGNNTrainer:
             else:
                 selected_dates = sorted_dates
         else:
-            selected_dates = ["2023-01-01", "2023-06-30", "2024-01-01", "2024-06-30"]
+            raise ValueError("At least two history dates are required for training")
 
         if len(selected_dates) < 2:
-            selected_dates = ["2023-01-01", "2023-06-30", "2024-01-01", "2024-06-30"]
+            raise ValueError("At least two history dates are required for training")
 
         x_snapshots = []
         adj_snapshots = []
@@ -402,3 +405,238 @@ class TGNNTrainer:
         except Exception as e:
             logger.warning(f"Could not load TGNN checkpoint: {e}")
             return False
+
+
+# =========================================================================
+# Release-Aware Heterogeneous GNN Trainer & Ablation Runner
+# =========================================================================
+
+class HeteroGNNTrainer:
+    """
+    Experimental trainer for the release-aware TemporalHeteroGNN.
+    Trains on quarterly forecast dataset with future-only first-release labels,
+    chronological train/validation splits, masked MSE loss on train-normalized growth,
+    and supports news, legal, and topology ablations.
+    """
+    def __init__(
+        self,
+        model: Optional[TemporalHeteroGNN] = None,
+        lr: float = 0.005,
+        weight_decay: float = 1e-4,
+        device: Optional[str] = None
+    ):
+        self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.model = model
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.optimizer = None
+        self._initial_model = copy.deepcopy(model)
+        self.feature_profile = None
+        self.target_mean = 0.0
+        self.target_scale = 1.0
+        self.fit_cutoff = None
+        self._train_origins = None
+        self.ablation_trainers = {}
+        if self.model is not None:
+            self.model.to(self.device)
+            self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
+
+    @staticmethod
+    def _instant(value, name):
+        if value is None:
+            raise ValueError(f"Missing {name} timestamp")
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if not isinstance(value, datetime):
+            raise ValueError(f"Invalid {name} timestamp")
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+    def _validate_samples(self, samples):
+        origins, releases = [], []
+        for sample in samples:
+            origin = self._instant(sample.get("origin"), "origin")
+            origins.append(origin)
+            y, mask = np.asarray(sample["y"]), np.asarray(sample["y_mask"], dtype=bool)
+            if y.shape != mask.shape or y.ndim != 2 or y.shape[1] != 1:
+                raise ValueError("Labels and masks must have shape [targets, 1]")
+            if mask.any():
+                if not np.isfinite(y[mask]).all():
+                    raise ValueError("Observed labels must be finite")
+                release = self._instant(sample.get("first_release_available_at"), "label release")
+                if release <= origin:
+                    raise ValueError("Forecast label release must follow its origin")
+                releases.append(release)
+            if not sample["snapshots"]:
+                raise ValueError("Forecast origin requires historical snapshots")
+            for snapshot in sample["snapshots"]:
+                cutoff = getattr(snapshot, "cutoff", None)
+                if cutoff is not None and self._instant(cutoff, "snapshot cutoff") > origin:
+                    raise ValueError("Snapshot cutoff is after its forecast origin")
+        if not origins or any(current <= previous for previous, current in zip(origins, origins[1:])):
+            raise ValueError("Samples must have strictly chronological origins")
+        return origins, releases
+
+    def _fit_transforms(self, samples, fit_cutoff=None):
+        from src.gnn.graph_exporter import fit_heterodata_transforms
+        origins, releases = self._validate_samples(samples)
+        if not releases:
+            raise ValueError("Training requires verified released labels")
+        cutoff = self._instant(fit_cutoff, "fit cutoff") if fit_cutoff is not None else max(releases)
+        if max(releases) > cutoff or max(origins) >= cutoff:
+            raise ValueError("Training label release or origin is after the fit cutoff")
+        if self._train_origins is not None and origins != self._train_origins:
+            raise ValueError("Training origin split is frozen; use a fresh trainer for a new split")
+        if self.feature_profile is None:
+            values = np.concatenate([np.asarray(s["y"])[np.asarray(s["y_mask"], dtype=bool)] for s in samples])
+            self.target_mean = float(values.mean())
+            self.target_scale = float(values.std()) or 1.0
+            self.feature_profile = fit_heterodata_transforms([snapshot for sample in samples for snapshot in sample["snapshots"]])
+            self._train_origins = origins
+            self.fit_cutoff = cutoff
+
+    def _sample_inputs(self, sample, ablation):
+        from src.gnn.graph_exporter import apply_heterodata_transforms
+        if ablation not in {None, "no_news", "no_event", "no_legal", "no_rule", "no_topology"}:
+            raise ValueError("Unsupported ablation")
+        snapshots = []
+        for snapshot in sample["snapshots"]:
+            current = apply_heterodata_transforms(snapshot, self.feature_profile)
+            if ablation in {"no_news", "no_event", "no_legal", "no_rule"}:
+                removed = {"event", "reaction"} if ablation in {"no_news", "no_event"} else {"law", "rule"}
+                for kind in removed & set(current.node_types):
+                    current[kind].x.zero_()
+                    for name in ("active_mask", "node_mask"):
+                        mask = getattr(current[kind], name, None)
+                        if mask is not None:
+                            mask.zero_()
+                for relation in current.edge_types:
+                    if relation[0] in removed or relation[2] in removed:
+                        current[relation].edge_index = current[relation].edge_index[:, :0]
+                        current[relation].edge_attr = current[relation].edge_attr[:0]
+            elif ablation == "no_topology":
+                for relation in current.edge_types:
+                    current[relation].edge_index = current[relation].edge_index[:, :0]
+                    current[relation].edge_attr = current[relation].edge_attr[:0]
+            snapshots.append(current)
+        mask = np.asarray(sample["y_mask"], dtype=bool).reshape(-1)
+        indices = np.asarray(sample["target_series_index"])
+        if indices.ndim != 1 or len(indices) != len(mask) or (indices[mask] < 0).any():
+            raise ValueError("Observed target requires a valid final stable series index")
+        if sample.get("target_series_present") is False and mask.any():
+            raise ValueError("Observed target is absent from its forecast snapshot")
+        return snapshots, torch.as_tensor(indices[mask], dtype=torch.long, device=self.device)
+
+    def train_epoch(self, samples: List[Dict[str, Any]], ablation: Optional[str] = None,
+                    *, fit_cutoff=None) -> float:
+        """
+        Train one epoch over the samples with valid masked labels.
+        Supports ablations:
+        - 'no_news' / 'no_event': zeroes event/reaction inputs
+        - 'no_legal' / 'no_rule': zeroes law/rule inputs
+        - 'no_topology': removes cross-type edge messages (residual only)
+        """
+        if self.model is None or self.optimizer is None:
+            raise ValueError("Model and optimizer must be initialized")
+        self._fit_transforms(samples, fit_cutoff)
+        self.model.train()
+        total_loss = 0.0
+        valid_count = 0
+
+        for sample in samples:
+            mask = np.asarray(sample["y_mask"], dtype=bool)
+            if not mask.any():
+                continue
+            raw_y = np.asarray(sample["y"])[mask].reshape(-1, 1)
+            y_true = torch.tensor((raw_y - self.target_mean) / self.target_scale, dtype=torch.float32, device=self.device)
+            snapshots, target_idx = self._sample_inputs(sample, ablation)
+            self.optimizer.zero_grad()
+            y_pred = self.model(snapshots, target_idx=target_idx)
+            loss = F.mse_loss(y_pred, y_true)
+            loss.backward()
+            self.optimizer.step()
+
+            total_loss += loss.item()
+            valid_count += 1
+
+        return total_loss / max(1, valid_count)
+
+    def evaluate(self, samples: List[Dict[str, Any]], ablation: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Evaluates model on samples with valid masked labels.
+        Returns MAE, RMSE, directional accuracy.
+        """
+        if self.model is None:
+            raise ValueError("Model must be initialized")
+        origins, _ = self._validate_samples(samples)
+        if self.feature_profile is None or self.fit_cutoff is None:
+            raise ValueError("Fit training transforms before evaluation")
+        if min(origins) <= max(self._train_origins) or min(origins) < self.fit_cutoff:
+            raise ValueError("Evaluation origin overlaps training origins or precedes the label-release fit cutoff")
+        self.model.eval()
+        preds = []
+        actuals = []
+
+        with torch.no_grad():
+            for sample in samples:
+                mask = np.asarray(sample["y_mask"], dtype=bool)
+                if not mask.any():
+                    continue
+                snapshots, target_idx = self._sample_inputs(sample, ablation)
+                y_pred = self.model(snapshots, target_idx=target_idx).cpu().numpy().reshape(-1)
+                preds.extend((y_pred * self.target_scale + self.target_mean).tolist())
+                actuals.extend(np.asarray(sample["y"])[mask].tolist())
+
+        if not actuals:
+            return {"sample_count": 0, "mae": None, "rmse": None, "directional_accuracy": None}
+
+        actuals_np = np.array(actuals)
+        preds_np = np.array(preds)
+        err = actuals_np - preds_np
+        mae = float(np.mean(np.abs(err)))
+        rmse = float(np.sqrt(np.mean(err ** 2)))
+        dir_acc = float(np.mean(np.sign(actuals_np) == np.sign(preds_np)))
+
+        return {
+            "sample_count": len(actuals),
+            "mae": round(mae, 4),
+            "rmse": round(rmse, 4),
+            "directional_accuracy": round(dir_acc, 4),
+            "predictions": preds,
+            "actuals": actuals
+        }
+
+    def run_ablations(self, train_samples: List[Dict[str, Any]], test_samples: List[Dict[str, Any]], epochs: int = 5) -> Dict[str, Any]:
+        """
+        Runs training and evaluation across full model and ablations:
+        - full_model
+        - no_news
+        - no_legal
+        - no_topology
+        """
+        results = {}
+        train_origins, train_releases = self._validate_samples(train_samples)
+        test_origins, _ = self._validate_samples(test_samples)
+        if max(train_origins) >= min(test_origins):
+            raise ValueError("Chronological train/test origins overlap")
+        cutoff = min(test_origins)
+        if not train_releases or max(train_releases) > cutoff:
+            raise ValueError("Training label release is after the first test origin")
+        if self._initial_model is None or epochs < 1:
+            raise ValueError("A fresh model and positive epoch count are required")
+        self.ablation_trainers = {}
+        for abl in [None, "no_news", "no_legal", "no_topology"]:
+            abl_name = abl or "full_model"
+            independent = HeteroGNNTrainer(copy.deepcopy(self._initial_model), lr=self.lr,
+                                          weight_decay=self.weight_decay, device=str(self.device))
+            devices = [self.device.index or 0] if self.device.type == "cuda" else []
+            with torch.random.fork_rng(devices=devices):
+                torch.manual_seed(0)
+                for _ in range(epochs):
+                    independent.train_epoch(train_samples, ablation=abl, fit_cutoff=cutoff)
+                eval_metrics = independent.evaluate(test_samples, ablation=abl)
+            eval_metrics.update({"fit_cutoff": cutoff.isoformat(), "target_mean": independent.target_mean,
+                                 "target_scale": independent.target_scale, "feature_profile": independent.feature_profile,
+                                 "seed": 0})
+            self.ablation_trainers[abl_name] = independent
+            results[abl_name] = eval_metrics
+        return results

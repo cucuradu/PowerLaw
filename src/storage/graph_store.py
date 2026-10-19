@@ -1,6 +1,6 @@
 """
 Dual-Layer Graph & Tabular Storage Engine.
-Backed by LanceDB with fallback to Arrow/Pandas persistence.
+Backed by the shared canonical LanceDB store, with legacy Parquet read compatibility.
 Provides:
 1. Topological graph management (Nodes & Edges)
 2. Behind-the-graph temporal tabular time-series storage (NodeStateRecord)
@@ -39,11 +39,32 @@ from src.models.dual_layer_model import (
 logger = logging.getLogger(__name__)
 
 
+def _safe_json_parse(raw_val: Any) -> Dict[str, Any]:
+    """Safely parse JSON or dict properties without using unsafe eval()."""
+    if pd.isna(raw_val) or raw_val is None:
+        return {}
+    if isinstance(raw_val, dict):
+        return raw_val
+    if isinstance(raw_val, str):
+        val_str = raw_val.strip()
+        if not val_str or val_str in ("{}", "None", "nan"):
+            return {}
+        try:
+            return json.loads(val_str)
+        except Exception:
+            try:
+                import ast
+                res = ast.literal_eval(val_str)
+                return res if isinstance(res, dict) else {}
+            except Exception:
+                return {}
+    return {}
+
+
 class DualLayerGraphStore:
     """
-    Manages both:
-    1. The topological Graph (Laws, Actions, Reactions, Sectors, Commodities)
-    2. The behind-the-graph Tabular History (Timestamped metrics and state changes)
+    Adapter preserving legacy interfaces and signatures while backed by the canonical DualLayerStore.
+    Eliminates eval(), prevents unsafe overwrite persistence, and preserves multigraph multiplicity.
     """
 
     def __init__(self, storage_dir: Optional[Union[str, Path]] = None):
@@ -52,154 +73,71 @@ class DualLayerGraphStore:
             storage_dir = get_settings().lancedb_path
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self.db = None
-        
-        # In-memory working cache
+
+        from src.storage.dual_layer_store import DualLayerStore
+        self.canonical_store = DualLayerStore(storage_dir=self.storage_dir)
+        self.db = self.canonical_store.db
+
+        # In-memory working cache preserving multigraph edge list
         self._nodes: Dict[str, GraphNode] = {}
         self._edges: List[GraphEdge] = []
         self._history: List[NodeStateRecord] = []
-        
-        self._init_backend()
-
-    def _init_backend(self):
-        """Initialize LanceDB or file-based tables."""
-        if HAS_LANCEDB:
-            try:
-                self.db = lancedb.connect(str(self.storage_dir))
-            except Exception as e:
-                logger.warning(f"Could not connect to LanceDB at {self.storage_dir}: {e}")
-                self.db = None
-
-        # Load existing if available
         self.load()
 
+    @property
+    def _generation(self) -> int:
+        return self.canonical_store._generation
+
+    def _get_disk_generation(self) -> int:
+        return self.canonical_store._get_disk_generation()
+
     def add_node(self, node: GraphNode) -> None:
-        """Add or update a graph node."""
+        self.canonical_store.add_node(node.model_dump(mode="json"))
         self._nodes[node.id] = node
 
     def add_edge(self, edge: GraphEdge) -> None:
-        """Add an edge between nodes."""
+        data = edge.model_dump(mode="json")
+        data["id"] = f"{edge.source_id}->{data['relation_type']}->{edge.target_id}_{len(self._edges)}"
+        self.canonical_store.add_edge(data)
         self._edges.append(edge)
 
     def add_state_record(self, record: NodeStateRecord) -> None:
-        """Add a timestamped tabular record for a node."""
+        self.canonical_store.add_history_record(record.model_dump(mode="json"))
         self._history.append(record)
 
-    def add_state_records_batch(self, records: List[NodeStateRecord]) -> None:
-        """Batch append timestamped tabular records."""
-        self._history.extend(records)
+    def add_state_records(self, records: List[NodeStateRecord]) -> None:
+        for record in records:
+            self.add_state_record(record)
+
+    add_state_records_batch = add_state_records
 
     def save(self) -> None:
-        """Persist graph and tabular data to storage."""
-        nodes_data = [n.to_dict() for n in self._nodes.values()]
-        edges_data = [e.to_dict() for e in self._edges]
-        history_data = [h.to_dict() for h in self._history]
-
-        nodes_df = pd.DataFrame(nodes_data) if nodes_data else pd.DataFrame(columns=[
-            "id", "label", "node_type", "description", "jurisdiction", "activation_date", "metadata_json"
-        ])
-        edges_df = pd.DataFrame(edges_data) if edges_data else pd.DataFrame(columns=[
-            "source_id", "target_id", "relation_type", "weight", "timestamp", "properties_json"
-        ])
-        history_df = pd.DataFrame(history_data) if history_data else pd.DataFrame(columns=[
-            "record_id", "timestamp", "timestamp_utc", "node_id", "node_type", "state_value",
-            "metric_name", "metric_value", "delta", "unit", "source_id", "source_type",
-            "confidence", "notes"
-        ])
-
-        # Parquet / Arrow local backup
-        nodes_df.to_parquet(self.storage_dir / "graph_nodes.parquet", index=False)
-        edges_df.to_parquet(self.storage_dir / "graph_edges.parquet", index=False)
-        history_df.to_parquet(self.storage_dir / "node_tabular_history.parquet", index=False)
-
-        # LanceDB storage if connected
-        if self.db is not None:
-            try:
-                if len(nodes_df) > 0:
-                    self.db.create_table("graph_nodes", data=nodes_df, mode="overwrite")
-                if len(edges_df) > 0:
-                    self.db.create_table("graph_edges", data=edges_df, mode="overwrite")
-                if len(history_df) > 0:
-                    self.db.create_table("node_tabular_history", data=history_df, mode="overwrite")
-            except Exception as e:
-                logger.warning(f"Error persisting to LanceDB: {e}")
+        """The canonical store owns persistence and propagates failures."""
+        self.canonical_store.save()
 
     def load(self) -> None:
-        """Load graph and tabular data from storage."""
-        nodes_path = self.storage_dir / "graph_nodes.parquet"
-        edges_path = self.storage_dir / "graph_edges.parquet"
-        history_path = self.storage_dir / "node_tabular_history.parquet"
-
-        if nodes_path.exists():
-            try:
-                ndf = pd.read_parquet(nodes_path)
-                for _, row in ndf.iterrows():
-                    meta = {}
-                    if pd.notna(row.get("metadata_json")):
-                        try:
-                            meta = eval(row["metadata_json"]) if isinstance(row["metadata_json"], str) else {}
-                        except Exception:
-                            meta = {}
-                    node = GraphNode(
-                        id=str(row["id"]),
-                        label=str(row["label"]),
-                        node_type=NodeType(row["node_type"]) if row["node_type"] in NodeType._value2member_map_ else NodeType.ACTION,
-                        description=str(row.get("description", "")),
-                        jurisdiction=str(row.get("jurisdiction", "EU")),
-                        activation_date=str(row.get("activation_date", "")),
-                        metadata=meta
-                    )
-                    self._nodes[node.id] = node
-            except Exception as e:
-                logger.warning(f"Could not load nodes: {e}")
-
-        if edges_path.exists():
-            try:
-                edf = pd.read_parquet(edges_path)
-                self._edges = []
-                for _, row in edf.iterrows():
-                    props = {}
-                    if pd.notna(row.get("properties_json")):
-                        try:
-                            props = eval(row["properties_json"]) if isinstance(row["properties_json"], str) else {}
-                        except Exception:
-                            props = {}
-                    edge = GraphEdge(
-                        source_id=str(row["source_id"]),
-                        target_id=str(row["target_id"]),
-                        relation_type=EdgeRelation(row["relation_type"]) if row["relation_type"] in EdgeRelation._value2member_map_ else EdgeRelation.TRIGGERS,
-                        weight=float(row.get("weight", 1.0)),
-                        timestamp=str(row.get("timestamp", "")),
-                        properties=props
-                    )
-                    self._edges.append(edge)
-            except Exception as e:
-                logger.warning(f"Could not load edges: {e}")
-
-        if history_path.exists():
-            try:
-                hdf = pd.read_parquet(history_path)
-                self._history = []
-                for _, row in hdf.iterrows():
-                    rec = NodeStateRecord(
-                        record_id=str(row["record_id"]),
-                        timestamp=str(row["timestamp"]),
-                        timestamp_utc=int(row.get("timestamp_utc", 0)),
-                        node_id=str(row["node_id"]),
-                        node_type=NodeType(row["node_type"]) if row["node_type"] in NodeType._value2member_map_ else NodeType.ACTION,
-                        state_value=str(row["state_value"]),
-                        metric_name=str(row["metric_name"]),
-                        metric_value=float(row["metric_value"]),
-                        delta=float(row.get("delta", 0.0)),
-                        unit=str(row.get("unit", "INDEX")),
-                        source_id=str(row.get("source_id", "")),
-                        source_type=str(row.get("source_type", "EUR_LEX")),
-                        confidence=float(row.get("confidence", 1.0)),
-                        notes=str(row.get("notes", ""))
-                    )
-                    self._history.append(rec)
-            except Exception as e:
-                logger.warning(f"Could not load history: {e}")
+        """Adapt shared records without a second persistence format or default relations."""
+        self.canonical_store.load()
+        self._nodes.clear()
+        self._edges.clear()
+        self._history.clear()
+        for node in self.canonical_store.get_nodes():
+            metadata = node.metadata_dict
+            self._nodes[node.id] = GraphNode(
+                id=node.id, label=node.label, node_type=node.node_type,
+                description=node.description, jurisdiction=node.jurisdiction,
+                activation_date=metadata.get("activation_date"), metadata=metadata)
+        for edge in self.canonical_store.get_edges():
+            self._edges.append(GraphEdge(source_id=edge.source, target_id=edge.target,
+                                          relation_type=edge.relationship_type, weight=edge.weight,
+                                          timestamp=edge.timestamp or None, properties=edge.metadata_dict))
+        for record in self.canonical_store.get_history():
+            data = record.model_dump()
+            data.update(record.metadata_dict)
+            data["timestamp"] = record.effective_timestamp
+            data.setdefault("node_type", NodeType.ACTION)
+            data.setdefault("source_id", record.source_url)
+            self._history.append(NodeStateRecord(**data))
 
     # Query APIs
     def get_nodes(self) -> List[GraphNode]:
@@ -238,9 +176,9 @@ class DualLayerGraphStore:
             df = df.sort_values("timestamp_dt", ascending=True)
         return df
 
-    def to_networkx(self) -> nx.DiGraph:
-        """Build NetworkX directed graph."""
-        G = nx.DiGraph()
+    def to_networkx(self) -> nx.MultiDiGraph:
+        """Build NetworkX directed multigraph preserving multiple edges between endpoints."""
+        G = nx.MultiDiGraph()
         for node in self._nodes.values():
             G.add_node(
                 node.id,
@@ -260,6 +198,7 @@ class DualLayerGraphStore:
                 timestamp=edge.timestamp or ""
             )
         return G
+
 
     def compute_power_law_metrics(self) -> Dict[str, Any]:
         """

@@ -41,7 +41,7 @@ DIRECTORY_CODES = [
     "13",    # Industrial Policy / Internal Market
     "10",    # Economic & Monetary Policy
 ]
-ALLOWED_TYPES = ["R", "L"]  # R=Regulation, L=Directive
+ALLOWED_TYPES = ["R", "L", "D"]  # R=Regulation, L=Directive, D=Decision
 BASE_URL = "https://eur-lex.europa.eu"
 OUTPUT_DIR = Path("data/raw/laws")
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -182,11 +182,7 @@ class EurLexScraper:
             # 3. End of validity
             metadata["date_end_validity"] = find_date("End of validity")
             
-            # Fallback: If no entry force, use document date
-            if not metadata.get("date_entry_force") and metadata.get("date_document"):
-                metadata["date_entry_force"] = metadata["date_document"]
-                metadata["note"] = "Fallback to document date"
-            
+            # Do not invent entry into force from document date
             return metadata
             
         except Exception as e:

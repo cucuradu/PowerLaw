@@ -1,0 +1,107 @@
+{
+  "Status": {
+    "Code": 0,
+    "Content": "erfolgreich",
+    "Type": "Information"
+  },
+  "Object": {
+    "Code": "61261-0002",
+    "Content": "Baupreisindizes: Deutschland, Berichtsmonat im Quartal,\nMesszahlen mit/ohne Umsatzsteuer, Gebäudearten,\nBauarbeiten (Hochbau)",
+    "Time": {
+      "From": "1958",
+      "To": "2026"
+    },
+    "Valid": "true",
+    "Structure": {
+      "Head": {
+        "Code": "61261",
+        "Content": "Preisindizes für die Bauwirtschaft",
+        "Type": "Statistik",
+        "Values": "-1",
+        "Selected": null,
+        "Functions": null,
+        "Structure": [
+          {
+            "Code": "DINSG",
+            "Content": "Deutschland insgesamt",
+            "Type": "Merkmal",
+            "Values": "1",
+            "Selected": null,
+            "Functions": null,
+            "Structure": [
+              {
+                "Code": "PRE002",
+                "Content": "Baupreisindizes",
+                "Type": "Merkmal",
+                "Values": "-1",
+                "Selected": null,
+                "Functions": null,
+                "Structure": null,
+                "Updated": "see parent"
+              }
+            ],
+            "Updated": "see parent"
+          }
+        ],
+        "Updated": "see parent"
+      },
+      "Columns": [
+        {
+          "Code": "QUARM1",
+          "Content": "Berichtsmonat im Quartal",
+          "Type": "Merkmal",
+          "Values": "4",
+          "Selected": null,
+          "Functions": null,
+          "Structure": [
+            {
+              "Code": "STEMW1",
+              "Content": "Messzahlen mit/ohne Umsatzsteuer",
+              "Type": "Merkmal",
+              "Values": "2",
+              "Selected": null,
+              "Functions": null,
+              "Structure": null,
+              "Updated": "see parent"
+            }
+          ],
+          "Updated": "see parent"
+        }
+      ],
+      "Rows": [
+        {
+          "Code": "BAUAR4",
+          "Content": "Bauarbeiten (Hochbau)",
+          "Type": "Merkmal",
+          "Values": "41",
+          "Selected": null,
+          "Functions": null,
+          "Structure": null,
+          "Updated": "see parent"
+        }
+      ],
+      "Subtitel": {
+        "Code": "JAHR",
+        "Content": "Jahr",
+        "Type": "Merkmal",
+        "Values": "-1",
+        "Selected": null,
+        "Functions": null,
+        "Structure": null,
+        "Updated": "see parent"
+      },
+      "Subheading": {
+        "Code": "BAUAR1",
+        "Content": "Gebäudearten",
+        "Type": "Merkmal",
+        "Values": "3",
+        "Selected": null,
+        "Functions": null,
+        "Structure": null,
+        "Updated": "see parent"
+      }
+    },
+    "Updated": "09.07.2024 13:45:21h"
+  },
+  "Copyright": "© Statistisches Bundesamt (Destatis), 2026"
+}

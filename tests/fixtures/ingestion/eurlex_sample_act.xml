@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ACT xmlns="http://publications.europa.eu/resource/authority/cdm">
+  <BIB.INSTANCE>
+    <DOCUMENT.REF>32024R1069</DOCUMENT.REF>
+    <DATE.DOCUMENT>2024-04-24</DATE.DOCUMENT>
+    <DATE.ENTRY.INTO.FORCE>2024-11-05</DATE.ENTRY.INTO.FORCE>
+    <TITLE>Regulation (EU) 2024/1069 of the European Parliament and of the Council on construction products</TITLE>
+  </BIB.INSTANCE>
+  <PREAMBLE>
+    <RECITAL id="rec_1">Whereas construction products play a critical role in building safety and energy performance.</RECITAL>
+    <RECITAL id="rec_2">Whereas circular economy and decarbonisation of cement and steel are necessary.</RECITAL>
+  </PREAMBLE>
+  <ENACTING.TERMS>
+    <ARTICLE id="art_1">
+      <TI.ART>Article 1</TI.ART>
+      <STI.ART>Subject matter and scope</STI.ART>
+      <PARAGRAPH id="art_1_par_1">
+        <ALINEA>This Regulation lays down rules for making available on the market and direct installation of construction products.</ALINEA>
+      </PARAGRAPH>
+    </ARTICLE>
+    <ARTICLE id="art_2">
+      <TI.ART>Article 2</TI.ART>
+      <STI.ART>Definitions</STI.ART>
+      <PARAGRAPH id="art_2_par_1">
+        <ALINEA>'construction product' means any formed or formless physical item in sectors C23 and C24.</ALINEA>
+      </PARAGRAPH>
+    </ARTICLE>
+    <ARTICLE id="art_5">
+      <TI.ART>Article 5</TI.ART>
+      <STI.ART>Digital Product Passport obligations</STI.ART>
+      <PARAGRAPH id="art_5_par_1">
+        <ALINEA>Manufacturers in sector C24 shall establish a digital construction passport for steel products by 2026-01-01.</ALINEA>
+      </PARAGRAPH>
+      <PARAGRAPH id="art_5_par_2">
+        <ALINEA>Installations with annual production below 500 tonnes shall be exempt from the requirement in paragraph 1.</ALINEA>
+      </PARAGRAPH>
+    </ARTICLE>
+    <ARTICLE id="art_8">
+      <TI.ART>Article 8</TI.ART>
+      <STI.ART>Mandatory recycling declaration</STI.ART>
+      <PARAGRAPH id="art_8_par_1">
+        <ALINEA>Producers in sector C23 shall report environmental product declarations for cement and concrete. No numeric limit is specified.</ALINEA>
+      </PARAGRAPH>
+    </ARTICLE>
+    <ARTICLE id="art_12">
+      <TI.ART>Article 12</TI.ART>
+      <STI.ART>Amendment of Regulation (EU) 2020/852</STI.ART>
+      <PARAGRAPH id="art_12_par_1">
+        <ALINEA>Regulation (EU) 2020/852 is amended as follows: in Article 10, paragraph 3 is replaced.</ALINEA>
+      </PARAGRAPH>
+    </ARTICLE>
+  </ENACTING.TERMS>
+</ACT>

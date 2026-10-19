@@ -4,7 +4,6 @@ Provides unified access to:
 1. Dual-Layer Graph Store (Nodes, Edges, Tabular History)
 2. LanceDB Structured Rules (EU Law chunks, IF-THEN logic gates, NACE mappings)
 3. Real-time & Curated News Corpus (Receptor Signals, Actions, Reactions)
-4. Comprehensive Benchmark Seed Data for immediate zero-config visualization
 """
 
 import os
@@ -12,31 +11,12 @@ import json
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 import pandas as pd
 import numpy as np
 
-from src.models.dual_layer_model import (
-    GraphNode,
-    GraphEdge,
-    NodeStateRecord,
-    NodeType,
-    EdgeRelation,
-    Strictness
-)
+from src.models.dual_layer_model import NodeType
 from src.storage.graph_store import DualLayerGraphStore
-from src.schemas.rule_schema import (
-    GNNRule,
-    Metadata,
-    Scope,
-    Timeline,
-    Mechanism,
-    Enforcement,
-    ActionType,
-    ActionOperator,
-    LawType,
-    ConditionalTrigger
-)
 
 from src.config import get_settings
 
@@ -52,695 +32,6 @@ NEWS_DIR = Path("data/raw/news")
 
 
 # ============================================================================
-# BENCHMARK EU REGULATIONS & LOGIC GATES SEED CORPUS
-# ============================================================================
-
-BENCHMARK_RULES_SEED: List[Dict[str, Any]] = [
-    {
-        "law_id": "32023R0956",
-        "title": "Carbon Border Adjustment Mechanism (CBAM) Regulation",
-        "chunk_id": "ART_6_CBAM_SURRENDER",
-        "rule_type": "REGULATORY",
-        "jurisdiction": "EU",
-        "valid_from": "2023-10-01",
-        "valid_to": "2034-12-31",
-        "summary": "Importers of iron, steel, aluminum, cement, and fertilizers into the EU must purchase and surrender CBAM certificates reflecting weekly average EU ETS allowance prices to equalize carbon costs with domestic producers.",
-        "recitals": "Regulation (EU) 2023/956 addresses the risk of carbon leakage resulting from increased EU climate ambition under Fit for 55 by ensuring imported industrial goods bear an equivalent carbon price to EU goods.",
-        "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R0956",
-        "rule": {
-            "metadata": {
-                "regulation_id": "32023R0956",
-                "article_id": "ART_6",
-                "law_type": "REGULATION",
-                "parse_confidence": 0.98
-            },
-            "scope": {
-                "regions": ["EU", "GLOBAL"],
-                "industrial_sectors": ["C24", "C23", "C20", "D35"],
-                "node_types": ["PRODUCER", "IMPORTER", "TRADER"],
-                "affected_commodities": ["STEEL", "ALUMINUM", "CEMENT", "FERTILIZER", "HYDROGEN"]
-            },
-            "timeline": {
-                "activation_date": "2023-10-01",
-                "expiration_date": "2034-12-31",
-                "phase_in_period_days": 820
-            },
-            "mechanism": {
-                "target_variable": "embedded_carbon_price",
-                "action_type": "ADJUSTMENT",
-                "operator": "ADD_ABSOLUTE",
-                "value": 68.5,
-                "unit": "EUR/tCO2",
-                "conditional_trigger": {
-                    "variable": "origin_carbon_pricing",
-                    "operator": "<",
-                    "threshold": 68.5
-                }
-            },
-            "enforcement": {
-                "strictness": "HARD",
-                "penalty_factor": 1.0
-            },
-            "summary": "Mandatory surrender of CBAM certificates equivalent to embedded emissions at weekly average EU ETS price.",
-            "background_context": "Phase-in transitional period requires emissions reporting from October 2023; financial payment obligations commence 2026."
-        }
-    },
-    {
-        "law_id": "32003L0087",
-        "title": "EU Emissions Trading System (ETS) Directive (Consolidated)",
-        "chunk_id": "ART_12_ETS_ALLOWANCES",
-        "rule_type": "REGULATORY",
-        "jurisdiction": "EU",
-        "valid_from": "2005-01-01",
-        "valid_to": "2050-12-31",
-        "summary": "Industrial installations and aviation operators must surrender one EU allowance (EUA) for each verified metric ton of CO2 equivalent emitted, under a linear reduction factor tightening the cap annually.",
-        "recitals": "Directive 2003/87/EC establishes a system for greenhouse gas emission allowance trading within the Community in order to promote reductions of greenhouse gas emissions in a cost-effective and economically efficient manner.",
-        "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32003L0087",
-        "rule": {
-            "metadata": {
-                "regulation_id": "32003L0087",
-                "article_id": "ART_12",
-                "law_type": "DIRECTIVE",
-                "parse_confidence": 0.99
-            },
-            "scope": {
-                "regions": ["EU"],
-                "industrial_sectors": ["D35", "C24", "C23", "C20", "H51"],
-                "node_types": ["PRODUCER", "INFRASTRUCTURE"],
-                "affected_commodities": ["CO2_ALLOWANCE", "ELECTRICITY", "STEEL"]
-            },
-            "timeline": {
-                "activation_date": "2005-01-01",
-                "expiration_date": "2050-12-31",
-                "phase_in_period_days": 0
-            },
-            "mechanism": {
-                "target_variable": "cap_allowance_annual_reduction",
-                "action_type": "CONSTRAINT",
-                "operator": "MIN_LIMIT",
-                "value": 4.3,
-                "unit": "PERCENT",
-                "conditional_trigger": {
-                    "variable": "annual_verified_emissions",
-                    "operator": ">",
-                    "threshold": 0.0
-                }
-            },
-            "enforcement": {
-                "strictness": "HARD",
-                "penalty_factor": 1.0
-            },
-            "summary": "Mandatory surrender of EU allowances with an excess emissions fine of 100 EUR/t plus surrender deficit.",
-            "background_context": "The 2023 revision under Fit for 55 accelerated the linear reduction factor to 4.3% annually and phases out free allocation to aviation and CBAM sectors."
-        }
-    },
-    {
-        "law_id": "32022R1032",
-        "title": "Gas Storage Security of Supply Regulation",
-        "chunk_id": "ART_6a_GAS_FILLING_TRAJECTORY",
-        "rule_type": "REGULATORY",
-        "jurisdiction": "EU",
-        "valid_from": "2022-07-01",
-        "valid_to": "2026-12-31",
-        "summary": "Member States with underground gas storage facilities must achieve mandatory filling levels reaching at least 90% of capacity by 1 November each calendar year.",
-        "recitals": "Regulation (EU) 2022/1032 amends Regulations (EU) 2017/1938 and (EC) No 715/2009 in response to the Russian invasion of Ukraine and gas supply weaponization, creating collective safety reserves.",
-        "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R1032",
-        "rule": {
-            "metadata": {
-                "regulation_id": "32022R1032",
-                "article_id": "ART_6a",
-                "law_type": "REGULATION",
-                "parse_confidence": 0.97
-            },
-            "scope": {
-                "regions": ["EU", "DE", "FR", "IT", "NL"],
-                "industrial_sectors": ["D35", "B06"],
-                "node_types": ["INFRASTRUCTURE", "TRADER", "GOVERNMENT"],
-                "affected_commodities": ["GAS_TTF", "LNG"]
-            },
-            "timeline": {
-                "activation_date": "2022-07-01",
-                "expiration_date": "2026-12-31",
-                "phase_in_period_days": 120
-            },
-            "mechanism": {
-                "target_variable": "gas_storage_pct",
-                "action_type": "CONSTRAINT",
-                "operator": "MIN_LIMIT",
-                "value": 90.0,
-                "unit": "PERCENT",
-                "conditional_trigger": {
-                    "variable": "current_date_month",
-                    "operator": "==",
-                    "threshold": 11.0
-                }
-            },
-            "enforcement": {
-                "strictness": "HARD",
-                "penalty_factor": 0.95
-            },
-            "summary": "Mandatory storage filling trajectory reaching 90% capacity by November 1 with intermediate intermediate milestones.",
-            "background_context": "Establishes a burden-sharing mechanism for Member States without storage facilities and certification of storage system operators."
-        }
-    },
-    {
-        "law_id": "32023R1115",
-        "title": "EU Deforestation Regulation (EUDR)",
-        "chunk_id": "ART_3_DEFORESTATION_FREE_PROHIBITION",
-        "rule_type": "REGULATORY",
-        "jurisdiction": "EU",
-        "valid_from": "2024-12-30",
-        "valid_to": "2050-12-31",
-        "summary": "Prohibits the placing on the EU market or export of cattle, cocoa, coffee, oil palm, rubber, soya and wood unless they are deforestation-free, legally produced, and covered by a geolocation due diligence statement.",
-        "recitals": "Regulation (EU) 2023/1115 halts the EU market's contribution to global deforestation and forest degradation driven by agricultural expansion.",
-        "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R1115",
-        "rule": {
-            "metadata": {
-                "regulation_id": "32023R1115",
-                "article_id": "ART_3",
-                "law_type": "REGULATION",
-                "parse_confidence": 0.96
-            },
-            "scope": {
-                "regions": ["EU", "GLOBAL"],
-                "industrial_sectors": ["A01", "C10", "H49"],
-                "node_types": ["PRODUCER", "TRADER", "IMPORTER"],
-                "affected_commodities": ["SOYA", "PALM_OIL", "CATTLE", "COFFEE", "COCOA", "WOOD"]
-            },
-            "timeline": {
-                "activation_date": "2024-12-30",
-                "expiration_date": "2050-12-31",
-                "phase_in_period_days": 540
-            },
-            "mechanism": {
-                "target_variable": "deforestation_due_diligence_compliance",
-                "action_type": "CONSTRAINT",
-                "operator": "SET_VALUE",
-                "value": 1.0,
-                "unit": "BOOLEAN",
-                "conditional_trigger": {
-                    "variable": "forest_degradation_post_2020",
-                    "operator": "==",
-                    "threshold": 1.0
-                }
-            },
-            "enforcement": {
-                "strictness": "HARD",
-                "penalty_factor": 1.0
-            },
-            "summary": "Absolute ban on non-compliant commodities with maximum fines of at least 4% of total EU annual turnover.",
-            "background_context": "Requires precise satellite plot geolocation coordinates for every commercial batch."
-        }
-    },
-    {
-        "law_id": "32024R1252",
-        "title": "Critical Raw Materials Act (CRMA)",
-        "chunk_id": "ART_5_STRATEGIC_PROJECT_TARGETS",
-        "rule_type": "REGULATORY",
-        "jurisdiction": "EU",
-        "valid_from": "2024-05-23",
-        "valid_to": "2040-12-31",
-        "summary": "Sets benchmark quotas for EU domestic capacities by 2030: at least 10% of strategic raw materials extracted in the EU, 40% processed, 25% recycled, and not more than 65% from a single third country.",
-        "recitals": "Regulation (EU) 2024/1252 establishes a framework for ensuring a secure and sustainable supply of critical raw materials for digital and net-zero green transitions.",
-        "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1252",
-        "rule": {
-            "metadata": {
-                "regulation_id": "32024R1252",
-                "article_id": "ART_5",
-                "law_type": "REGULATION",
-                "parse_confidence": 0.95
-            },
-            "scope": {
-                "regions": ["EU"],
-                "industrial_sectors": ["B07", "C24", "C29", "J62"],
-                "node_types": ["PRODUCER", "CONSUMER", "GOVERNMENT"],
-                "affected_commodities": ["LITHIUM", "COBALT", "NICKEL", "RARE_EARTHS", "COPPER"]
-            },
-            "timeline": {
-                "activation_date": "2024-05-23",
-                "expiration_date": "2040-12-31",
-                "phase_in_period_days": 180
-            },
-            "mechanism": {
-                "target_variable": "domestic_extraction_share",
-                "action_type": "CONSTRAINT",
-                "operator": "MIN_LIMIT",
-                "value": 10.0,
-                "unit": "PERCENT",
-                "conditional_trigger": {
-                    "variable": "import_dependency_single_source",
-                    "operator": ">",
-                    "threshold": 65.0
-                }
-            },
-            "enforcement": {
-                "strictness": "SOFT",
-                "penalty_factor": 0.65
-            },
-            "summary": "Enforces accelerated permitting deadlines: 27 months for extraction and 15 months for processing projects.",
-            "background_context": "Mandates large companies to audit supply chains and stress-test strategic raw material dependencies."
-        }
-    },
-    {
-        "law_id": "32017R0852",
-        "title": "Regulation on Mercury and Mercury Compounds",
-        "chunk_id": "ART_8_MERCURY_INDUSTRIAL_BAN",
-        "rule_type": "REGULATORY",
-        "jurisdiction": "EU",
-        "valid_from": "2018-01-01",
-        "valid_to": "2050-12-31",
-        "summary": "Prohibits the use of mercury in chlor-alkali production and imposes strict export, import and storage conditions for elemental mercury and mercury-added products.",
-        "recitals": "Regulation (EU) 2017/852 implements the Minamata Convention on Mercury to protect human health and the environment from anthropogenic emissions.",
-        "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32017R0852",
-        "rule": {
-            "metadata": {
-                "regulation_id": "32017R0852",
-                "article_id": "ART_8",
-                "law_type": "REGULATION",
-                "parse_confidence": 0.99
-            },
-            "scope": {
-                "regions": ["EU"],
-                "industrial_sectors": ["C20", "E38"],
-                "node_types": ["PRODUCER", "TRADER"],
-                "affected_commodities": ["MERCURY", "CHLORINE", "CHEMICALS"]
-            },
-            "timeline": {
-                "activation_date": "2018-01-01",
-                "expiration_date": "2050-12-31",
-                "phase_in_period_days": 0
-            },
-            "mechanism": {
-                "target_variable": "mercury_chlor_alkali_usage",
-                "action_type": "CONSTRAINT",
-                "operator": "SET_VALUE",
-                "value": 0.0,
-                "unit": "TONNES",
-                "conditional_trigger": {
-                    "variable": "manufacturing_process",
-                    "operator": "==",
-                    "threshold": 1.0
-                }
-            },
-            "enforcement": {
-                "strictness": "HARD",
-                "penalty_factor": 1.0
-            },
-            "summary": "Complete zero-tolerance ban on elemental mercury in chlor-alkali plants, mandating safe permanent underground storage.",
-            "background_context": "Phase-out of dental amalgam and secondary industrial catalysts by 2025."
-        }
-    },
-    {
-        "law_id": "32014R0833",
-        "title": "Restrictive Measures (Sanctions) - Energy & Trade Limits",
-        "chunk_id": "ART_3j_SOLID_FOSSIL_FUELS",
-        "rule_type": "REGULATORY",
-        "jurisdiction": "EU",
-        "valid_from": "2022-04-08",
-        "valid_to": "2030-12-31",
-        "summary": "Prohibits the direct or indirect purchase, import or transfer into the EU of coal, crude oil and petroleum products originating in Russia, and maritime services above the price cap.",
-        "recitals": "Council Regulation (EU) 833/2014 concerning restrictive measures in view of actions destabilizing the situation in Ukraine, imposing trade restrictions on high-revenue export sectors.",
-        "source_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32014R0833",
-        "rule": {
-            "metadata": {
-                "regulation_id": "32014R0833",
-                "article_id": "ART_3j",
-                "law_type": "REGULATION",
-                "parse_confidence": 0.98
-            },
-            "scope": {
-                "regions": ["EU", "GLOBAL"],
-                "industrial_sectors": ["B05", "B06", "C19", "H50"],
-                "node_types": ["IMPORTER", "TRADER", "CARRIER"],
-                "affected_commodities": ["COAL", "CRUDE_OIL", "DIESEL"]
-            },
-            "timeline": {
-                "activation_date": "2022-08-10",
-                "expiration_date": "2030-12-31",
-                "phase_in_period_days": 120
-            },
-            "mechanism": {
-                "target_variable": "crude_oil_maritime_price_cap",
-                "action_type": "CONSTRAINT",
-                "operator": "MAX_LIMIT",
-                "value": 60.0,
-                "unit": "USD/BBL",
-                "conditional_trigger": {
-                    "variable": "origin_jurisdiction_sanctioned",
-                    "operator": "==",
-                    "threshold": 1.0
-                }
-            },
-            "enforcement": {
-                "strictness": "HARD",
-                "penalty_factor": 1.0
-            },
-            "summary": "Strict import ban on coal and crude oil price cap mechanism at 60 USD/barrel.",
-            "background_context": "Includes maritime transport, financing, and insurance bans for shipments above the threshold."
-        }
-    }
-]
-
-
-# ============================================================================
-# SEED GRAPH BUILDER
-# ============================================================================
-
-def build_seed_dual_layer_store(store: DualLayerGraphStore) -> None:
-    """Populate the DualLayerGraphStore with a rich, coherent legal-economic topology and time-series."""
-    logger.info("Initializing Seed Data for DualLayerGraphStore...")
-
-    # 1. LAW NODES
-    for item in BENCHMARK_RULES_SEED:
-        law_node = GraphNode(
-            id=f"LAW_{item['law_id']}",
-            label=f"{item['law_id']}: {item['title'][:32]}...",
-            node_type=NodeType.LAW,
-            description=item["summary"],
-            jurisdiction=item["jurisdiction"],
-            activation_date=item["valid_from"],
-            metadata={
-                "celex_id": item["law_id"],
-                "title": item["title"],
-                "source_url": item["source_url"],
-                "valid_to": item["valid_to"]
-            }
-        )
-        store.add_node(law_node)
-
-    # 2. SECTOR NODES (NACE Rev. 2)
-    nace_sectors = [
-        ("C24_BASIC_METALS", "NACE C24: Manufacture of Basic Metals (Steel, Aluminum)", "Basic metals smelting and casting"),
-        ("D35_ELECTRICITY_GAS", "NACE D35: Electricity, Gas, Steam & Air Conditioning", "Energy generation and gas network distribution"),
-        ("A01_AGRICULTURE", "NACE A01: Crop and Animal Production", "Primary agricultural cultivation, soy, livestock"),
-        ("H50_WATER_TRANSPORT", "NACE H50: Water Transport & Maritime Shipping", "Container shipping and bulk carriers"),
-        ("C20_CHEMICALS", "NACE C20: Manufacture of Chemicals & Fertilizers", "Industrial chemical synthesis and fertilizers"),
-        ("C23_NON_METALLIC_MINERALS", "NACE C23: Non-metallic Mineral Products", "Cement, clinker, lime, glass and ceramics"),
-        ("C29_AUTOMOTIVE", "NACE C29: Manufacture of Motor Vehicles", "Passenger vehicles, EV manufacturing and batteries"),
-        ("B06_OIL_GAS_EXTRACTION", "NACE B06: Extraction of Crude Petroleum & Natural Gas", "Upstream exploration and drilling"),
-        ("B07_METAL_ORES_MINING", "NACE B07: Mining of Metal Ores", "Mining of iron, bauxite, lithium and nickel ores")
-    ]
-    for sid, label, desc in nace_sectors:
-        store.add_node(GraphNode(
-            id=sid,
-            label=label,
-            node_type=NodeType.SECTOR,
-            description=desc,
-            jurisdiction="EU",
-            activation_date="2020-01-01",
-            metadata={"nace_code": sid.split("_")[0]}
-        ))
-
-    # 3. COMMODITY & ECONOMIC INDEX NODES
-    commodities = [
-        ("CO2_ALLOWANCE", "EU ETS Carbon Allowance (EUA)", NodeType.COMMODITY, "EUR/tCO2"),
-        ("GAS_TTF", "Dutch Title Transfer Facility (TTF) Natural Gas", NodeType.COMMODITY, "EUR/MWh"),
-        ("STEEL_COIL", "Hot-Rolled Coil Steel (EU Domestic)", NodeType.COMMODITY, "EUR/tonne"),
-        ("ALUMINUM_PRIMARY", "Primary LME Grade Aluminum", NodeType.COMMODITY, "USD/tonne"),
-        ("LITHIUM_BATTERY", "Battery-Grade Lithium Hydroxide", NodeType.COMMODITY, "USD/tonne"),
-        ("SOYA_BEANS", "Imported Deforestation-Free Soybeans", NodeType.COMMODITY, "EUR/tonne"),
-        ("BALTIC_DRY_INDEX", "Baltic Dry Maritime Freight Index", NodeType.ECONOMIC_INDEX, "POINTS"),
-        ("EU_ENERGY_INFLATION", "EU Harmonized Energy Inflation Index", NodeType.ECONOMIC_INDEX, "INDEX")
-    ]
-    for cid, label, ntype, unit in commodities:
-        store.add_node(GraphNode(
-            id=cid,
-            label=label,
-            node_type=ntype,
-            description=f"Market benchmark for {label}",
-            jurisdiction="EU",
-            activation_date="2020-01-01",
-            metadata={"unit": unit}
-        ))
-
-    # 4. ACTION NODES (Mandated Compliance Actions)
-    actions = [
-        ("ACT_CBAM_SURRENDER", "Mandatory CBAM Certificate Surrender", "LAW_32023R0956", "2023-10-01", "Importers must surrender verified carbon border certificates"),
-        ("ACT_ETS_SURRENDER", "Mandatory Annual EUA Allowance Surrender", "LAW_32003L0087", "2005-01-01", "Surrender verified carbon certificates annually by Sept 30"),
-        ("ACT_GAS_90PCT_INJECT", "Mandatory 90% Gas Storage Trajectory", "LAW_32022R1032", "2022-07-01", "Storage operators must inject to meet strict seasonal milestones"),
-        ("ACT_EUDR_DILIGENCE", "Mandatory Satellite Geolocation Statement", "LAW_32023R1115", "2024-12-30", "Upload verifiable plot-level coordinate proof to EU portal"),
-        ("ACT_CRMA_STRATEGIC", "Fast-Track Strategic Extraction Permitting", "LAW_32024R1252", "2024-05-23", "Member States must grant one-stop-shop approvals within 27 months"),
-        ("ACT_MERCURY_PHASEOUT", "Total Industrial Mercury Prohibition", "LAW_32017R0852", "2018-01-01", "Cease all chlor-alkali mercury cell operations immediately"),
-        ("ACT_SANCTIONS_PRICE_CAP", "60 USD Maritime Crude Price Cap Enforcement", "LAW_32014R0833", "2022-12-05", "Deny maritime insurance to vessels loaded with oil above cap")
-    ]
-    for aid, label, law_id, act_date, desc in actions:
-        store.add_node(GraphNode(
-            id=aid,
-            label=label,
-            node_type=NodeType.ACTION,
-            description=desc,
-            jurisdiction="EU",
-            activation_date=act_date,
-            metadata={"mandating_law": law_id}
-        ))
-        # Edge: LAW -> ACTION (MANDATES)
-        store.add_edge(GraphEdge(
-            source_id=law_id,
-            target_id=aid,
-            relation_type=EdgeRelation.MANDATES,
-            weight=1.0,
-            timestamp=act_date,
-            properties={"strictness": "HARD"}
-        ))
-
-    # 5. REACTION NODES (Economic & Market Reactions)
-    reactions = [
-        ("REACT_CBAM_METALS_COST", "Surge in Embedded Carbon Import Costs", "ACT_CBAM_SURRENDER", "2023-11-01", "Third-country steel and aluminum suppliers factor in carbon fees"),
-        ("REACT_ETS_CARBON_PRICE", "EUA Price Tightening Under Shrinking Cap", "ACT_ETS_SURRENDER", "2022-01-15", "Carbon market participants bid up EUA prices under 4.3% cap contraction"),
-        ("REACT_GAS_STORAGE_BUFFER", "Strategic Gas Buffer Mitigates TTF Spikes", "ACT_GAS_90PCT_INJECT", "2022-11-01", "EU reaches 95% storage, cooling speculative wholesale gas spikes"),
-        ("REACT_EUDR_SOY_COMPLIANCE", "Supply Chain Audit Premium on Soy & Palm", "ACT_EUDR_DILIGENCE", "2024-06-01", "Agricultural traders incur traceability validation costs"),
-        ("REACT_LITHIUM_CAPEX_SURGE", "Capital Influx into European Critical Lithium Projects", "ACT_CRMA_STRATEGIC", "2024-07-01", "Mining consortia advance French and Portuguese lithium refineries"),
-        ("REACT_MERCURY_MEMBRANE_SWAP", "Capital Conversion to Membrane Cell Technology", "ACT_MERCURY_PHASEOUT", "2018-06-01", "Chlorine producers invest in zero-mercury electrochemical cells"),
-        ("REACT_OIL_FREIGHT_REROUTING", "Shadow Tanker Fleet & Voyage Route Divergence", "ACT_SANCTIONS_PRICE_CAP", "2023-01-10", "Urals crude redirected to India and China, boosting bunker fuel ton-miles")
-    ]
-    for rid, label, act_id, act_date, desc in reactions:
-        store.add_node(GraphNode(
-            id=rid,
-            label=label,
-            node_type=NodeType.REACTION,
-            description=desc,
-            jurisdiction="GLOBAL",
-            activation_date=act_date,
-            metadata={"trigger_action": act_id}
-        ))
-        # Edge: ACTION -> REACTION (TRIGGERS)
-        store.add_edge(GraphEdge(
-            source_id=act_id,
-            target_id=rid,
-            relation_type=EdgeRelation.TRIGGERS,
-            weight=1.0,
-            timestamp=act_date,
-            properties={"elasticity": 0.85}
-        ))
-
-    # 6. TOPOLOGICAL CROSS-LAYER EDGES
-    cross_edges = [
-        # Actions -> Sectors (AFFECTS)
-        ("ACT_CBAM_SURRENDER", "C24_BASIC_METALS", EdgeRelation.AFFECTS, 0.95),
-        ("ACT_CBAM_SURRENDER", "C23_NON_METALLIC_MINERALS", EdgeRelation.AFFECTS, 0.90),
-        ("ACT_ETS_SURRENDER", "D35_ELECTRICITY_GAS", EdgeRelation.AFFECTS, 1.0),
-        ("ACT_ETS_SURRENDER", "C24_BASIC_METALS", EdgeRelation.AFFECTS, 0.88),
-        ("ACT_GAS_90PCT_INJECT", "D35_ELECTRICITY_GAS", EdgeRelation.AFFECTS, 0.98),
-        ("ACT_EUDR_DILIGENCE", "A01_AGRICULTURE", EdgeRelation.AFFECTS, 0.92),
-        ("ACT_CRMA_STRATEGIC", "C29_AUTOMOTIVE", EdgeRelation.AFFECTS, 0.80),
-        ("ACT_CRMA_STRATEGIC", "B07_METAL_ORES_MINING", EdgeRelation.AFFECTS, 0.95),
-        ("ACT_SANCTIONS_PRICE_CAP", "H50_WATER_TRANSPORT", EdgeRelation.AFFECTS, 0.91),
-
-        # Reactions -> Commodities (IMPACTS)
-        ("REACT_CBAM_METALS_COST", "STEEL_COIL", EdgeRelation.IMPACTS, 0.85),
-        ("REACT_CBAM_METALS_COST", "ALUMINUM_PRIMARY", EdgeRelation.IMPACTS, 0.75),
-        ("REACT_ETS_CARBON_PRICE", "CO2_ALLOWANCE", EdgeRelation.IMPACTS, 1.0),
-        ("REACT_GAS_STORAGE_BUFFER", "GAS_TTF", EdgeRelation.IMPACTS, -0.70),
-        ("REACT_EUDR_SOY_COMPLIANCE", "SOYA_BEANS", EdgeRelation.IMPACTS, 0.60),
-        ("REACT_LITHIUM_CAPEX_SURGE", "LITHIUM_BATTERY", EdgeRelation.IMPACTS, 0.80),
-        ("REACT_OIL_FREIGHT_REROUTING", "BALTIC_DRY_INDEX", EdgeRelation.IMPACTS, 0.72),
-
-        # Laws -> Sectors (REGULATES)
-        ("LAW_32023R0956", "C24_BASIC_METALS", EdgeRelation.REGULATES, 1.0),
-        ("LAW_32003L0087", "D35_ELECTRICITY_GAS", EdgeRelation.REGULATES, 1.0),
-        ("LAW_32022R1032", "D35_ELECTRICITY_GAS", EdgeRelation.REGULATES, 1.0),
-        ("LAW_32023R1115", "A01_AGRICULTURE", EdgeRelation.REGULATES, 1.0),
-        ("LAW_32024R1252", "B07_METAL_ORES_MINING", EdgeRelation.REGULATES, 1.0),
-        ("LAW_32017R0852", "C20_CHEMICALS", EdgeRelation.REGULATES, 1.0),
-        ("LAW_32014R0833", "H50_WATER_TRANSPORT", EdgeRelation.REGULATES, 1.0),
-
-        # Cross-law Amendments or Cascades
-        ("LAW_32023R0956", "LAW_32003L0087", EdgeRelation.AMENDS, 0.9),
-        ("REACT_ETS_CARBON_PRICE", "REACT_CBAM_METALS_COST", EdgeRelation.CAUSES, 0.85)
-    ]
-    for src, tgt, rel, w in cross_edges:
-        store.add_edge(GraphEdge(
-            source_id=src,
-            target_id=tgt,
-            relation_type=rel,
-            weight=w,
-            timestamp="2023-01-01",
-            properties={"link_type": "topological_interlock"}
-        ))
-
-    # 7. BEHIND-THE-GRAPH TABULAR TIME-SERIES HISTORY (2022 - 2025)
-    # Generate historical observations for nodes
-    history_records: List[NodeStateRecord] = []
-
-    # Historical monthly timestamps
-    dates = [
-        "2022-01-15", "2022-04-15", "2022-07-15", "2022-10-15",
-        "2023-01-15", "2023-04-15", "2023-07-15", "2023-10-15",
-        "2024-01-15", "2024-04-15", "2024-07-15", "2024-10-15",
-        "2025-01-15", "2025-04-15"
-    ]
-
-    # Series 1: CO2_ALLOWANCE (EUA Price EUR/t)
-    co2_prices = [84.5, 80.2, 85.0, 77.2, 89.4, 96.2, 88.0, 82.5, 63.4, 69.1, 68.0, 66.5, 71.0, 74.5]
-    prev_co2 = co2_prices[0]
-    for d, p in zip(dates, co2_prices):
-        delta = round(p - prev_co2, 2)
-        prev_co2 = p
-        state = "PEAK" if p > 90 else ("ELEVATED" if p > 75 else "MODERATE")
-        history_records.append(NodeStateRecord(
-            node_id="CO2_ALLOWANCE",
-            node_type=NodeType.COMMODITY,
-            timestamp=d,
-            state_value=state,
-            metric_name="carbon_price",
-            metric_value=p,
-            delta=delta,
-            unit="EUR/tCO2",
-            source_id="ICE_ENDEX_EUA",
-            source_type="MARKET_INDEX",
-            confidence=0.99,
-            notes="Daily settlement price on European Energy Exchange"
-        ))
-
-    # Series 2: GAS_TTF (Dutch TTF Gas EUR/MWh)
-    ttf_prices = [85.0, 105.0, 160.0, 125.0, 65.0, 42.0, 31.0, 46.0, 30.0, 31.5, 34.0, 40.2, 44.0, 38.5]
-    prev_ttf = ttf_prices[0]
-    for d, p in zip(dates, ttf_prices):
-        delta = round(p - prev_ttf, 2)
-        prev_ttf = p
-        state = "CRITICAL" if p > 100 else ("VOLATILE" if p > 50 else "STABILIZED")
-        history_records.append(NodeStateRecord(
-            node_id="GAS_TTF",
-            node_type=NodeType.COMMODITY,
-            timestamp=d,
-            state_value=state,
-            metric_name="gas_price_ttf",
-            metric_value=p,
-            delta=delta,
-            unit="EUR/MWh",
-            source_id="THE_NETHERLANDS_TTF",
-            source_type="MARKET_INDEX",
-            confidence=0.99,
-            notes="Front-month European benchmark natural gas contract"
-        ))
-
-    # Series 3: ACT_GAS_90PCT_INJECT (Gas Storage Percentage)
-    storage_pcts = [45.2, 32.0, 64.5, 93.8, 81.2, 56.4, 82.0, 99.2, 78.5, 62.0, 85.5, 95.2, 82.0, 61.5]
-    for d, pct in zip(dates, storage_pcts):
-        state = "TARGET_MET" if pct >= 90.0 else ("FILLING" if pct >= 60.0 else "DEFICIT")
-        history_records.append(NodeStateRecord(
-            node_id="ACT_GAS_90PCT_INJECT",
-            node_type=NodeType.ACTION,
-            timestamp=d,
-            state_value=state,
-            metric_name="storage_fill_pct",
-            metric_value=pct,
-            delta=0.0,
-            unit="PERCENT",
-            source_id="GIE_AGSI_PLUS",
-            source_type="EUR_LEX",
-            confidence=0.98,
-            notes="Gas Infrastructure Europe Aggregate Gas Storage Inventory"
-        ))
-
-    # Series 4: C24_BASIC_METALS (Compliance & Carbon Cost Index)
-    c24_costs = [100.0, 104.5, 112.0, 118.0, 125.0, 132.0, 136.5, 142.0, 138.0, 141.0, 144.5, 148.0, 151.0, 153.5]
-    for d, c in zip(dates, c24_costs):
-        state = "HIGH_COMPLIANCE" if c > 130 else "MODERATE_BURDEN"
-        history_records.append(NodeStateRecord(
-            node_id="C24_BASIC_METALS",
-            node_type=NodeType.SECTOR,
-            timestamp=d,
-            state_value=state,
-            metric_name="compliance_cost_index",
-            metric_value=c,
-            delta=round(c - 100.0, 2),
-            unit="INDEX",
-            source_id="EUROSTAT_NACE_C24",
-            source_type="EXPERT_AUDIT",
-            confidence=0.92,
-            notes="Indexed composite cost of carbon and CBAM monitoring compliance"
-        ))
-
-    # Series 5: ACT_CBAM_SURRENDER (State progression: PROPOSED -> ACTIVE -> REPORTING -> ENFORCED)
-    cbam_states = [
-        ("2022-01-15", "PROPOSED", 10.0),
-        ("2022-07-15", "POLITICAL_AGREEMENT", 35.0),
-        ("2023-01-15", "FORMAL_ADOPTION", 60.0),
-        ("2023-10-15", "TRANSITIONAL_REPORTING", 85.0),
-        ("2024-04-15", "FIRST_EMISSIONS_SUBMISSION", 90.0),
-        ("2024-10-15", "AUDIT_REFINEMENT", 95.0),
-        ("2025-01-15", "FULL_PRE_ENFORCEMENT", 100.0)
-    ]
-    for d, st_val, val in cbam_states:
-        history_records.append(NodeStateRecord(
-            node_id="ACT_CBAM_SURRENDER",
-            node_type=NodeType.ACTION,
-            timestamp=d,
-            state_value=st_val,
-            metric_name="implementation_readiness_pct",
-            metric_value=val,
-            delta=val,
-            unit="PERCENT",
-            source_id="CELEX:32023R0956",
-            source_type="EUR_LEX",
-            confidence=1.0,
-            notes="Implementation lifecycle milestone tracker"
-        ))
-
-    # Series 6: BALTIC_DRY_INDEX (Maritime Shipping Index)
-    bdi_values = [1850, 2140, 1980, 1420, 1120, 1380, 1150, 1820, 1640, 1720, 1890, 1940, 1780, 1810]
-    for d, v in zip(dates, bdi_values):
-        state = "HIGH_FREIGHT" if v > 1800 else "NORMAL_FREIGHT"
-        history_records.append(NodeStateRecord(
-            node_id="BALTIC_DRY_INDEX",
-            node_type=NodeType.ECONOMIC_INDEX,
-            timestamp=d,
-            state_value=state,
-            metric_name="freight_rate_points",
-            metric_value=float(v),
-            delta=0.0,
-            unit="POINTS",
-            source_id="BALTIC_EXCHANGE",
-            source_type="MARKET_INDEX",
-            confidence=0.95,
-            notes="Global dry bulk maritime shipping freight benchmark"
-        ))
-
-    # Series 7: REACT_LITHIUM_CAPEX_SURGE (Investment Index)
-    lithium_capex = [100.0, 105.0, 110.0, 120.0, 135.0, 150.0, 170.0, 195.0, 220.0, 245.0, 275.0, 310.0, 335.0, 360.0]
-    for d, v in zip(dates, lithium_capex):
-        history_records.append(NodeStateRecord(
-            node_id="REACT_LITHIUM_CAPEX_SURGE",
-            node_type=NodeType.REACTION,
-            timestamp=d,
-            state_value="CAPITAL_ACCELERATION",
-            metric_name="strategic_raw_material_capex",
-            metric_value=v,
-            delta=round(v - 100.0, 1),
-            unit="INDEX",
-            source_id="CRMA_MONITOR",
-            source_type="NEWS",
-            confidence=0.90,
-            notes="Quarterly capital expenditures tracking European battery supply projects"
-        ))
-
-    store.add_state_records_batch(history_records)
-    store.save()
-    logger.info(f"Seed Data populated: {len(store.get_nodes())} nodes, {len(store.get_edges())} edges, {len(store.get_history())} history records.")
-
-
-# ============================================================================
 # DATA ACCESS & KPI INTERFACE
 # ============================================================================
 
@@ -748,88 +39,89 @@ _CACHED_GRAPH_STORES: Dict[str, DualLayerGraphStore] = {}
 
 def get_graph_store(storage_dir: Optional[str] = None) -> DualLayerGraphStore:
     """Retrieve or initialize the DualLayerGraphStore per storage_dir.
-    In production mode, empty stores remain empty. In demo mode, benchmark seeds are injected."""
+    Empty stores remain empty in every mode."""
     if storage_dir is None:
         storage_dir = str(get_configured_db_path())
     abs_dir = str(Path(storage_dir).resolve())
     if abs_dir in _CACHED_GRAPH_STORES:
-        return _CACHED_GRAPH_STORES[abs_dir]
+        cached = _CACHED_GRAPH_STORES[abs_dir]
+        if hasattr(cached, "_get_disk_generation"):
+            disk_gen = cached._get_disk_generation()
+            if disk_gen != getattr(cached, "_generation", 0):
+                cached = DualLayerGraphStore(storage_dir=storage_dir)
+                _CACHED_GRAPH_STORES[abs_dir] = cached
+        return cached
 
     store = DualLayerGraphStore(storage_dir=storage_dir)
-
-    settings = get_settings()
-    # If completely empty and in demo mode, inject seed dataset
-    if settings.mode == "demo":
-        if len(store.get_nodes()) == 0 or len(store.get_edges()) == 0:
-            build_seed_dual_layer_store(store)
 
     _CACHED_GRAPH_STORES[abs_dir] = store
     return store
 
 
-def get_demo_graph_store(storage_dir: Optional[str] = None) -> DualLayerGraphStore:
-    """Explicitly retrieve or initialize a demo DualLayerGraphStore with seed data."""
-    if storage_dir is None:
-        storage_dir = str(get_configured_db_path())
-    abs_dir = str(Path(storage_dir).resolve())
-    store = DualLayerGraphStore(storage_dir=storage_dir)
-    if len(store.get_nodes()) == 0 or len(store.get_edges()) == 0:
-        build_seed_dual_layer_store(store)
-    _CACHED_GRAPH_STORES[abs_dir] = store
-    return store
+def _canonical_law_rows(storage_dir: str, cutoff: datetime) -> List[Dict[str, Any]]:
+    from src.storage.dual_layer_store import DualLayerStore
+    store = DualLayerStore(storage_dir)
+    rows = []
+    for fact in store.query_facts(cutoff):
+        if fact.data_origin != "live" or fact.predicate != "MANDATES" or not fact.payload_json:
+            continue
+        rule = json.loads(fact.payload_json)
+        metadata = rule.get("metadata", {})
+        if not metadata:
+            continue
+        law = store._canonical_entities.get(fact.subject_id)
+        documents = store.documents_for(fact, cutoff)
+        rows.append({"law_id": metadata.get("regulation_id", fact.subject_id),
+                     "title": law.canonical_label if law else fact.subject_id,
+                     "chunk_id": fact.object_id, "rule_type": metadata.get("law_type"),
+                     "jurisdiction": law.jurisdiction if law else None,
+                     "valid_from": fact.valid_from, "valid_to": fact.valid_to,
+                     "summary": rule.get("summary", ""), "recitals": rule.get("background_context", ""),
+                     "source_url": documents[0].canonical_url if documents else None,
+                     "rule": rule, "fact_version_id": fact.fact_version_id, "data_origin": fact.data_origin,
+                     "evidence_document_ids": [doc.document_id for doc in documents]})
+    return rows
 
 
-def ensure_structured_rules_table(storage_dir: Optional[str] = None) -> None:
-    """Ensure LanceDB structured_rules table is initialized."""
-    if storage_dir is None:
-        storage_dir = str(get_configured_db_path())
-    try:
-        import lancedb
-        db = lancedb.connect(storage_dir)
-        tables = []
-        try:
-            res = db.list_tables()
-            tables = res.tables if hasattr(res, "tables") else list(res)
-        except Exception:
-            tables = db.table_names()
-
-        if "structured_rules" not in tables:
-            settings = get_settings()
-            if settings.mode == "demo":
-                rows = []
-                for item in BENCHMARK_RULES_SEED:
-                    rule_obj = item["rule"]
-                    rows.append({
-                        "vector": [0.0] * 768,
-                        "law_id": item["law_id"],
-                        "chunk_id": item["chunk_id"],
-                        "summary": item["summary"],
-                        "minio_path": f"minio://laws/{item['law_id']}.pdf",
-                        "source_url": item["source_url"],
-                        "gnn_rule_json": json.dumps(rule_obj),
-                        "rule_type": item["rule_type"],
-                        "jurisdiction": item["jurisdiction"],
-                        "valid_from": item["valid_from"],
-                        "valid_to": item["valid_to"],
-                        "citations": [],
-                        "entity_types_json": "[]",
-                        "numeric_constraints_json": "[]"
-                    })
-                db.create_table("structured_rules", data=pd.DataFrame(rows), mode="overwrite")
-                logger.info("Initialized LanceDB structured_rules table with benchmark seeds.")
-    except Exception as e:
-        logger.warning(f"Could not initialize LanceDB structured_rules: {e}")
+def _canonical_news_rows(storage_dir: str, cutoff: datetime) -> List[Dict[str, Any]]:
+    from src.storage.dual_layer_store import DualLayerStore
+    store = DualLayerStore(storage_dir)
+    articles = {}
+    for fact in store.query_facts(cutoff):
+        if fact.data_origin != "live" or not fact.payload_json:
+            continue
+        payload = json.loads(fact.payload_json)
+        kind = payload.get("kind")
+        if kind not in {"action", "reaction"} or not isinstance(payload.get(kind), dict):
+            continue
+        documents = store.documents_for(fact, cutoff)
+        if not documents:
+            continue
+        doc = documents[0]
+        key = payload.get("article_id") or doc.document_id
+        text = payload.get("evidence_text") or ""
+        row = articles.setdefault(key, {"news_id": key, "title": payload.get("title") or (text.splitlines()[0][:300] if text else doc.canonical_url),
+                "summary": text, "source_name": doc.publisher, "source_url": payload.get("canonical_url") or doc.canonical_url,
+                "published_date": doc.published_at.isoformat() if doc.published_at else None,
+                "available_at": doc.available_at.isoformat() if doc.available_at else None,
+                "actions": [], "reactions": [], "evidence_document_ids": [], "fact_version_ids": [],
+                "data_origin": "live", "claim_status": "reported"})
+        row[kind + "s"].append(payload[kind])
+        row["fact_version_ids"].append(fact.fact_version_id)
+        row["evidence_document_ids"] = sorted(set(row["evidence_document_ids"]) | {d.document_id for d in documents})
+    return list(articles.values())
 
 
-def get_all_laws_data(storage_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_all_laws_data(storage_dir: Optional[str] = None, *, cutoff: Optional[datetime] = None) -> List[Dict[str, Any]]:
     """
     Retrieve structured laws and rules.
-    Attempts to read from LanceDB table 'structured_rules' first,
-    otherwise returns the comprehensive benchmark seed rules in demo mode.
+    Production reads committed canonical facts; isolated tests can read their own projection.
     """
+    settings = get_settings()
     if storage_dir is None:
         storage_dir = str(get_configured_db_path())
-    ensure_structured_rules_table(storage_dir)
+    if settings.mode == "production":
+        return _canonical_law_rows(storage_dir, cutoff or datetime.now(timezone.utc))
     # 1. Try LanceDB if populated
     try:
         import lancedb
@@ -844,8 +136,28 @@ def get_all_laws_data(storage_dir: Optional[str] = None) -> List[Dict[str, Any]]
             tbl = db.open_table("structured_rules")
             df = tbl.search().limit(1000).to_pandas()
             if not df.empty:
+                committed_laws = set()
+                if settings.mode == "production":
+                    try:
+                        from src.storage.dual_layer_store import DualLayerStore
+                        store = DualLayerStore(storage_dir)
+                        committed_batches = {k for k, b in store._canonical_batches.items() if b.status == "committed"}
+                        for f in store._canonical_facts.values():
+                            if f.batch_id in committed_batches and not f.is_retracted and f.quality_state == "accepted":
+                                if f.subject_id.startswith("law_"):
+                                    committed_laws.add(f.subject_id[4:])
+                                    committed_laws.add(f.subject_id)
+                        if not committed_laws:
+                            return []
+                    except Exception:
+                        return []
                 results = []
                 for _, row in df.iterrows():
+                    law_id = str(row.get("law_id", ""))
+                    if settings.mode == "production":
+                        origin = str(row.get("data_origin", "")).lower()
+                        if origin not in ("live", "production") or law_id not in committed_laws:
+                            continue
                     rule_json_raw = row.get("gnn_rule_json", "{}")
                     parsed_rule = json.loads(rule_json_raw) if isinstance(rule_json_raw, str) else rule_json_raw
                     results.append({
@@ -865,24 +177,20 @@ def get_all_laws_data(storage_dir: Optional[str] = None) -> List[Dict[str, Any]]
     except Exception as e:
         logger.debug(f"LanceDB direct lookup skipped: {e}")
 
-    # 2. Return Benchmark seed corpus only in demo mode
-    settings = get_settings()
-    if settings.mode == "demo":
-        return list(BENCHMARK_RULES_SEED)
     return []
 
 
-def get_all_news_data() -> List[Dict[str, Any]]:
+def get_all_news_data(cutoff: Optional[datetime] = None) -> List[Dict[str, Any]]:
     """Retrieve news articles with extracted receptor signals, actions, and reactions."""
     settings = get_settings()
-    articles = []
+    articles = _canonical_news_rows(str(settings.lancedb_path), cutoff or datetime.now(timezone.utc)) if settings.mode == "production" else []
 
     # 1. Resolve mode-appropriate news file path
     prod_news_file = settings.data_dir / "raw" / "news" / "scraped_news.json"
     shared_news_file = NEWS_DIR / "scraped_news.json"
 
     news_file = prod_news_file if prod_news_file.exists() else shared_news_file
-    if news_file.exists():
+    if settings.mode != "production" and news_file.exists():
         try:
             with open(news_file, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
@@ -898,19 +206,14 @@ def get_all_news_data() -> List[Dict[str, Any]]:
         for a in articles:
             if not isinstance(a, dict):
                 continue
-            origin = a.get("data_origin", a.get("origin", ""))
-            # Must explicitly match production
-            if origin == "production":
+            origin = str(a.get("data_origin", a.get("origin", ""))).lower()
+            if origin in ("production", "live"):
                 filtered_articles.append(a)
         articles = filtered_articles
 
         # In production mode, if empty, return empty list (never fall back to demo seeds!)
         if not articles:
             return []
-    elif settings.mode == "demo":
-        if not articles:
-            from src.scrapers.news_scraper import FALLBACK_NEWS_CORPUS
-            articles = list(FALLBACK_NEWS_CORPUS)
     elif settings.mode == "test":
         # In test mode, exclude quarantined legacy items
         articles = [a for a in articles if isinstance(a, dict) and a.get("data_origin") != "quarantined_legacy"]
@@ -923,39 +226,18 @@ def get_all_news_data() -> List[Dict[str, Any]]:
         item["headline"] = item["title"]
         item["news_id"] = a.get("news_id") or a.get("event_id") or f"NEWS_{len(normalized)+1}"
         item["event_id"] = item["news_id"]
-        item["published_date"] = a.get("published_date") or a.get("timestamp") or "2024-01-01"
+        item["published_date"] = a.get("published_date") or a.get("timestamp") or None
         item["timestamp"] = item["published_date"]
         
         # Ensure actions and reactions lists exist
         reactions = a.get("reactions", [])
         actions = a.get("actions", [])
         
-        # If flat structure, synthesize actions/reactions
-        if not reactions and ("direction" in a or "delta_value" in a):
-            reactions = [{
-                "reaction_type": "MARKET_IMPACT",
-                "affected_entity": a.get("target_asset", "MARKET"),
-                "direction": a.get("direction", "STABLE"),
-                "magnitude": float(a.get("delta_value", 0.0)),
-                "unit": a.get("delta_unit", "INDEX"),
-                "timeframe": a.get("timeframe", "3_MONTHS"),
-                "confidence": 0.9
-            }]
-        if not actions and a.get("receptor_signal"):
-            actions = [{
-                "action_type": "RECEPTOR_TRIGGER",
-                "actor": a.get("source_name", "Market"),
-                "target": a.get("target_asset", "MARKET"),
-                "description": f"Triggered by {a.get('receptor_signal')}",
-                "magnitude": 1.0,
-                "unit": "STATUS"
-            }]
-
         item["actions"] = actions
         item["reactions"] = reactions
 
         # Helper for float conversion
-        def _to_float(v, fallback=0.0):
+        def _to_float(v, fallback=None):
             if v is None:
                 return fallback
             try:
@@ -965,17 +247,17 @@ def get_all_news_data() -> List[Dict[str, Any]]:
 
         # Flattened conveniences
         first_rx = reactions[0] if reactions else {}
-        item["direction"] = a.get("direction") or first_rx.get("direction", "STABLE")
+        item["direction"] = a.get("direction") or first_rx.get("direction")
         
         raw_delta = a.get("delta_value")
         if raw_delta is None and first_rx:
             raw_delta = first_rx.get("magnitude")
-        item["delta_value"] = _to_float(raw_delta, 0.0)
+        item["delta_value"] = _to_float(raw_delta, None) if raw_delta is not None else None
 
-        item["delta_unit"] = a.get("delta_unit") or first_rx.get("unit", "INDEX") or "INDEX"
-        item["timeframe"] = a.get("timeframe") or first_rx.get("timeframe", "3_MONTHS") or "3_MONTHS"
-        item["target_asset"] = a.get("target_asset") or first_rx.get("affected_entity", "MARKET") or "MARKET"
-        item["metric"] = a.get("metric", "PRICE") or "PRICE"
+        item["delta_unit"] = a.get("delta_unit") or first_rx.get("unit")
+        item["timeframe"] = a.get("timeframe") or first_rx.get("timeframe")
+        item["target_asset"] = a.get("target_asset") or first_rx.get("affected_entity")
+        item["metric"] = a.get("metric")
 
         normalized.append(item)
 
@@ -991,7 +273,7 @@ def trigger_news_scrape(force_refresh: bool = False) -> List[Dict[str, Any]]:
     return articles
 
 
-def get_system_kpis(storage_dir: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
+def get_system_kpis(storage_dir: Optional[str] = None) -> Dict[str, Any]:
     """Compute executive KPIs for dashboard overview."""
     store = get_graph_store(storage_dir=storage_dir)
     nodes = store.get_nodes()
@@ -1009,8 +291,8 @@ def get_system_kpis(storage_dir: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
 
     # Time series range
     history_df = store.get_history_df()
-    min_date = history_df["timestamp"].min() if not history_df.empty and "timestamp" in history_df.columns else "2022-01-15"
-    max_date = history_df["timestamp"].max() if not history_df.empty and "timestamp" in history_df.columns else "2025-04-15"
+    min_date = history_df["timestamp"].min() if not history_df.empty and "timestamp" in history_df.columns else None
+    max_date = history_df["timestamp"].max() if not history_df.empty and "timestamp" in history_df.columns else None
 
     return {
         "total_laws": type_counts.get(NodeType.LAW.value, 0),
@@ -1023,8 +305,534 @@ def get_system_kpis(storage_dir: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         "total_temporal_entries": len(history),
         "gamma": metrics.get("gamma", 1.0),
         "density": metrics.get("density", 0.0),
-        "min_date": str(min_date),
-        "max_date": str(max_date),
+        "min_date": str(min_date) if min_date is not None else None,
+        "max_date": str(max_date) if max_date is not None else None,
         "top_in_degree": metrics.get("top_in_degree", []),
         "top_out_degree": metrics.get("top_out_degree", [])
+    }
+
+
+# ============================================================================
+# CANONICAL PRODUCTION & REVIEW QUEUE ACCESS
+# ============================================================================
+
+def get_production_overview(
+    store: Optional[Any] = None,
+    ledger: Optional[Any] = None
+) -> Dict[str, Any]:
+    """Read committed canonical dataset metrics and review status directly from verified stores."""
+    from src.storage.dual_layer_store import DualLayerStore
+    from src.storage.ingestion_jobs import IngestionJobLedger
+
+    settings = get_settings()
+    canonical_store = store or DualLayerStore(settings.lancedb_path)
+    job_ledger = ledger or IngestionJobLedger(settings.sqlite_path)
+
+    if hasattr(canonical_store, "_ensure_observations_loaded"):
+        canonical_store._ensure_observations_loaded()
+
+    committed_batches = [b for b in getattr(canonical_store, "_canonical_batches", {}).values() if b.status == "committed"]
+    committed_batch_ids = {b.batch_id for b in committed_batches}
+    obs_count = sum(1 for o in getattr(canonical_store, "_canonical_observations", {}).values()
+                    if o.batch_id in committed_batch_ids and o.quality_state == "accepted" and not o.is_retracted)
+    facts_count = sum(1 for f in getattr(canonical_store, "_canonical_facts", {}).values()
+                      if f.batch_id in committed_batch_ids and f.quality_state == "accepted" and not f.is_retracted)
+    docs_count = sum(1 for d in getattr(canonical_store, "_canonical_documents", {}).values()
+                     if d.batch_id in committed_batch_ids)
+    evidence_count = sum(1 for e in getattr(canonical_store, "_canonical_evidence", {}).values()
+                         if e.batch_id in committed_batch_ids)
+
+    # Review items from ledger across all runs
+    review_count = 0
+    with job_ledger._connection() as db:
+        rows = db.execute("SELECT status, payload_json FROM work_items").fetchall()
+        for row in rows:
+            raw_p = row["payload_json"] or "{}"
+            payload = json.loads(raw_p) if isinstance(raw_p, str) else (raw_p or {})
+            if payload.get("review", 0) > 0 or row["status"] == "needs_review":
+                review_count += 1
+
+    # Freshness
+    latest_commit = None
+    if committed_batches:
+        dates = [b.committed_at for b in committed_batches if b.committed_at]
+        if dates:
+            latest_commit = max(dates).isoformat()
+
+    source_breakdown = {}
+    for b in committed_batches:
+        s = b.source_id
+        source_breakdown[s] = source_breakdown.get(s, 0) + 1
+
+    last_success = job_ledger.last_success()
+    oldest_pending = job_ledger.oldest_pending_job()
+
+    return {
+        "committed_batches": len(committed_batches),
+        "total_observations": obs_count,
+        "total_facts": facts_count,
+        "total_documents": docs_count,
+        "total_evidence_links": evidence_count,
+        "pending_review_count": review_count,
+        "freshness": latest_commit,
+        "last_success": last_success,
+        "oldest_pending_job": oldest_pending,
+        "source_breakdown": source_breakdown,
+        "mode": getattr(settings, "mode", "production"),
+    }
+
+
+def get_review_queue(ledger: Optional[Any] = None, limit: int = 50) -> List[Dict[str, Any]]:
+    """Retrieve items requiring expert or legal review from the ingestion ledger."""
+    from src.storage.ingestion_jobs import IngestionJobLedger
+    job_ledger = ledger or IngestionJobLedger(get_settings().sqlite_path)
+
+    review_items = []
+    with job_ledger._connection() as db:
+        rows = db.execute(
+            "SELECT w.run_id, r.source_id, w.item_key, w.status, w.cursor_value, w.payload_json "
+            "FROM work_items w JOIN run_context r ON w.run_id = r.run_id "
+            "ORDER BY w.rowid DESC"
+        ).fetchall()
+        for row in rows:
+            raw_p = row["payload_json"] or "{}"
+            p = json.loads(raw_p) if isinstance(raw_p, str) else (raw_p or {})
+            if p.get("review", 0) > 0 or row["status"] == "needs_review":
+                review_items.append({
+                    "run_id": row["run_id"],
+                    "source_id": row["source_id"],
+                    "item_key": row["item_key"],
+                    "status": row["status"],
+                    "cursor_value": row["cursor_value"],
+                    "payload": p,
+                })
+                if len(review_items) >= limit:
+                    break
+    return review_items
+
+
+def submit_ingestion_job(
+    source_id: str,
+    limit: int = 10,
+    dry_run: bool = False,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    budget_usd: Optional[float] = None,
+    ledger: Optional[Any] = None,
+    settings: Optional[Any] = None
+) -> Dict[str, Any]:
+    """Submit an asynchronous/non-blocking ingestion job request to the ledger."""
+    import uuid
+    from src.storage.ingestion_jobs import IngestionJobLedger
+
+    job_settings = settings or get_settings()
+    job_ledger = ledger or IngestionJobLedger(job_settings.sqlite_path)
+
+    run_id = f"job_{uuid.uuid4().hex[:12]}"
+    effective_budget = budget_usd if budget_usd is not None else float(getattr(job_settings, "extraction_budget_usd", 0.0))
+    job_ledger.ensure_run(run_id, source_id, effective_budget)
+    params = {
+        "limit": limit,
+        "dry_run": dry_run,
+        "since": since,
+        "until": until,
+        "budget_usd": effective_budget,
+    }
+    job_ledger.submit_job(source_id, run_id, params)
+
+    return {
+        "job_id": run_id,
+        "source_id": source_id,
+        "status": "submitted",
+        "limit": limit,
+        "dry_run": dry_run,
+        "since": since,
+        "until": until,
+        "budget_usd": effective_budget,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def get_job_status(job_id: str, ledger: Optional[Any] = None) -> Dict[str, Any]:
+    """Query execution status of a submitted ingestion job."""
+    from src.storage.ingestion_jobs import IngestionJobLedger
+    job_ledger = ledger or IngestionJobLedger(get_settings().sqlite_path)
+
+    job = job_ledger.get_job(job_id)
+    if job:
+        return {
+            "job_id": job["run_id"],
+            "source_id": job["source_id"],
+            "status": job["status"],
+            "created_at": str(job["created_at"]),
+            "parameters": job["parameters"],
+        }
+    return {
+        "job_id": job_id,
+        "status": "unknown",
+    }
+
+
+# ============================================================================
+# CONSTRUCTION OUTLOOK WITH EVIDENCE & LIMITATIONS (TASK 11)
+# ============================================================================
+
+def get_construction_outlook(
+    cutoff: Optional[Union[datetime, str]] = None,
+    target_series_id: str = "series:destatis:61261-0002",
+    store: Optional[Any] = None,
+    prediction_record: Optional[Any] = None,
+    dataset_manifest: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """
+    Produce a dated construction price and regulatory outlook from committed observations and facts.
+    Strictly enforces:
+    1. German residential construction producer price index as primary target (no financial/equity/CPI proxy substitution).
+    2. Point-in-time public availability (corrections published after cutoff are excluded).
+    3. Conformal prediction interval with >=20 historical calibration quarters requirement.
+    4. Explicit distinction between REPORTED news claims and MEASURED official statistics.
+    5. Absence of causal claims for graph edges, news signals, and GNN predictions.
+    6. Read-only operation: does not mutate storage or trigger ingestion/training.
+    """
+    from src.storage.dual_layer_store import DualLayerStore
+    from src.quant.forecasting import calibrate_residual_interval
+
+    # Anti-proxy enforcement
+    FORBIDDEN_PROXIES = {
+        "equity", "dax", "sp500", "nasdaq", "cpi", "share_price", "stock", "yahoo",
+        "commodity_metals", "house_price", "residential_property_sales"
+    }
+    target_lower = target_series_id.lower()
+    for proxy in FORBIDDEN_PROXIES:
+        if proxy in target_lower:
+            raise ValueError(
+                f"Financial proxy ({proxy}) is strictly prohibited from substituting for "
+                f"official construction price measures (requested: '{target_series_id}')."
+            )
+
+    if "hicp" in target_lower or "cpi" in target_lower:
+        raise ValueError(
+            f"Consumer price indices (CPI/HICP) cannot substitute for construction PPI (requested: '{target_series_id}')."
+        )
+
+    if not (
+        target_lower.startswith("series:destatis:61261")
+        or target_lower.startswith("series:eurostat:sts_copi")
+        or target_lower.startswith("series:eurostat:prc_copi")
+        or target_lower.startswith("series:construction:")
+    ):
+        raise ValueError(
+            f"Target series '{target_series_id}' is not a recognized construction producer-price index. "
+            f"Financial proxies and unrelated indices cannot substitute for construction measures."
+        )
+
+    # Cutoff normalization
+    if cutoff is None:
+        cutoff = datetime.now(timezone.utc)
+    elif isinstance(cutoff, str):
+        cutoff = datetime.fromisoformat(cutoff.replace("Z", "+00:00"))
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.replace(tzinfo=timezone.utc)
+
+    # Store resolution
+    settings = get_settings()
+    canonical_store = store or DualLayerStore(settings.lancedb_path)
+
+    # Retrieve committed observations as of cutoff
+    obs_table = canonical_store.query_observations(cutoff=cutoff, mode="public_as_of")
+    obs_list = obs_table.to_pylist() if hasattr(obs_table, "to_pylist") else []
+
+    target_obs = [o for o in obs_list if o.get("series_id") == target_series_id]
+    target_obs.sort(key=lambda o: (o.get("period_start", ""), o.get("available_at", "")))
+
+    target_definition = "German Construction PPI Residential (Destatis 61261-0002)"
+    series_def = getattr(canonical_store, "_canonical_series", {}).get(target_series_id)
+    if series_def and series_def.metric_name:
+        target_definition = f"German Construction PPI Residential ({series_def.metric_name})"
+    target_units = "INDEX_2021_100"
+
+    source_gaps: List[str] = []
+    latest_observation: Optional[Dict[str, Any]] = None
+    point_forecast: Optional[float] = None
+    cur_q = ((cutoff.month - 1) // 3) + 1
+    cur_y = cutoff.year
+    next_q = 1 if cur_q == 4 else cur_q + 1
+    next_y = cur_y + 1 if cur_q == 4 else cur_y
+    target_period: str = f"{next_y}-Q{next_q}"
+
+    if not target_obs:
+        source_gaps.append(
+            f"Missing price data: No observations recorded for target series '{target_series_id}' as of cutoff {cutoff.isoformat()}."
+        )
+        interval_data = {
+            "lower": None,
+            "upper": None,
+            "confidence_level": 0.90,
+            "calibration_status": "insufficient_calibration_history",
+            "details": "No observations available for target series.",
+        }
+    else:
+        latest = target_obs[-1]
+        avail = latest.get("available_at")
+        if isinstance(avail, str):
+            avail_dt = datetime.fromisoformat(avail.replace("Z", "+00:00"))
+        elif isinstance(avail, datetime):
+            avail_dt = avail
+        else:
+            avail_dt = None
+        if avail_dt and avail_dt.tzinfo is None:
+            avail_dt = avail_dt.replace(tzinfo=timezone.utc)
+
+        # Staleness check: > 180 days lag relative to cutoff
+        is_stale = False
+        if avail_dt and (cutoff - avail_dt).days > 180:
+            is_stale = True
+
+        status = "STALE" if is_stale else (latest.get("status") or "AVAILABLE").upper()
+        p_start = latest.get("period_start", "")
+        period_str = ""
+        if p_start and len(p_start) >= 7:
+            y = p_start[:4]
+            m = int(p_start[5:7])
+            q = ((m - 1) // 3) + 1
+            period_str = f"{y}-Q{q}"
+
+        if is_stale:
+            source_gaps.append(
+                f"Latest available observation for {target_series_id} is from {period_str} "
+                f"(published {avail_dt.date() if avail_dt else 'unknown'}), which is over 180 days stale relative to cutoff {cutoff.date()}."
+            )
+
+        val = float(latest.get("value")) if latest.get("value") is not None else None
+        latest_observation = {
+            "observation_id": latest.get("observation_id"),
+            "value": val,
+            "unit": latest.get("unit", target_units),
+            "period": period_str,
+            "vintage_id": latest.get("vintage_id"),
+            "status": status,
+            "published_at": avail_dt.isoformat() if avail_dt else None,
+        }
+
+        # Count distinct eligible quarterly periods
+        quarterly_periods = set()
+        for o in target_obs:
+            ps = o.get("period_start", "")
+            pe = o.get("period_end_exclusive", "")
+            val_o = o.get("value")
+            if ps and pe and val_o is not None:
+                try:
+                    dt_s = datetime.fromisoformat(str(ps).replace("Z", "+00:00"))
+                    dt_e = datetime.fromisoformat(str(pe).replace("Z", "+00:00"))
+                    days = (dt_e - dt_s).days
+                    if 80 <= days <= 95:
+                        y = dt_s.year
+                        q = ((dt_s.month - 1) // 3) + 1
+                        quarterly_periods.add(f"{y}-Q{q}")
+                except Exception:
+                    pass
+        N_hist = len(quarterly_periods)
+
+        # Require a validated frozen prediction record for point forecast and calibrated interval
+        point_forecast = None
+        point_growth_pct = None
+        interval_data = {
+            "lower": None,
+            "upper": None,
+            "confidence_level": 0.90,
+            "calibration_status": "insufficient_calibration_history" if N_hist < 20 else "unavailable",
+            "details": f"Requires validated frozen prediction artifact and at least 20 historical calibration quarters; received {N_hist} quarters.",
+        }
+        if prediction_record is not None:
+            pred_target = getattr(prediction_record, "target_series_id", None)
+            pred_origin = getattr(prediction_record, "forecast_origin", None)
+            origin_valid = pred_origin is not None and canonical_store._utc(pred_origin) <= cutoff
+            if origin_valid and pred_target == target_series_id:
+                manifest_valid = True
+                if dataset_manifest is not None:
+                    if getattr(dataset_manifest, "dataset_id", None) != getattr(prediction_record, "dataset_id", None):
+                        manifest_valid = False
+                    if getattr(dataset_manifest, "target_spec_id", None) != target_series_id:
+                        manifest_valid = False
+                if manifest_valid:
+                    point_growth_pct = float(getattr(prediction_record, "point_change_pct", 0.0))
+                    if val is not None:
+                        point_forecast = round(val * (1.0 + point_growth_pct / 100.0), 2)
+                    interval_data = {
+                        "lower": getattr(prediction_record, "lower90", None),
+                        "upper": getattr(prediction_record, "upper90", None),
+                        "confidence_level": 0.90,
+                        "calibration_status": getattr(prediction_record, "calibration_status", "calibrated").lower(),
+                        "details": "Conformal 90% interval from frozen prediction artifact.",
+                    }
+                else:
+                    source_gaps.append("Forecast artifact manifest mismatch: dataset or target specification differs.")
+            else:
+                source_gaps.append("Forecast artifact origin is after cutoff or target series does not match.")
+        else:
+            if N_hist < 20:
+                source_gaps.append(
+                    f"Insufficient calibration history: only {N_hist} quarterly observations available (<20 required) "
+                    f"for 90% conformal prediction interval."
+                )
+            else:
+                source_gaps.append(
+                    f"No validated forecast artifact available for {target_series_id} as of {cutoff.date() if hasattr(cutoff, 'date') else cutoff}."
+                )
+
+    # Regulatory Context
+    regulatory_context: List[Dict[str, Any]] = []
+    canonical_entities = getattr(canonical_store, "_canonical_entities", {})
+    eligible_batches = canonical_store._eligible_batches(cutoff, mode="public_as_of") if hasattr(canonical_store, "_eligible_batches") else set()
+    canonical_docs = getattr(canonical_store, "_canonical_documents", {})
+
+    # Evidence linkage resolution from eligible committed batches only
+    assertion_to_doc: Dict[str, str] = {}
+    canonical_evidence = getattr(canonical_store, "_canonical_evidence", {})
+    for evi in canonical_evidence.values():
+        if getattr(evi, "batch_id", None) not in eligible_batches:
+            continue
+        if getattr(evi, "available_at", None) and canonical_store._utc(evi.available_at) > cutoff:
+            continue
+        if hasattr(evi, "assertion_version_id") and hasattr(evi, "document_version_id"):
+            doc = canonical_docs.get(evi.document_version_id)
+            if doc and getattr(doc, "batch_id", None) in eligible_batches:
+                if not getattr(doc, "available_at", None) or canonical_store._utc(doc.available_at) <= cutoff:
+                    assertion_to_doc[evi.assertion_version_id] = doc.document_id
+
+    referenced_doc_ids = set()
+    for o in target_obs:
+        rev_id = o.get("revision_id", "")
+        doc_id = assertion_to_doc.get(rev_id)
+        if doc_id:
+            referenced_doc_ids.add(doc_id)
+
+    # Use query_facts() for active and forthcoming legal rules, respecting retractions and tombstones
+    eligible_facts = canonical_store.query_facts(cutoff, mode="public_as_of", include_expired=False) if hasattr(canonical_store, "query_facts") else []
+    for fact in eligible_facts:
+        if fact.predicate == "MANDATES":
+            rule_ent = canonical_entities.get(fact.object_id)
+            law_ent = canonical_entities.get(fact.subject_id)
+
+            valid_from = fact.valid_from or (rule_ent.created_at if rule_ent else None)
+            valid_from_utc = canonical_store._utc(valid_from) if valid_from else cutoff
+
+            status = "ACTIVE" if valid_from_utc <= cutoff else "FORTHCOMING"
+            label = (rule_ent.canonical_label if rule_ent else None) or (law_ent.canonical_label if law_ent else fact.object_id)
+
+            docs = canonical_store.documents_for(fact, cutoff, mode="public_as_of") if hasattr(canonical_store, "documents_for") else []
+            evi_doc_id = docs[0].document_id if docs else assertion_to_doc.get(fact.fact_version_id)
+
+            regulatory_context.append({
+                "law_id": fact.subject_id,
+                "rule_id": fact.object_id,
+                "label": label,
+                "status": status,
+                "valid_from": valid_from_utc.isoformat(),
+                "evidence_document_id": evi_doc_id,
+            })
+            for d in docs:
+                referenced_doc_ids.add(d.document_id)
+            if evi_doc_id:
+                referenced_doc_ids.add(evi_doc_id)
+
+    # Supply Context (Reported news claims vs Measured official statistics)
+    supply_context: List[Dict[str, Any]] = []
+
+    # 1. Reported news claims from events (from eligible facts)
+    for fact in eligible_facts:
+        ent = canonical_entities.get(fact.subject_id)
+        if ent and (ent.entity_subtype == "ECONOMIC_EVENT" or ent.entity_id.startswith("event:")):
+            docs = canonical_store.documents_for(fact, cutoff, mode="public_as_of") if hasattr(canonical_store, "documents_for") else []
+            evi_doc_id = docs[0].document_id if docs else assertion_to_doc.get(fact.fact_version_id)
+            supply_context.append({
+                "kind": "REPORTED",
+                "claim_status": "unverified_signal",
+                "label": ent.canonical_label,
+                "entity_id": ent.entity_id,
+                "predicate": fact.predicate,
+                "target_id": fact.object_id,
+                "evidence_document_id": evi_doc_id,
+            })
+            for d in docs:
+                referenced_doc_ids.add(d.document_id)
+            if evi_doc_id:
+                referenced_doc_ids.add(evi_doc_id)
+
+    # 2. Measured official statistics
+    context_obs = [o for o in obs_list if o.get("series_id") != target_series_id]
+    context_by_series: Dict[str, Dict[str, Any]] = {}
+    for o in context_obs:
+        sid = o.get("series_id")
+        if sid:
+            context_by_series[sid] = o
+
+    for sid, o in context_by_series.items():
+        s_ent = canonical_entities.get(sid)
+        label = s_ent.canonical_label if s_ent else sid
+        rev_id = o.get("revision_id", "")
+        evi_doc_id = assertion_to_doc.get(rev_id)
+        supply_context.append({
+            "kind": "MEASURED",
+            "claim_status": "official_statistic",
+            "label": label,
+            "series_id": sid,
+            "value": float(o.get("value")) if o.get("value") is not None else None,
+            "unit": o.get("unit"),
+            "period": o.get("period_start"),
+            "evidence_document_id": evi_doc_id,
+        })
+        if evi_doc_id:
+            referenced_doc_ids.add(evi_doc_id)
+
+    # Evidence Links: only documents attached to eligible displayed assertions/observations
+    evidence: List[Dict[str, Any]] = []
+    doc_map: Dict[str, Any] = {}
+    for doc in canonical_docs.values():
+        if hasattr(canonical_store, "_eligible_batches") and getattr(doc, "batch_id", None) not in eligible_batches:
+            continue
+        if getattr(doc, "available_at", None) and canonical_store._utc(doc.available_at) > cutoff:
+            continue
+        if hasattr(doc, "version_id") and doc.version_id:
+            doc_map[doc.version_id] = doc
+        if hasattr(doc, "document_id") and doc.document_id:
+            doc_map[doc.document_id] = doc
+
+    seen_doc_ids = set()
+    for doc_id in sorted(referenced_doc_ids):
+        doc = doc_map.get(doc_id)
+        if doc and doc.document_id not in seen_doc_ids:
+            seen_doc_ids.add(doc.document_id)
+            avail_dt = getattr(doc, "available_at", None)
+            evidence.append({
+                "document_id": doc.document_id,
+                "url": doc.canonical_url,
+                "publisher": doc.publisher,
+                "available_at": avail_dt.isoformat() if hasattr(avail_dt, "isoformat") else str(avail_dt),
+            })
+
+    # Limitations & Disclaimers
+    limitations = [
+        "Causality Disclaimer: Graph relationships, GNN predictions, and news correlations do not establish economic causation.",
+        "Signal Quality Disclaimer: Reported news items represent unverified market claims and sentiment signals, not proven physical capacity changes.",
+        "Anti-Proxy Guarantee: Official German residential construction producer prices (Destatis 61261-0002) are used directly; financial proxies (equities, CPI, housing sales) are strictly prohibited from substituting for construction benchmarks.",
+        "Uncertainty & Calibration Limitations: Prediction intervals require at least 20 historical calibration quarters; where history is insufficient, intervals remain explicitly uncalibrated.",
+    ]
+
+    return {
+        "cutoff": cutoff.isoformat(),
+        "target_series_id": target_series_id,
+        "target_definition": target_definition,
+        "target_units": target_units,
+        "latest_observation": latest_observation,
+        "forecast_origin": cutoff.isoformat(),
+        "target_period": target_period,
+        "model_info": "Defensible Baseline (No-Change / Lag-1)",
+        "point_forecast": point_forecast,
+        "interval": interval_data,
+        "supply_context": supply_context,
+        "regulatory_context": regulatory_context,
+        "source_gaps": source_gaps,
+        "evidence": evidence,
+        "limitations": limitations,
     }

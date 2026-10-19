@@ -1,0 +1,89 @@
+{
+  "Status": {
+    "Code": 0,
+    "Content": "erfolgreich",
+    "Type": "Information"
+  },
+  "Object": {
+    "Code": "61241-0004",
+    "Content": "Erzeugerpreisindex gewerblicher Produkte: Deutschland,\nMonate, Güterverzeichnis (GP2019 2-/3-/4-/5-/6-/9-Steller/\nSonderpositionen)",
+    "Time": {
+      "From": "1976",
+      "To": "2026"
+    },
+    "Valid": "true",
+    "Structure": {
+      "Head": {
+        "Code": "61241",
+        "Content": "Index der Erzeugerpreise gewerblicher Produkte",
+        "Type": "Statistik",
+        "Values": "-1",
+        "Selected": null,
+        "Functions": null,
+        "Structure": [
+          {
+            "Code": "DINSG",
+            "Content": "Deutschland insgesamt",
+            "Type": "Merkmal",
+            "Values": "1",
+            "Selected": null,
+            "Functions": null,
+            "Structure": [
+              {
+                "Code": "PRE001",
+                "Content": "Erzeugerpreisindex gewerblicher Produkte",
+                "Type": "Merkmal",
+                "Values": "-1",
+                "Selected": null,
+                "Functions": null,
+                "Structure": null,
+                "Updated": "see parent"
+              }
+            ],
+            "Updated": "see parent"
+          }
+        ],
+        "Updated": "see parent"
+      },
+      "Columns": [
+        {
+          "Code": "JAHR",
+          "Content": "Jahr",
+          "Type": "Merkmal",
+          "Values": "-1",
+          "Selected": null,
+          "Functions": null,
+          "Structure": [
+            {
+              "Code": "MONAT",
+              "Content": "Monate",
+              "Type": "Merkmal",
+              "Values": "12",
+              "Selected": null,
+              "Functions": null,
+              "Structure": null,
+              "Updated": "see parent"
+            }
+          ],
+          "Updated": "see parent"
+        }
+      ],
+      "Rows": [
+        {
+          "Code": "GP19M2",
+          "Content": "GP2019 (2-Steller): Gewerbliche Produkte",
+          "Type": "Merkmal",
+          "Values": "30",
+          "Selected": null,
+          "Functions": null,
+          "Structure": null,
+          "Updated": "see parent"
+        }
+      ],
+      "Subtitel": null,
+      "Subheading": null
+    },
+    "Updated": "06.03.2024 18:09:02h"
+  },
+  "Copyright": "© Statistisches Bundesamt (Destatis), 2026"
+}

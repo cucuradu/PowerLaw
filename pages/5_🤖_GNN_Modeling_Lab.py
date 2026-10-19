@@ -48,7 +48,7 @@ with st.sidebar:
         dates = sorted(list(history_df["timestamp"].astype(str).unique()))
         all_dates = dates + ["(Latest)"]
     else:
-        all_dates = ["2022-06-30", "2023-01-01", "2023-06-30", "2023-12-31", "2024-06-30", "2024-12-31", "2025-12-31", "(Latest)"]
+        all_dates = ["(Latest)"]
     selected_snapshot_date = st.select_slider("Snapshot Horizon Date:", options=all_dates, value="(Latest)")
     target_date = None if selected_snapshot_date == "(Latest)" else selected_snapshot_date
 

@@ -70,7 +70,7 @@ class MacroFREDEngine:
     def compute_macro_risk(self) -> Dict[str, Any]:
         """
         Fetches leading series, computes trailing percentiles, and blends into macro_risk.
-        Falls back to realistic current economic values if network is unavailable.
+        Missing or insufficient inputs leave the risk calculation unavailable.
         """
         dgs10 = self.fetch_fred_series("DGS10")
         dgs3m = self.fetch_fred_series("DGS3MO")
@@ -78,12 +78,7 @@ class MacroFREDEngine:
         nfci = self.fetch_fred_series("NFCI")
         claims = self.fetch_fred_series("ICSA")
 
-        # Fallback offline defaults if network unreachable
-        if any(s is None for s in [dgs10, dgs3m, hy_oas]):
-            from src.config import get_settings
-            settings = get_settings()
-            if settings.mode == "demo":
-                return self._generate_fallback_macro_state()
+        if any(s is None or s.empty for s in [dgs10, dgs3m, hy_oas, nfci, claims]):
             return {
                 "status": "unavailable",
                 "macro_risk": None,
@@ -91,7 +86,7 @@ class MacroFREDEngine:
                 "yield_curve_spread": None,
                 "hy_oas_spread": None,
                 "nfci_index": None,
-                "error": "FRED series unreachable and synthetic fallback is disabled in production"
+                "error": "Required FRED series unavailable"
             }
 
         # 1. Yield Curve (10Y - 3M)
@@ -103,8 +98,8 @@ class MacroFREDEngine:
         # 2. Trailing Percentile Ranks (756 trading days ~ 3y)
         pct_curve = self._trailing_pct_rank(curve_stress).iloc[-1]
         pct_hy = self._trailing_pct_rank(hy_oas).iloc[-1]
-        pct_nfci = self._trailing_pct_rank(nfci).iloc[-1] if nfci is not None else 0.40
-        pct_claims = self._trailing_pct_rank(claims.rolling(4).mean()).iloc[-1] if claims is not None else 0.35
+        pct_nfci = self._trailing_pct_rank(nfci).iloc[-1]
+        pct_claims = self._trailing_pct_rank(claims.rolling(4).mean()).iloc[-1]
 
         # 3. Composite Macro Risk
         macro_risk = (
@@ -124,7 +119,7 @@ class MacroFREDEngine:
             "crash_risk": crash_risk,
             "yield_curve_spread": round(latest_curve, 3),
             "hy_oas_spread": round(latest_hy, 2),
-            "nfci_index": round(float(nfci.iloc[-1]), 3) if nfci is not None else -0.5,
+            "nfci_index": round(float(nfci.iloc[-1]), 3),
             "percentiles": {
                 "hy_oas_pct": round(float(pct_hy), 3),
                 "yield_curve_pct": round(float(pct_curve), 3),
@@ -140,26 +135,11 @@ class MacroFREDEngine:
             lambda w: (w <= w[-1]).mean(), raw=True
         )
 
-    def _generate_fallback_macro_state(self) -> Dict[str, Any]:
-        """Robust offline defaults based on current economic baseline."""
-        return {
-            "macro_risk": 0.425,
-            "crash_risk": False,
-            "yield_curve_spread": 0.185,
-            "hy_oas_spread": 3.45,
-            "nfci_index": -0.48,
-            "percentiles": {
-                "hy_oas_pct": 0.40,
-                "yield_curve_pct": 0.48,
-                "nfci_pct": 0.38,
-                "claims_pct": 0.44
-            },
-            "source": "FRED Baseline (Simulated / Fallback)"
-        }
-
     def ingest_to_store(self, store: DualLayerGraphStore) -> Dict[str, Any]:
         """Writes macro risk and credit nodes into the DualLayerGraphStore."""
         state = self.compute_macro_risk()
+        if state.get("status") == "unavailable":
+            return state
         now_str = datetime.now().strftime("%Y-%m-%d")
 
         # 1. Macro Risk Composite Node

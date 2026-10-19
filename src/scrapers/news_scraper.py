@@ -8,7 +8,7 @@ Extracts:
 3. Extracted Actions (production cuts, capex, price revisions, etc.) and Reactions (price changes, supply shifts, etc.)
 4. Persistence into LanceDB (NewsItem) and local disk cache
 5. Dual-Layer Graph integration (Action/Reaction nodes + temporal tabular history)
-6. Fallback offline seed generator for guaranteed offline execution
+6. Explicit offline mode without fabricated data
 """
 
 import os
@@ -20,6 +20,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple, Union
 import email.utils
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 try:
@@ -42,6 +43,7 @@ from src.schemas.extraction import (
     NewsExtraction
 )
 from src.schemas.lancedb import NewsItem
+from src.schemas.ingestion import SourceDocument, Fact, stable_id
 
 # Models and Graph Storage
 from src.models.dual_layer_model import (
@@ -187,7 +189,14 @@ KNOWN_COMPANIES = {
     "alstom": "Alstom",
     "catl": "CATL",
     "albemarle": "Albemarle",
-    "umicore": "Umicore"
+    "umicore": "Umicore",
+
+    # Public Authorities & Institutions
+    "european commission": "European Commission",
+    "commission": "European Commission",
+    "council": "Council of the European Union",
+    "parliament": "European Parliament",
+    "destatis": "Destatis"
 }
 
 KNOWN_COUNTRIES = {
@@ -241,459 +250,6 @@ SECTOR_KEYWORDS = {
 }
 
 # ==========================================
-# BENCHMARK OFFLINE NEWS CORPUS (Seed Data)
-# ==========================================
-FALLBACK_NEWS_CORPUS = [
-    {
-        "news_id": "NEWS_2024_01_CBAM_PILOT",
-        "title": "EU Importers Face First Mandatory CBAM Emissions Reporting Deadline",
-        "published_date": "2024-01-31",
-        "source_name": "EU Trade Monitor",
-        "source_url": "https://policy.trade.ec.europa.eu/news/cbam-first-reporting-2024-01-31_en",
-        "summary": "Importers of steel, aluminum, cement, and fertilizers into the EU must submit their initial quarterly embedded carbon emissions reports under the Carbon Border Adjustment Mechanism. ArcelorMittal and Thyssenkrupp warn of rising administrative and compliance costs.",
-        "actors": {
-            "companies": ["ArcelorMittal", "Thyssenkrupp"],
-            "countries": ["Germany", "EU"],
-            "sectors": ["C24_BASIC_METALS", "C20_CHEMICALS", "C23_NON_METALLIC_MINERALS"],
-            "geography": ["EU", "Western Europe"]
-        },
-        "actions": [
-            {
-                "action_type": "REGULATORY_MANDATE",
-                "actor": "European Commission",
-                "target": "Embedded Carbon Emissions Reporting",
-                "description": "Enforce initial mandatory quarterly reporting deadline under the Carbon Border Adjustment Mechanism (CBAM).",
-                "magnitude": 100.0,
-                "unit": "PERCENT_COMPLIANCE"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "COMPLIANCE_COST_SHIFT",
-                "affected_entity": "C24_BASIC_METALS",
-                "direction": "INCREASE",
-                "magnitude": 8.5,
-                "unit": "EUR/tonne",
-                "timeframe": "IMMEDIATE",
-                "confidence": 0.95
-            }
-        ],
-        "receptor_signal": "CBAM_REPORTING_DEADLINE",
-        "target_asset": "C24_BASIC_METALS",
-        "metric": "COMPLIANCE_COST",
-        "direction": "INCREASE",
-        "delta_value": 8.5,
-        "delta_unit": "EUR/tonne",
-        "timeframe": "IMMEDIATE"
-    },
-    {
-        "news_id": "NEWS_2024_03_ETS_CAP_REDUCTION",
-        "title": "EU Carbon Allowance Price Fluctuates as Annual ETS Linear Reduction Factor Tightens to 4.3%",
-        "published_date": "2024-03-15",
-        "source_name": "Carbon Market Watch",
-        "source_url": "https://euractiv.com/section/energy/news/ets-linear-reduction-2024",
-        "summary": "The European Commission confirms the accelerated contraction of overall European emission allowances via the 4.3% linear reduction factor, driving heavy industrial compliance bidding among utilities RWE, Uniper, and Enel.",
-        "actors": {
-            "companies": ["RWE", "Uniper", "Enel"],
-            "countries": ["Germany", "Italy", "EU"],
-            "sectors": ["D35_ELECTRICITY_GAS", "C24_BASIC_METALS"],
-            "geography": ["EU"]
-        },
-        "actions": [
-            {
-                "action_type": "REGULATORY_MANDATE",
-                "actor": "European Commission",
-                "target": "EU ETS Emission Cap",
-                "description": "Accelerate annual linear reduction factor of emission allowances to 4.3%.",
-                "magnitude": 4.3,
-                "unit": "PERCENT"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "PRICE_CHANGE",
-                "affected_entity": "CO2_ALLOWANCE",
-                "direction": "INCREASE",
-                "magnitude": 12.0,
-                "unit": "EUR/tCO2",
-                "timeframe": "3_MONTHS",
-                "confidence": 0.9
-            }
-        ],
-        "receptor_signal": "ETS_CAP_CONTRACTION",
-        "target_asset": "CO2_ALLOWANCE",
-        "metric": "PRICE",
-        "direction": "INCREASE",
-        "delta_value": 12.0,
-        "delta_unit": "EUR/tCO2",
-        "timeframe": "3_MONTHS"
-    },
-    {
-        "news_id": "NEWS_2024_05_GAS_STORAGE_FILL",
-        "title": "EU Underground Gas Storage Levels Reach 65% Ahead of Mandatory 90% Target",
-        "published_date": "2024-05-20",
-        "source_name": "Gas Infrastructure Europe",
-        "source_url": "https://gie.eu/news/gas-storage-update-may-2024",
-        "summary": "Member states continue mandatory injection obligations pursuant to the EU Gas Storage Regulation, buffering European energy markets against volatility as Equinor and TotalEnergies maintain steady pipeline deliveries.",
-        "actors": {
-            "companies": ["Equinor", "TotalEnergies", "Shell"],
-            "countries": ["Germany", "Netherlands", "Norway", "EU"],
-            "sectors": ["D35_ELECTRICITY_GAS"],
-            "geography": ["Northwest Europe"]
-        },
-        "actions": [
-            {
-                "action_type": "REGULATORY_MANDATE",
-                "actor": "EU Member States",
-                "target": "Gas Storage Injections",
-                "description": "Mandatory gas storage filling target reaching 90% ahead of winter heating season.",
-                "magnitude": 90.0,
-                "unit": "PERCENT"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "SUPPLY_SHIFT",
-                "affected_entity": "GAS_TTF",
-                "direction": "INCREASE",
-                "magnitude": 65.0,
-                "unit": "PERCENT",
-                "timeframe": "1_YEAR",
-                "confidence": 0.92
-            }
-        ],
-        "receptor_signal": "GAS_INJECTION_MANDATE",
-        "target_asset": "GAS_TTF",
-        "metric": "SUPPLY",
-        "direction": "INCREASE",
-        "delta_value": 65.0,
-        "delta_unit": "PERCENT",
-        "timeframe": "1_YEAR"
-    },
-    {
-        "news_id": "NEWS_2024_08_RED_SEA_SHIPPING",
-        "title": "Red Sea Shipping Disruption Diverts Freight Around Cape of Good Hope, Increasing Shipping Bunker Costs",
-        "published_date": "2024-08-10",
-        "source_name": "Global Maritime Logistics",
-        "source_url": "https://maritime-exec.com/news/red-sea-freight-rates-aug-2024",
-        "summary": "Container carriers Maersk and Hapag-Lloyd report 14-day voyage extensions, driving up maritime fuel bunker expenses and container freight rates by 24.5% on Asia-Europe trade lanes.",
-        "actors": {
-            "companies": ["Maersk", "Hapag-Lloyd"],
-            "countries": ["Denmark", "Germany", "EU"],
-            "sectors": ["H50_WATER_TRANSPORT"],
-            "geography": ["Global", "EU"]
-        },
-        "actions": [
-            {
-                "action_type": "FACILITY_SHUTDOWN",
-                "actor": "Maersk & Hapag-Lloyd",
-                "target": "Suez Transit Route",
-                "description": "Reroute container vessels around Cape of Good Hope avoiding Bab-el-Mandeb strait.",
-                "magnitude": 14.0,
-                "unit": "DAYS_DELAY"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "PRICE_CHANGE",
-                "affected_entity": "FREIGHT_RATES",
-                "direction": "INCREASE",
-                "magnitude": 24.5,
-                "unit": "PERCENT",
-                "timeframe": "IMMEDIATE",
-                "confidence": 0.94
-            }
-        ],
-        "receptor_signal": "SHIPPING_ROUTE_DISRUPTION",
-        "target_asset": "H50_WATER_TRANSPORT",
-        "metric": "COST",
-        "direction": "INCREASE",
-        "delta_value": 24.5,
-        "delta_unit": "PERCENT",
-        "timeframe": "IMMEDIATE"
-    },
-    {
-        "news_id": "NEWS_2024_11_CRITICAL_RAW_MATERIALS",
-        "title": "EU Critical Raw Materials Act Enters Enforcement: 10% Domestic Extraction Target by 2030",
-        "published_date": "2024-11-05",
-        "source_name": "Euractiv Industry",
-        "source_url": "https://www.euractiv.com/section/circular-economy/news/crma-enforcement-2024",
-        "summary": "New strategic permitting timelines and recycling quotas mandate automotive and renewable energy producers to secure domestic European rare earth and lithium supplies. Umicore and Albemarle announce new processing capex.",
-        "actors": {
-            "companies": ["Umicore", "Albemarle"],
-            "countries": ["France", "Germany", "Belgium", "EU"],
-            "sectors": ["B07_MINING_METALS", "C29_MOTOR_VEHICLES"],
-            "geography": ["EU"]
-        },
-        "actions": [
-            {
-                "action_type": "CAPEX_INVESTMENT",
-                "actor": "Umicore",
-                "target": "Battery Materials & Lithium Refining",
-                "description": "Allocate strategic capex for European battery materials processing and critical mineral recycling.",
-                "magnitude": 500.0,
-                "unit": "EUR_MILLION"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "DEMAND_CHANGE",
-                "affected_entity": "LITHIUM",
-                "direction": "INCREASE",
-                "magnitude": 15.0,
-                "unit": "PERCENT",
-                "timeframe": "LONG_TERM",
-                "confidence": 0.88
-            }
-        ],
-        "receptor_signal": "CRITICAL_MINERAL_MANDATE",
-        "target_asset": "LITHIUM",
-        "metric": "DEMAND",
-        "direction": "INCREASE",
-        "delta_value": 15.0,
-        "delta_unit": "PERCENT",
-        "timeframe": "LONG_TERM"
-    },
-    {
-        "news_id": "NEWS_2024_06_FERTILIZER_CURTAILMENT",
-        "title": "Yara and BASF Curtail Ammonia Production as Natural Gas Feedstock Volatility Squeezes Margins",
-        "published_date": "2024-06-18",
-        "source_name": "Chemical Week Europe",
-        "source_url": "https://chemweek.com/news/yara-basf-ammonia-curtailment-2024",
-        "summary": "Chemical leaders Yara International and BASF announce a 20% curtailment in European ammonia and nitrogen fertilizer synthesis due to elevated Dutch TTF gas input costs, raising downstream European wholesale fertilizer prices by 18%.",
-        "actors": {
-            "companies": ["Yara International", "BASF"],
-            "countries": ["Norway", "Germany", "EU"],
-            "sectors": ["C20_CHEMICALS", "A01_AGRICULTURE"],
-            "geography": ["Northwest Europe"]
-        },
-        "actions": [
-            {
-                "action_type": "PRODUCTION_CUT",
-                "actor": "Yara International",
-                "target": "European Ammonia Synthesis Plants",
-                "description": "Curtail ammonia and nitrogen fertilizer output across European plants due to feedstock costs.",
-                "magnitude": -20.0,
-                "unit": "PERCENT"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "PRICE_CHANGE",
-                "affected_entity": "FERTILIZER_NITROGEN",
-                "direction": "INCREASE",
-                "magnitude": 18.0,
-                "unit": "PERCENT",
-                "timeframe": "3_MONTHS",
-                "confidence": 0.91
-            }
-        ],
-        "receptor_signal": "FEEDSTOCK_GAS_VOLATILITY",
-        "target_asset": "C20_CHEMICALS",
-        "metric": "PRICE",
-        "direction": "INCREASE",
-        "delta_value": 18.0,
-        "delta_unit": "PERCENT",
-        "timeframe": "3_MONTHS"
-    },
-    {
-        "news_id": "NEWS_2024_09_ALUMINIUM_SMELTER_IDLE",
-        "title": "Trimet Aluminium and Norsk Hydro Idle Primary Smelter Capacity Amid Power Tariff Pressure",
-        "published_date": "2024-09-22",
-        "source_name": "Metals Daily",
-        "source_url": "https://metalsdaily.com/news/trimet-hydro-idle-smelters-2024",
-        "summary": "Trimet Aluminium and Norsk Hydro temporarily idle 30% of primary aluminium electrolysis potlines in France and Germany, reducing domestic European output by 150,000 tonnes as baseload electricity tariffs remain elevated.",
-        "actors": {
-            "companies": ["Trimet Aluminium", "Norsk Hydro"],
-            "countries": ["France", "Germany", "Norway"],
-            "sectors": ["C24_BASIC_METALS", "D35_ELECTRICITY_GAS"],
-            "geography": ["Western Europe"]
-        },
-        "actions": [
-            {
-                "action_type": "PRODUCTION_CUT",
-                "actor": "Trimet Aluminium",
-                "target": "Electrolysis Potlines",
-                "description": "Idle 30% of primary aluminium smelter capacity in response to elevated baseload power tariffs.",
-                "magnitude": -30.0,
-                "unit": "PERCENT"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "SUPPLY_SHIFT",
-                "affected_entity": "ALUMINIUM_PRIMARY",
-                "direction": "DECREASE",
-                "magnitude": -150000.0,
-                "unit": "TONNES",
-                "timeframe": "3_MONTHS",
-                "confidence": 0.93
-            }
-        ],
-        "receptor_signal": "POWER_TARIFF_SMELTER_CURTAILMENT",
-        "target_asset": "C24_BASIC_METALS",
-        "metric": "SUPPLY",
-        "direction": "DECREASE",
-        "delta_value": -30.0,
-        "delta_unit": "PERCENT",
-        "timeframe": "3_MONTHS"
-    },
-    {
-        "news_id": "NEWS_2024_10_GREEN_STEEL_CAPEX",
-        "title": "Salzgitter and ArcelorMittal Secure €1.8B State Aid for Green Direct Reduced Iron Steel Transition",
-        "published_date": "2024-10-14",
-        "source_name": "Steel Times International",
-        "source_url": "https://steeltimesint.com/news/salzgitter-arcelormittal-dri-green-steel-2024",
-        "summary": "Germany and the European Commission finalize €1.8 billion in decarbonization subsidies for Salzgitter and ArcelorMittal to replace coal-fired blast furnaces with hydrogen-ready Direct Reduced Iron (DRI) shafts.",
-        "actors": {
-            "companies": ["Salzgitter", "ArcelorMittal"],
-            "countries": ["Germany", "EU"],
-            "sectors": ["C24_BASIC_METALS", "D35_ELECTRICITY_GAS"],
-            "geography": ["Germany", "Central Europe"]
-        },
-        "actions": [
-            {
-                "action_type": "CAPEX_INVESTMENT",
-                "actor": "Salzgitter",
-                "target": "Hydrogen Direct Reduced Iron (DRI) Plant",
-                "description": "Construct low-carbon DRI shaft and electric arc furnace infrastructure.",
-                "magnitude": 1800.0,
-                "unit": "EUR_MILLION"
-            },
-            {
-                "action_type": "SUBSIDY_PROGRAM",
-                "actor": "European Commission",
-                "target": "Industrial Decarbonization Grant",
-                "description": "Approve German state aid package under Important Projects of Common European Interest (IPCEI).",
-                "magnitude": 1800.0,
-                "unit": "EUR_MILLION"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "DEMAND_CHANGE",
-                "affected_entity": "HYDROGEN_GREEN",
-                "direction": "INCREASE",
-                "magnitude": 25.0,
-                "unit": "PERCENT",
-                "timeframe": "LONG_TERM",
-                "confidence": 0.89
-            }
-        ],
-        "receptor_signal": "GREEN_STEEL_SUBSIDY_APPROVAL",
-        "target_asset": "C24_BASIC_METALS",
-        "metric": "SUPPLY",
-        "direction": "INCREASE",
-        "delta_value": 1800.0,
-        "delta_unit": "EUR_MILLION",
-        "timeframe": "LONG_TERM"
-    },
-    {
-        "news_id": "NEWS_2024_12_SOLAR_STEEL_TARIFF",
-        "title": "EU Imposes Definitive Anti-Dumping Duties of 35% on Imported Electrical Steel and Solar Fasteners",
-        "published_date": "2024-12-02",
-        "source_name": "EU Official Journal & Trade Brief",
-        "source_url": "https://trade.ec.europa.eu/news/anti-dumping-steel-solar-2024",
-        "summary": "Following an investigation confirming market distortion, the European Commission imposes definitive anti-dumping duties of 35% on grain-oriented electrical steel and solar mounting components from Asian exporters.",
-        "actors": {
-            "companies": ["Siemens Energy", "Vestas"],
-            "countries": ["China", "EU", "Germany"],
-            "sectors": ["C27_ELECTRICAL_EQUIPMENT", "C24_BASIC_METALS"],
-            "geography": ["EU", "Asia"]
-        },
-        "actions": [
-            {
-                "action_type": "TARIFF_IMPOSITION",
-                "actor": "European Commission",
-                "target": "Grain-Oriented Electrical Steel",
-                "description": "Impose 35% definitive trade defense anti-dumping duty on electrical steel imports.",
-                "magnitude": 35.0,
-                "unit": "PERCENT"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "PRICE_CHANGE",
-                "affected_entity": "STEEL_ELECTRICAL",
-                "direction": "INCREASE",
-                "magnitude": 10.5,
-                "unit": "PERCENT",
-                "timeframe": "IMMEDIATE",
-                "confidence": 0.96
-            }
-        ],
-        "receptor_signal": "ANTI_DUMPING_STEEL_TARIFF",
-        "target_asset": "C24_BASIC_METALS",
-        "metric": "PRICE",
-        "direction": "INCREASE",
-        "delta_value": 35.0,
-        "delta_unit": "PERCENT",
-        "timeframe": "IMMEDIATE"
-    },
-    {
-        "news_id": "NEWS_2025_01_REFINED_OIL_SANCTION",
-        "title": "Maritime Insurance Caps Enforced on Seaborne Petroleum Shipments, Raising Refined Product Spreads",
-        "published_date": "2025-01-18",
-        "source_name": "Argus Petroleum Media",
-        "source_url": "https://argusmedia.com/news/oil-refined-product-spreads-2025",
-        "summary": "Strict verification requirements on maritime tanker insurance compliance tighten availability of compliant oil tankers, prompting TotalEnergies and BP to apply bunker and refinery product surcharges of €6.5 per barrel.",
-        "actors": {
-            "companies": ["TotalEnergies", "BP"],
-            "countries": ["United Kingdom", "France", "EU"],
-            "sectors": ["C19_REFINED_PETROLEUM", "H50_WATER_TRANSPORT"],
-            "geography": ["North Sea", "Mediterranean"]
-        },
-        "actions": [
-            {
-                "action_type": "PRICE_REVISION",
-                "actor": "TotalEnergies & BP",
-                "target": "Refined Bunker & Diesel Products",
-                "description": "Apply freight and maritime insurance compliance surcharges of €6.5 per barrel.",
-                "magnitude": 6.5,
-                "unit": "EUR/barrel"
-            }
-        ],
-        "reactions": [
-            {
-                "reaction_type": "PRICE_CHANGE",
-                "affected_entity": "BRENT_CRUDE_REFINED",
-                "direction": "INCREASE",
-                "magnitude": 6.5,
-                "unit": "EUR/barrel",
-                "timeframe": "IMMEDIATE",
-                "confidence": 0.92
-            }
-        ],
-        "receptor_signal": "TANKER_INSURANCE_COMPLIANCE_CAP",
-        "target_asset": "C19_REFINED_PETROLEUM",
-        "metric": "PRICE",
-        "direction": "INCREASE",
-        "delta_value": 6.5,
-        "delta_unit": "EUR/barrel",
-        "timeframe": "IMMEDIATE"
-    }
-]
-
-
-# ==========================================
-# DETERMINISTIC VECTOR GENERATOR (Offline Fallback)
-# ==========================================
-def generate_deterministic_embedding(text: str, dim: int = 768) -> List[float]:
-    """
-    Generate a deterministic, normalized 768-dimensional float embedding from text.
-    Provides a 100% reliable offline fallback when Google AI API is unavailable.
-    """
-    h = hashlib.sha256(text.encode("utf-8")).digest()
-    seed = int.from_bytes(h[:4], "big")
-    rng = np.random.default_rng(seed)
-    vec = rng.standard_normal(dim).astype(np.float32)
-    norm = np.linalg.norm(vec)
-    if norm > 0:
-        vec = vec / norm
-    return vec.tolist()
-
-
-# ==========================================
 # ECONOMIC NEWS SCRAPER & EXTRACTOR
 # ==========================================
 class EconomicNewsScraper:
@@ -707,7 +263,6 @@ class EconomicNewsScraper:
     - Optional LLM-assisted extraction via Gemini
     - LanceDB vector storage and tabular caching
     - DualLayerGraphStore integration (Action -> Reaction topology + behind-the-graph records)
-    - Fallback offline seed generator for zero-internet environments
     """
 
     def __init__(
@@ -733,6 +288,29 @@ class EconomicNewsScraper:
     # ----------------------------------------------------------------------
     # 1. RSS FEED FETCHING & PARSING
     # ----------------------------------------------------------------------
+    @staticmethod
+    def _canonical_url(url: str) -> str:
+        parts = urlsplit((url or "").strip())
+        if not parts.scheme or not parts.netloc:
+            return (url or "").strip()
+        ignored = {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid", "ref", "mc_cid", "mc_eid"}
+        query = urlencode(sorted((key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True) if key.lower() not in ignored))
+        path = parts.path.rstrip("/") if parts.path and parts.path != "/" else (parts.path or "/")
+        return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, query, ""))
+
+    def _article_identity(self, source_url: str, title: str, published_date: str, upstream_id: str = "") -> str:
+        canonical = self._canonical_url(source_url)
+        key_parts = [p for p in (upstream_id.strip(), canonical) if p]
+        if not key_parts:
+            key_parts = [(title or "").strip(), published_date or ""]
+        natural_key = "|".join(key_parts)
+        return f"NEWS_{hashlib.sha256(natural_key.encode('utf-8')).hexdigest()[:32]}"
+
+    def _event_identity(self, actor: str, action_type: str, target: str, date_str: str, magnitude: Optional[float] = None, location: str = "") -> str:
+        loc_str = location.strip().lower() if location else ""
+        natural_key = f"{actor.strip().lower()}|{action_type.strip().upper()}|{target.strip().lower()}|{loc_str}|{date_str.strip()}"
+        return f"EVENT_{hashlib.sha256(natural_key.encode('utf-8')).hexdigest()[:32]}"
+
     def fetch_rss_feed(
         self,
         feed_url: str,
@@ -778,9 +356,9 @@ class EconomicNewsScraper:
                         except Exception:
                             desc_text = desc_elem.text.strip()
 
-                    id_seed = f"{link_text}_{title_text}_{parsed_date}"
-                    hash_id = abs(hash(id_seed)) % 10000000
-                    article_id = f"NEWS_{parsed_date.replace('-', '_')}_{hash_id:07d}"
+                    guid_elem = item.find(["guid", "id"])
+                    upstream_id = guid_elem.text.strip() if guid_elem and guid_elem.text else ""
+                    article_id = self._article_identity(link_text, title_text, parsed_date, upstream_id)
 
                     raw_items.append({
                         "news_id": article_id,
@@ -788,6 +366,7 @@ class EconomicNewsScraper:
                         "published_date": parsed_date,
                         "source_name": source_name,
                         "source_url": link_text,
+                        "upstream_id": upstream_id,
                         "summary": desc_text[:1200]
                     })
             else:
@@ -817,9 +396,9 @@ class EconomicNewsScraper:
                     if desc_elem is not None and desc_elem.text:
                         desc_text = re.sub(r"<[^>]+>", " ", desc_elem.text).strip()
 
-                    id_seed = f"{link_text}_{title_text}_{parsed_date}"
-                    hash_id = abs(hash(id_seed)) % 10000000
-                    article_id = f"NEWS_{parsed_date.replace('-', '_')}_{hash_id:07d}"
+                    guid_elem = next((e for e in item if e.tag.endswith(("guid", "id"))), None)
+                    upstream_id = guid_elem.text.strip() if guid_elem is not None and guid_elem.text else ""
+                    article_id = self._article_identity(link_text, title_text, parsed_date, upstream_id)
 
                     raw_items.append({
                         "news_id": article_id,
@@ -827,6 +406,7 @@ class EconomicNewsScraper:
                         "published_date": parsed_date,
                         "source_name": source_name,
                         "source_url": link_text,
+                        "upstream_id": upstream_id,
                         "summary": desc_text[:1200]
                     })
         except Exception as e:
@@ -837,16 +417,18 @@ class EconomicNewsScraper:
     def _parse_date(self, date_str: str) -> str:
         """Standardize various feed date strings to YYYY-MM-DD."""
         if not date_str or not isinstance(date_str, str):
-            return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            return ""
 
         cleaned = date_str.strip()
         if not cleaned:
-            return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            return ""
 
         # 1. Try RFC 2822 / 822 format via standard library email.utils
         try:
             dt = email.utils.parsedate_to_datetime(cleaned)
             if dt:
+                if dt.tzinfo is not None:
+                    dt = dt.astimezone(timezone.utc)
                 return dt.strftime("%Y-%m-%d")
         except Exception:
             pass
@@ -855,6 +437,8 @@ class EconomicNewsScraper:
         try:
             iso_str = cleaned.replace("Z", "+00:00")
             dt = datetime.fromisoformat(iso_str)
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(timezone.utc)
             return dt.strftime("%Y-%m-%d")
         except Exception:
             pass
@@ -895,7 +479,7 @@ class EconomicNewsScraper:
             except Exception:
                 pass
 
-        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        return ""
 
     # ----------------------------------------------------------------------
     # 2. EVENT EXTRACTION ENGINE (Actors, Actions, Reactions)
@@ -966,7 +550,7 @@ class EconomicNewsScraper:
                 "PRICE_REVISION"
             ),
             (
-                r'\b(impose(?:s|d|ing)?(?:\s+[^.,;\n]{0,35})?\s+(?:tariffs?|dut(?:y|ies))|anti[- ]dumping|trade\s+sanction(?:s)?|cbam\s+obligation(?:s)?|customs\s+penalt(?:y|ies)|tariff\s+imposition)\b',
+                r'\b(impose(?:s|d|ing)?(?:\s+[^.,;\n]{0,35})?\s+(?:tariffs?|dut(?:y|ies))|(?:import\s+)?dut(?:y|ies)|tariffs?|anti[- ]dumping|trade\s+sanction(?:s)?|cbam\s+obligation(?:s)?|customs\s+penalt(?:y|ies)|tariff\s+(?:quota|imposition|rate|review))\b',
                 "TARIFF_IMPOSITION"
             ),
             (
@@ -995,8 +579,16 @@ class EconomicNewsScraper:
         seen_action_keys = set()
 
         for clause in clauses:
-            # Check if a specific actor is named in this clause
             clause_lower = f" {clause.lower()} "
+
+            # Check for negation
+            is_negated = bool(re.search(r'\b(will\s+not|not\s+(?:close|shut|halt|idle|curtail|cut|impose|raise|invest)|does\s+not|deni(?:es|ed)|reject(?:s|ed)|no\s+plans?\s+to|no\s+action)\b', clause_lower))
+            is_tentative = bool(re.search(r'\b(weighs?\s+plans?|considers?|evaluat(?:es?|ing)|explor(?:es?|ing)|potential(?:ly)?)\b', clause_lower))
+
+            if is_negated:
+                continue
+
+            # Check if a specific actor is named in this clause
             clause_actor = primary_actor
             for kw, comp_name in KNOWN_COMPANIES.items():
                 if re.search(r'\b' + re.escape(kw) + r'\b', clause_lower):
@@ -1008,37 +600,34 @@ class EconomicNewsScraper:
                         clause_actor = country_name
                         break
 
+            # Extract location if mentioned in clause
+            loc_m = re.search(r'\b(?:in|at|near|for|plant in|site in|facility in)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b', clause)
+            clause_loc = loc_m.group(1).strip() if loc_m else ""
+            if clause_loc and clause_loc in KNOWN_COUNTRIES:
+                clause_loc = KNOWN_COUNTRIES[clause_loc]
+
             # Extract magnitude locally for this clause
             clause_mag, clause_unit = self._extract_magnitude(clause)
+            if is_tentative:
+                clause_mag = None
 
             for regex, act_type in action_patterns:
                 m = re.search(regex, clause, re.IGNORECASE)
                 if m:
-                    action_key = (act_type, clause_actor)
+                    base_target = actors.sectors[0] if actors.sectors else "Industrial Operations"
+                    target_desc = f"{base_target} - {clause_loc}" if clause_loc else base_target
+                    action_key = (act_type, clause_actor, target_desc, clause_mag, clause_unit)
                     if action_key not in seen_action_keys:
-                        target_desc = actors.sectors[0] if actors.sectors else "Industrial Operations"
+                        desc = f"Tentative/planned: {m.group(0).strip()}" if is_tentative else m.group(0).strip()
                         actions.append(EconomicAction(
                             action_type=act_type,
                             actor=clause_actor,
                             target=target_desc,
-                            description=m.group(0).strip(),
+                            description=desc,
                             magnitude=clause_mag,
                             unit=clause_unit
                         ))
                         seen_action_keys.add(action_key)
-
-        # Fallback if no specific action pattern matched but actors exist
-        if not actions and (actors.companies or actors.sectors or actors.countries):
-            fallback_mag, fallback_unit = self._extract_magnitude(full_text)
-            target_desc = actors.sectors[0] if actors.sectors else "Commercial Operations"
-            actions.append(EconomicAction(
-                action_type="COMMERCIAL_ADJUSTMENT",
-                actor=primary_actor,
-                target=target_desc,
-                description=f"Market strategic adjustment by {primary_actor}",
-                magnitude=fallback_mag,
-                unit=fallback_unit
-            ))
 
         return actions
 
@@ -1069,7 +658,7 @@ class EconomicNewsScraper:
 
         reaction_patterns = [
             (r'\b(prices?|futures?|spot\s+rates?|allowance\s+costs?|tariff\s+costs?|spreads?)\b', "PRICE_CHANGE"),
-            (r'\b(suppl(?:y|ies)|deficits?|gluts?|storages?|inventor(?:y|ies)|potlines?|electrolysis|outputs?|production|capacit(?:y|ies)|shipments?|deliver(?:y|ies))\b', "SUPPLY_SHIFT"),
+            (r'\b(suppl(?:y|ies)(?!\s+chains?)|deficits?|gluts?|storages?|inventor(?:y|ies)|potlines?|electrolysis|outputs?|production|capacit(?:y|ies)|shipments?|deliver(?:y|ies))\b', "SUPPLY_SHIFT"),
             (r'\b(demands?|consumptions?|offtake|biddings?|buyings?|purchas(?:e|ing))\b', "DEMAND_CHANGE"),
             (r'\b(compliance\s+costs?|administrative\s+burdens?|carbon\s+costs?|surcharges?|penalt(?:y|ies))\b', "COMPLIANCE_COST_SHIFT"),
             (r'\b(volatilit(?:y|ies)|market\s+spreads?|uncertaint(?:y|ies)|fluctuations?)\b', "MARKET_VOLATILITY")
@@ -1083,6 +672,11 @@ class EconomicNewsScraper:
         seen_reaction_types = set()
 
         for clause in clauses:
+            clause_lower = f" {clause.lower()} "
+            is_negated = bool(re.search(r'\b(will\s+not|not\s+(?:drop|fall|decline|rise|surge|jump|cut|curtail)|does\s+not|deni(?:es|ed)|reject(?:s|ed)|no\s+(?:cuts?|drops?|falls?|declines?|surges?|changes?)|without\s+(?:changes?|moves?))\b', clause_lower))
+            if is_negated:
+                continue
+
             clause_upper = clause.upper()
             
             # Identify affected entity in clause
@@ -1111,7 +705,12 @@ class EconomicNewsScraper:
 
             for regex, r_type in reaction_patterns:
                 if re.search(regex, clause, re.IGNORECASE):
-                    if r_type not in seen_reaction_types:
+                    # Guard: Do not emit fabricated reactions on commentary/general discussion
+                    if clause_dir == "STABLE" and clause_mag is None:
+                        if not re.search(r'\b(remain(?:s|ed)?\s+stable|stabl(?:e|ity|ized?))\b', clause, re.IGNORECASE) or affected_entity == "MARKET_GENERAL":
+                            continue
+                    reaction_key = (r_type, affected_entity, clause_dir, clause_mag, clause_unit)
+                    if reaction_key not in seen_reaction_types:
                         reactions.append(EconomicReaction(
                             reaction_type=r_type,
                             affected_entity=affected_entity,
@@ -1121,21 +720,7 @@ class EconomicNewsScraper:
                             timeframe="3_MONTHS" if clause_dir != "STABLE" else "IMMEDIATE",
                             confidence=0.88
                         ))
-                        seen_reaction_types.add(r_type)
-
-        if not reactions:
-            overall_dir = self._detect_direction(full_text)
-            overall_mag, overall_unit = self._extract_magnitude(full_text)
-            default_asset = actors.sectors[0] if actors.sectors else "MARKET_GENERAL"
-            reactions.append(EconomicReaction(
-                reaction_type="MARKET_REACTION",
-                affected_entity=default_asset,
-                direction=overall_dir,
-                magnitude=overall_mag,
-                unit=overall_unit,
-                timeframe="IMMEDIATE",
-                confidence=0.8
-            ))
+                        seen_reaction_types.add(reaction_key)
 
         return reactions
 
@@ -1147,38 +732,51 @@ class EconomicNewsScraper:
         cleaned = text.strip()
         num_pat = r'([+\-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)'
 
-        # 1. Percent
-        m_pct = re.search(num_pat + r'\s*(?:%|percent|percentage\s+points?)', cleaned, re.IGNORECASE)
+        # 1. Percentage points vs Percent
+        m_pp = re.search(num_pat + r'\s*(?:percentage\s+points?|pp\b)', cleaned, re.IGNORECASE)
+        if m_pp:
+            return float(m_pp.group(1).replace(',', '')), "PERCENTAGE_POINTS"
+        m_pct = re.search(num_pat + r'\s*(?:%|percent\b)', cleaned, re.IGNORECASE)
         if m_pct:
             return float(m_pct.group(1).replace(',', '')), "PERCENT"
 
-        # 2. EUR/t, EUR/tCO2, EUR/barrel, EUR/MWh, etc.
-        m_eur_t = re.search(r'(?:€|EUR|USD|\$)\s*' + num_pat + r'\s*(?:\/|\s*per\s*)(?:t(?:onne)?s?|tCO2|barrel|bbl|MWh|kg)', cleaned, re.IGNORECASE)
+        # 2. EUR/t, EUR/tCO2, USD/t, etc.
+        m_eur_t = re.search(r'(€|EUR|USD|\$)\s*' + num_pat + r'\s*(?:\/|\s*per\s*)(?:t(?:onne)?s?|tCO2|barrel|bbl|MWh|kg)', cleaned, re.IGNORECASE)
         if not m_eur_t:
-            m_eur_t = re.search(num_pat + r'\s*(?:€|EUR|USD|\$)\s*(?:\/|\s*per\s*)(?:t(?:onne)?s?|tCO2|barrel|bbl|MWh|kg)', cleaned, re.IGNORECASE)
+            m_eur_t = re.search(num_pat + r'\s*(€|EUR|USD|\$)\s*(?:\/|\s*per\s*)(?:t(?:onne)?s?|tCO2|barrel|bbl|MWh|kg)', cleaned, re.IGNORECASE)
         if m_eur_t:
-            return float(m_eur_t.group(1).replace(',', '')), "EUR/UNIT"
+            curr = m_eur_t.group(1) if m_eur_t.group(1) in ('€', 'EUR', 'USD', '$') else m_eur_t.group(2)
+            num_str = m_eur_t.group(2) if m_eur_t.group(1) in ('€', 'EUR', 'USD', '$') else m_eur_t.group(1)
+            is_usd = curr in ('USD', '$')
+            return float(num_str.replace(',', '')), ("USD/UNIT" if is_usd else "EUR/UNIT")
 
         # 3. Billions (EUR or USD)
-        m_bn = re.search(r'(?:€|EUR|USD|\$)\s*' + num_pat + r'\s*(?:billion|bn|B)\b', cleaned, re.IGNORECASE)
+        m_bn = re.search(r'(€|EUR|USD|\$)\s*' + num_pat + r'\s*(?:billion|bn|B)\b', cleaned, re.IGNORECASE)
         if not m_bn:
-            m_bn = re.search(num_pat + r'\s*(?:billion|bn|B)\s*(?:€|EUR|euros?|USD|dollars?)?\b', cleaned, re.IGNORECASE)
+            m_bn = re.search(num_pat + r'\s*(?:billion|bn|B)\s*(€|EUR|euros?|USD|\$|dollars?)?\b', cleaned, re.IGNORECASE)
         if m_bn:
-            return float(m_bn.group(1).replace(',', '')) * 1000.0, "EUR_MILLION"
+            txt = m_bn.group(0).upper()
+            is_usd = 'USD' in txt or '$' in txt or 'DOLLAR' in txt
+            num_m = re.search(num_pat, m_bn.group(0))
+            return float(num_m.group(1).replace(',', '')) * 1000.0, ("USD_MILLION" if is_usd else "EUR_MILLION")
 
         # 4. Millions (EUR or USD)
-        m_mn = re.search(r'(?:€|EUR|USD|\$)\s*' + num_pat + r'\s*(?:million|mn|m|M)\b', cleaned, re.IGNORECASE)
+        m_mn = re.search(r'(€|EUR|USD|\$)\s*' + num_pat + r'\s*(?:million|mn|m|M)\b', cleaned, re.IGNORECASE)
         if not m_mn:
-            m_mn = re.search(num_pat + r'\s*(?:million|mn|m|M)\s*(?:€|EUR|euros?|USD|dollars?)?\b', cleaned, re.IGNORECASE)
+            m_mn = re.search(num_pat + r'\s*(?:million|mn|m|M)\s*(€|EUR|euros?|USD|\$|dollars?)?\b', cleaned, re.IGNORECASE)
         if m_mn:
-            return float(m_mn.group(1).replace(',', '')), "EUR_MILLION"
+            txt = m_mn.group(0).upper()
+            is_usd = 'USD' in txt or '$' in txt or 'DOLLAR' in txt
+            num_m = re.search(num_pat, m_mn.group(0))
+            return float(num_m.group(1).replace(',', '')), ("USD_MILLION" if is_usd else "EUR_MILLION")
 
         # 5. Generic EUR / USD
-        m_eur = re.search(r'(?:€|EUR)\s*' + num_pat, cleaned, re.IGNORECASE)
-        if not m_eur:
-            m_eur = re.search(num_pat + r'\s*(?:€|EUR|euros?)', cleaned, re.IGNORECASE)
+        m_usd = re.search(r'(?:USD|\$)\s*' + num_pat, cleaned, re.IGNORECASE) or re.search(num_pat + r'\s*(?:USD|\$|dollars?)', cleaned, re.IGNORECASE)
+        if m_usd:
+            return float(re.search(num_pat, m_usd.group(0)).group(1).replace(',', '')), "USD"
+        m_eur = re.search(r'(?:€|EUR)\s*' + num_pat, cleaned, re.IGNORECASE) or re.search(num_pat + r'\s*(?:€|EUR|euros?)', cleaned, re.IGNORECASE)
         if m_eur:
-            return float(m_eur.group(1).replace(',', '')), "EUR"
+            return float(re.search(num_pat, m_eur.group(0)).group(1).replace(',', '')), "EUR"
 
         # 6. Tonnes
         m_tonnes = re.search(num_pat + r'\s*(?:k|thousand)?\s*(?:tonnes?|tons?|metric\s+tons?)\b', cleaned, re.IGNORECASE)
@@ -1212,7 +810,7 @@ class EconomicNewsScraper:
         Use Google Gemini API to semantically extract StructuredEconomicEvent when use_llm=True.
         Falls back to None on error or when offline.
         """
-        if not HAS_GOOGLE_API or self.offline or not os.getenv("GOOGLE_API_KEY"):
+        if not HAS_GOOGLE_API or self.offline or not os.getenv("GOOGLE_CLOUD_PROJECT"):
             return None
 
         prompt = f"""
@@ -1298,10 +896,6 @@ class EconomicNewsScraper:
         """
         Extract a comprehensive StructuredEconomicEvent from raw news inputs.
         """
-        if not event_id:
-            h = abs(hash(f"{source_url}_{title}_{pub_date}")) % 10000000
-            event_id = f"NEWS_{pub_date.replace('-', '_')}_{h:07d}"
-
         # If LLM extraction requested and available, attempt it first
         if self.use_llm and not self.offline:
             llm_evt = self.extract_with_llm(
@@ -1310,7 +904,7 @@ class EconomicNewsScraper:
                 pub_date=pub_date,
                 source_url=source_url,
                 source_name=source_name,
-                event_id=event_id
+                event_id=event_id or self._article_identity(source_url, title, pub_date)
             )
             if llm_evt:
                 return llm_evt
@@ -1322,14 +916,21 @@ class EconomicNewsScraper:
         actions = self.extract_actions(title, summary, actors)
         reactions = self.extract_reactions(title, summary, actors)
 
+        if not event_id:
+            if actions:
+                act = actions[0]
+                event_id = self._event_identity(act.actor, act.action_type, act.target, pub_date, act.magnitude)
+            else:
+                event_id = f"EVENT_{hashlib.sha256((title.strip() + '|' + pub_date).encode('utf-8')).hexdigest()[:32]}"
+
         # 3. Formulate root-cause Receptor Signal
-        receptor_signal = "ECONOMIC_EVENT"
+        receptor_signal = None
         if actions:
             act = actions[0]
             receptor_signal = f"{act.action_type}_{act.target}".upper().replace(" ", "_")[:64]
 
         # 4. Target Asset
-        target_asset = reactions[0].affected_entity if reactions else "GLOBAL_MARKET"
+        target_asset = reactions[0].affected_entity if reactions else None
 
         return StructuredEconomicEvent(
             event_id=event_id,
@@ -1345,27 +946,6 @@ class EconomicNewsScraper:
             target_asset=target_asset,
             relevance_score=1.0
         )
-
-    def _extract_signal_and_impact(self, title: str, summary: str) -> Dict[str, Any]:
-        """Convenience method returning flattened signal and impact dictionary."""
-        evt = self.extract_structured_event(
-            title=title,
-            summary=summary,
-            source_url="",
-            source_name="News",
-            pub_date=datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        )
-        primary_react = evt.reactions[0] if evt.reactions else None
-        magnitude = primary_react.magnitude if primary_react and primary_react.magnitude is not None else 0.0
-        return {
-            "receptor_signal": evt.receptor_signal or "MACROECONOMIC_SHIFT",
-            "target_asset": evt.target_asset or "GLOBAL_MARKET",
-            "metric": primary_react.reaction_type if primary_react else "PRICE",
-            "direction": primary_react.direction if primary_react else "STABLE",
-            "delta_value": magnitude,
-            "delta_unit": primary_react.unit or "PERCENT" if primary_react else "PERCENT",
-            "timeframe": primary_react.timeframe if primary_react else "3_MONTHS"
-        }
 
     def normalize_event(self, item: Union[StructuredEconomicEvent, Dict[str, Any]]) -> StructuredEconomicEvent:
         """
@@ -1433,8 +1013,7 @@ class EconomicNewsScraper:
                 target_asset = reactions[0].affected_entity
 
             if not event_id:
-                h = abs(hash(f"{source_url}_{title}_{parsed_date}")) % 10000000
-                event_id = f"NEWS_{parsed_date.replace('-', '_')}_{h:07d}"
+                event_id = self._article_identity(source_url, title, parsed_date)
 
             return StructuredEconomicEvent(
                 event_id=event_id,
@@ -1446,12 +1025,131 @@ class EconomicNewsScraper:
                 actors=actors,
                 actions=actions,
                 reactions=reactions,
-                receptor_signal=receptor_signal or "ECONOMIC_EVENT",
-                target_asset=target_asset or "GLOBAL_MARKET",
+                receptor_signal=receptor_signal,
+                target_asset=target_asset,
                 relevance_score=float(item.get("relevance_score", 1.0))
             )
 
         raise TypeError(f"Cannot normalize event of type {type(item)}")
+
+    def extract_document_events(self, document: SourceDocument, text: str) -> List[Fact]:
+        """Convert one archived source document into evidence-backed event facts."""
+        title = text.splitlines()[0][:300] if text.strip() else ""
+        pub_date = document.published_at.isoformat() if document.published_at else ""
+        event = self.extract_structured_event(
+            title=title,
+            summary=text,
+            source_url=document.canonical_url,
+            source_name=document.publisher,
+            pub_date=pub_date,
+        )
+        facts: List[Fact] = []
+        doc_available = document.available_at or document.published_at or document.recorded_at
+        article_id = self._article_identity(document.canonical_url, title, pub_date, document.upstream_id or "")
+
+        # Check for stated occurrence date in text
+        m_occ = re.search(r'\b(?:on|dated|as of|effective)\s+(\d{4}-\d{2}-\d{2})\b', text, re.IGNORECASE)
+        if m_occ:
+            valid_from = f"{m_occ.group(1)}T00:00:00+00:00"
+        else:
+            valid_from = event.timestamp or None
+
+        if not hasattr(self, "_known_news_facts"):
+            self._known_news_facts = {}
+
+        retractions: List[Fact] = []
+
+        for action in event.actions:
+            act_event_id = self._event_identity(action.actor, action.action_type, action.target, event.timestamp, action.magnitude)
+            f_action = Fact(
+                subject_id=act_event_id,
+                predicate="ABOUT",
+                object_id=action.target or None,
+                payload_json=json.dumps({
+                    "kind": "action",
+                    "event_id": act_event_id,
+                    "article_id": article_id,
+                    "canonical_url": document.canonical_url,
+                    "document_version_id": document.version_id,
+                    "action": action.model_dump(),
+                    "evidence_text": text
+                }, sort_keys=True),
+                available_at=doc_available,
+                valid_from=valid_from,
+                source_id=document.source_id,
+                quality_state="needs_review" if not action.description else "accepted",
+                batch_id=document.batch_id,
+                data_origin=document.data_origin,
+            )
+            old_f = self._known_news_facts.get(act_event_id)
+            if old_f and old_f.fact_version_id != f_action.fact_version_id:
+                retractions.append(old_f.model_copy(update={
+                    "is_retracted": True,
+                    "retraction_reason": "Superseded by news correction",
+                    "available_at": doc_available,
+                    "batch_id": document.batch_id,
+                }))
+            self._known_news_facts[act_event_id] = f_action
+            facts.append(f_action)
+
+        for reaction in event.reactions:
+            react_event_id = f"REACT_{hashlib.sha256((event.event_id + '|' + reaction.reaction_type + '|' + reaction.affected_entity).encode('utf-8')).hexdigest()[:32]}"
+            f_react = Fact(
+                subject_id=react_event_id,
+                predicate="IMPACTS",
+                object_id=reaction.affected_entity or None,
+                payload_json=json.dumps({
+                    "kind": "reaction",
+                    "event_id": event.event_id,
+                    "article_id": article_id,
+                    "canonical_url": document.canonical_url,
+                    "document_version_id": document.version_id,
+                    "reaction": reaction.model_dump(),
+                    "evidence_text": text
+                }, sort_keys=True),
+                available_at=doc_available,
+                valid_from=valid_from,
+                source_id=document.source_id,
+                quality_state="accepted" if reaction.magnitude is not None or reaction.direction != "STABLE" else "needs_review",
+                batch_id=document.batch_id,
+                data_origin=document.data_origin,
+            )
+            old_r = self._known_news_facts.get(react_event_id)
+            if old_r and old_r.fact_version_id != f_react.fact_version_id:
+                retractions.append(old_r.model_copy(update={
+                    "is_retracted": True,
+                    "retraction_reason": "Superseded by news correction",
+                    "available_at": doc_available,
+                    "batch_id": document.batch_id,
+                }))
+            self._known_news_facts[react_event_id] = f_react
+            facts.append(f_react)
+
+        facts.extend(retractions)
+        return facts
+
+    def cluster_event_candidates(self, facts: List[Fact], cutoff: datetime) -> List[Fact]:
+        """Deduplicate event candidates by stable event identity at a cutoff."""
+        latest: Dict[str, Fact] = {}
+        for fact in facts:
+            available = fact.available_at or fact.recorded_at
+            if available and available > cutoff:
+                continue
+            payload = json.loads(fact.payload_json or "{}")
+            event_id = payload.get("event_id") or fact.subject_id
+            kind = payload.get("kind", "")
+            action_type = payload.get("action", {}).get("action_type", "") if isinstance(payload.get("action"), dict) else ""
+            reaction_type = payload.get("reaction", {}).get("reaction_type", "") if isinstance(payload.get("reaction"), dict) else ""
+            candidate_key = f"{event_id}:{fact.predicate}:{kind}:{action_type}:{reaction_type}:{fact.object_id or ''}"
+            previous = latest.get(candidate_key)
+            if previous is None:
+                latest[candidate_key] = fact
+            else:
+                prev_time = previous.recorded_at or previous.available_at
+                curr_time = fact.recorded_at or fact.available_at
+                if curr_time and prev_time and curr_time > prev_time:
+                    latest[candidate_key] = fact
+        return list(latest.values())
 
     # ----------------------------------------------------------------------
     # 3. SCRAPING PIPELINE & FEED COORDINATION
@@ -1463,15 +1161,11 @@ class EconomicNewsScraper:
         save_to_db: bool = True
     ) -> List[StructuredEconomicEvent]:
         """
-        Fetch all specified RSS feeds or fall back to offline seed corpus if network is unavailable or offline=True.
+        Fetch live RSS feeds. Offline or empty sources return no events.
         """
         # If scraper was initialized with offline=True, do not make any network requests
         if self.offline:
-            logger.info("Scraper is in offline mode. Generating offline seeds directly without network calls.")
-            events = self.generate_offline_seeds(count=len(FALLBACK_NEWS_CORPUS), save_to_lancedb=save_to_db)
-            if self.graph_store:
-                self.ingest_news_into_graph_store(events)
-            return events
+            return []
 
         target_feeds = feeds or DEFAULT_FEEDS
         raw_articles = []
@@ -1497,14 +1191,8 @@ class EconomicNewsScraper:
                 )
                 events.append(evt)
         else:
-            from src.config import get_settings
-            settings = get_settings()
-            if settings.mode == "demo" or self.offline:
-                logger.info("Live RSS feeds returned 0 articles (or offline). Loading benchmark seed generator.")
-                events = self.generate_offline_seeds(count=len(FALLBACK_NEWS_CORPUS), save_to_lancedb=False)
-            else:
-                logger.warning("Live RSS feeds returned 0 articles in production mode. Zero synthetic events generated.")
-                return []
+            logger.warning("No live news articles available; no events generated.")
+            return []
 
         # Cache events to disk
         self.cache_to_disk(events)
@@ -1519,130 +1207,6 @@ class EconomicNewsScraper:
 
         return events
 
-    # ----------------------------------------------------------------------
-    # 4. FALLBACK OFFLINE SEED GENERATOR
-    # ----------------------------------------------------------------------
-    def generate_offline_seeds(
-        self,
-        count: int = 10,
-        save_to_lancedb: bool = True,
-        output_file: Optional[Path] = None
-    ) -> List[StructuredEconomicEvent]:
-        """
-        Generate curated benchmark and synthetic structured events for offline testing.
-        Guarantees system operational viability without live network access.
-        """
-        events: List[StructuredEconomicEvent] = []
-
-        # 1. Load curated benchmark items
-        for item in FALLBACK_NEWS_CORPUS[:count]:
-            actors_dict = item.get("actors", {})
-            actors = NewsEntities(
-                companies=actors_dict.get("companies", []),
-                countries=actors_dict.get("countries", []),
-                sectors=actors_dict.get("sectors", []),
-                geography=actors_dict.get("geography", ["EU"])
-            )
-
-            actions = [
-                EconomicAction(**act) for act in item.get("actions", [])
-            ]
-            reactions = [
-                EconomicReaction(**react) for react in item.get("reactions", [])
-            ]
-
-            evt = StructuredEconomicEvent(
-                event_id=item["news_id"],
-                timestamp=item.get("published_date", "2024-01-01"),
-                headline=item["title"],
-                source_url=item.get("source_url", ""),
-                source_name=item.get("source_name", "Curated Benchmark"),
-                summary=item.get("summary", ""),
-                actors=actors,
-                actions=actions,
-                reactions=reactions,
-                receptor_signal=item.get("receptor_signal", "OFFLINE_SEED"),
-                target_asset=item.get("target_asset", "MARKET"),
-                relevance_score=1.0
-            )
-            events.append(evt)
-
-        # 2. If count exceeds benchmark length, synthesize additional realistic events
-        if count > len(events):
-            additional_count = count - len(events)
-            synthetic_templates = [
-                ("ArcelorMittal", "Germany", "C24_BASIC_METALS", "PRODUCTION_CUT", -15.0, "PERCENT", "PRICE_CHANGE", "STEEL_HRC", "INCREASE", 6.0, "PERCENT"),
-                ("BASF", "Germany", "C20_CHEMICALS", "CAPEX_INVESTMENT", 450.0, "EUR_MILLION", "SUPPLY_SHIFT", "C20_CHEMICALS", "INCREASE", 12.0, "PERCENT"),
-                ("TotalEnergies", "France", "D35_ELECTRICITY_GAS", "PRICE_REVISION", 5.2, "EUR/MWh", "PRICE_CHANGE", "GAS_TTF", "INCREASE", 5.2, "EUR/MWh"),
-                ("Maersk", "Denmark", "H50_WATER_TRANSPORT", "FACILITY_SHUTDOWN", 7.0, "DAYS_DELAY", "PRICE_CHANGE", "FREIGHT_RATES", "INCREASE", 14.0, "PERCENT"),
-                ("Umicore", "Belgium", "B07_MINING_METALS", "CAPEX_INVESTMENT", 200.0, "EUR_MILLION", "DEMAND_CHANGE", "LITHIUM", "INCREASE", 8.0, "PERCENT")
-            ]
-            for i in range(additional_count):
-                tmpl = synthetic_templates[i % len(synthetic_templates)]
-                comp, country, sector, a_type, a_mag, a_unit, r_type, aff_asset, r_dir, r_mag, r_unit = tmpl
-                synth_id = f"NEWS_SEED_{2024 + (i // 12):04d}_{(i % 12) + 1:02d}_{i:03d}"
-                dt = f"{2024 + (i // 12):04d}-{(i % 12) + 1:02d}-15"
-                headline = f"{comp} Announces {a_type.replace('_', ' ').title()} Impacting European {sector}"
-                summary = f"{comp} in {country} executes a {a_type.lower()} with magnitude {a_mag} {a_unit}, leading to {r_type.lower()} in {aff_asset}."
-
-                actors = NewsEntities(
-                    companies=[comp],
-                    countries=[country],
-                    sectors=[sector],
-                    geography=["EU"]
-                )
-                actions = [
-                    EconomicAction(
-                        action_type=a_type,
-                        actor=comp,
-                        target=sector,
-                        description=f"Synthetic action {a_type}",
-                        magnitude=a_mag,
-                        unit=a_unit
-                    )
-                ]
-                reactions = [
-                    EconomicReaction(
-                        reaction_type=r_type,
-                        affected_entity=aff_asset,
-                        direction=r_dir,
-                        magnitude=r_mag,
-                        unit=r_unit,
-                        timeframe="3_MONTHS",
-                        confidence=0.85
-                    )
-                ]
-                events.append(StructuredEconomicEvent(
-                    event_id=synth_id,
-                    timestamp=dt,
-                    headline=headline,
-                    source_url=f"https://seed.powerlaw.internal/news/{synth_id.lower()}",
-                    source_name="PowerLaw Seed Generator",
-                    summary=summary,
-                    actors=actors,
-                    actions=actions,
-                    reactions=reactions,
-                    receptor_signal=f"SYNTHETIC_{a_type}_{sector}",
-                    target_asset=aff_asset,
-                    relevance_score=1.0
-                ))
-
-        # Cache to disk
-        self.cache_to_disk(events, output_file)
-
-        # Save to LanceDB
-        if save_to_lancedb:
-            self.save_to_lancedb(events)
-
-        # Graph Store
-        if self.graph_store:
-            self.ingest_news_into_graph_store(events)
-
-        return events
-
-    # ----------------------------------------------------------------------
-    # 5. STORAGE & LANCEDB INTEGRATION
-    # ----------------------------------------------------------------------
     def _get_table_names(self, db) -> set:
         """Robustly retrieve table names across all LanceDB versions."""
         if hasattr(db, "list_tables"):
@@ -1669,7 +1233,7 @@ class EconomicNewsScraper:
         """
         Persist structured economic events into LanceDB table conforming to NewsItem schema.
         Accepts StructuredEconomicEvent or dictionary items.
-        Generates text embeddings via Google API or deterministic offline fallback.
+        Stores only real embeddings; unavailable embeddings skip the optional vector projection.
         """
         if not HAS_LANCEDB:
             logger.warning("LanceDB is not installed or available.")
@@ -1704,7 +1268,7 @@ class EconomicNewsScraper:
             # Only use Google embedding API if explicitly enabled, API key is present, and not in offline mode
             can_use_google_api = (
                 HAS_GOOGLE_API 
-                and bool(os.getenv("GOOGLE_API_KEY")) 
+                and bool(os.getenv("GOOGLE_CLOUD_PROJECT"))
                 and not getattr(self, "offline", False)
             )
             if can_use_google_api:
@@ -1714,7 +1278,8 @@ class EconomicNewsScraper:
                     vector = None
 
             if vector is None or len(vector) != 768:
-                vector = generate_deterministic_embedding(embedding_text, dim=768)
+                logger.warning("Skipping vector projection for %s: real embedding unavailable; source event remains in canonical storage/cache.", evt.event_id)
+                continue
 
             # JSON serializations
             actions_json = json.dumps([a.model_dump() for a in evt.actions], ensure_ascii=False)
@@ -1872,14 +1437,16 @@ class EconomicNewsScraper:
                         connected_sectors.add(sector_id)
 
                 # Tabular record for Action
+                if act.magnitude is None:
+                    continue
                 self.graph_store.add_state_record(NodeStateRecord(
                     node_id=act_node_id,
                     node_type=NodeType.ACTION,
                     timestamp=pub_date,
                     state_value=act.action_type,
                     metric_name="action_magnitude",
-                    metric_value=float(act.magnitude or 1.0),
-                    delta=float(act.magnitude or 0.0),
+                    metric_value=float(act.magnitude),
+                    delta=float(act.magnitude),
                     unit=act.unit or "COUNT",
                     source_id=evt.event_id,
                     source_type="NEWS",
@@ -1909,9 +1476,9 @@ class EconomicNewsScraper:
                 self.graph_store.add_node(react_node)
 
                 # Connect Action -> TRIGGERS -> Reaction
-                for act_node_id in action_node_ids:
+                if len(action_node_ids) == 1:
                     self.graph_store.add_edge(GraphEdge(
-                        source_id=act_node_id,
+                        source_id=action_node_ids[0],
                         target_id=react_node_id,
                         relation_type=EdgeRelation.TRIGGERS,
                         weight=1.0 if react.direction == "INCREASE" else -1.0,
@@ -1957,7 +1524,9 @@ class EconomicNewsScraper:
                             break
 
                 # Tabular record for Reaction
-                val = float(react.magnitude or (1.0 if react.direction == "INCREASE" else -1.0))
+                if react.magnitude is None:
+                    continue
+                val = float(react.magnitude)
                 self.graph_store.add_state_record(NodeStateRecord(
                     node_id=react_node_id,
                     node_type=NodeType.REACTION,
@@ -1983,9 +1552,7 @@ class EconomicNewsScraper:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="PowerLaw Economic News Scraper & Event Extraction Pipeline")
-    parser.add_argument("--offline", action="store_true", help="Run strictly offline using benchmark seed generator")
-    parser.add_argument("--seed", action="store_true", help="Generate and ingest offline seeds into LanceDB")
-    parser.add_argument("--count", type=int, default=10, help="Number of seed items to generate")
+    parser.add_argument("--offline", action="store_true", help="Disable network access; returns no new events")
     parser.add_argument("--feeds", action="store_true", help="Fetch and process live RSS feeds")
     parser.add_argument("--db-path", type=str, default=None, help="LanceDB database directory path (defaults to centralized settings)")
     parser.add_argument("--output", type=str, default="data/raw/news/scraped_news.json", help="Output JSON path")
@@ -1994,7 +1561,7 @@ def main():
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s")
 
-    is_offline = bool(args.offline or args.seed)
+    is_offline = bool(args.offline)
     scraper = EconomicNewsScraper(
         lancedb_path=args.db_path,
         data_dir=str(Path(args.output).parent),
@@ -2006,14 +1573,6 @@ def main():
         print(f"\n[VERIFY] LanceDB Verification: Found {len(records)} records in 'news_items'")
         for r in records[:5]:
             print(f" - [{r.get('impact_date')}] {r.get('headline')} (ID: {r.get('news_id')})")
-        return
-
-    if args.seed or args.offline:
-        print(f"\n[SEED] Generating {args.count} offline seed events...")
-        events = scraper.generate_offline_seeds(count=args.count, save_to_lancedb=True, output_file=Path(args.output))
-        print(f"[OK] Generated {len(events)} structured economic events.")
-        print(f"[CACHE] Cached JSON at: {args.output}")
-        print(f"[LANCEDB] Persisted into LanceDB: {scraper.lancedb_path} (table 'news_items')")
         return
 
     # Default / Feeds mode

@@ -70,7 +70,7 @@ class ConstructionFactorRanker:
         for nid, group in asset_df.groupby("node_id"):
             group = group.sort_values("timestamp")
             vals = group["value"].values
-            if len(vals) < 2:
+            if len(vals) < 3:
                 continue
 
             first_val = vals[0]
@@ -79,7 +79,7 @@ class ConstructionFactorRanker:
 
             # Periodic returns for volatility
             returns = np.diff(vals) / np.maximum(np.abs(vals[:-1]), 1e-4)
-            vol = float(np.std(returns) * np.sqrt(12) * 100.0) if len(returns) > 1 else 15.0
+            vol = float(np.std(returns) * np.sqrt(12) * 100.0)
 
             # Sharpe proxy (risk-adjusted return)
             sharpe = tot_return / max(vol, 1.0)

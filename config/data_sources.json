@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "version": "1.1",
-  "updated_at": "2026-10-18T17:45:00Z",
+  "updated_at": "2026-10-18T18:30:00.714155+00:00",
   "policy": {
     "require_zero_access_fee": true,
     "disallow_paid_subscriptions": true,
@@ -21,32 +21,74 @@
     "geography": "DE",
     "base_period": "2021=100",
     "frequency": "QUARTERLY",
-    "reference_months": ["February", "May", "August", "November"],
+    "reference_months": [
+      "February",
+      "May",
+      "August",
+      "November"
+    ],
     "tax_treatment": "INCLUDING_VAT",
     "comparable_eurostat_code": "sts_copi_q",
     "coverage_metadata": {
-      "geographic_coverage": "DE (Federal Republic of Germany nationwide)",
-      "sector_coverage": "NACE F41.2 Construction of residential buildings (Bauleistungen am Bauwerk für Wohngebäude)",
-      "historical_coverage_start": "2000-Q1",
-      "continuous_series_start": "2015-Q1",
+      "geographic_coverage": "DE (Deutschland)",
+      "sector_coverage": "Wohngeb?ude; Bauleistungen am Bauwerk. No exact NACE industry mapping verified.",
+      "historical_coverage_start": null,
+      "continuous_series_start": null,
       "base_period": "2021=100",
-      "reporting_unit": "INDEX"
+      "reporting_unit": "INDEX",
+      "table_metadata_year_range": {
+        "from": "1958",
+        "to": "2026"
+      },
+      "historical_coverage_note": "Table year range is official metadata; target-specific continuous comparable coverage and historical vintages remain unverified."
     },
     "release_metadata": {
       "frequency": "QUARTERLY",
-      "reference_months": ["February", "May", "August", "November"],
-      "publication_lag_days": 35,
-      "typical_release_day_of_month": 10,
-      "next_scheduled_release": "2026-11-10",
-      "preliminary_release": false,
-      "revision_policy": "Routine revision during subsequent quarter; 5-year benchmark rebasing",
-      "release_calendar_url": "https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Baupreise-Immobilienpreisindex/Veroeffentlichungskalender.html"
+      "reference_months": [
+        "February",
+        "May",
+        "August",
+        "November"
+      ],
+      "publication_lag_days": null,
+      "typical_release_day_of_month": null,
+      "next_scheduled_release": null,
+      "preliminary_release": null,
+      "revision_policy": null,
+      "release_calendar_url": "https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Baupreise-Immobilienpreisindex/Veroeffentlichungskalender.html",
+      "verification_note": "Release calendar dates, revision policy and historical first-release timestamps were not established by this current-vintage table response."
     },
     "verification_evidence": {
       "status": "VERIFIED_OFFICIAL_RESPONSE",
-      "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_response.json",
-      "fixture_sha256": "6a541298a9b0634c984eb2baca3236b5ecb379474c0197ce821e6d923ad6e56d",
-      "verified_at": "2026-10-18T17:45:00Z"
+      "credential_method_used": "API_TOKEN",
+      "verified_at": "2026-10-18T18:30:00.713651+00:00",
+      "endpoint": "https://genesis.destatis.de/genesisWS/rest/2020/data/table",
+      "request_parameters": {
+        "name": "61261-0002",
+        "area": "all",
+        "startyear": "2025",
+        "endyear": "2025",
+        "language": "de",
+        "job": "false"
+      },
+      "http_status": 200,
+      "provider_code": 0,
+      "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_table_official.json",
+      "fixture_type": "OFFICIAL_RESPONSE_FIELDS",
+      "fixture_sha256": "2fcdf0597222e754454ed698734444e5561b34372fa8a7be22ccd3a33bf8acbf",
+      "metadata_fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_metadata_official.json",
+      "metadata_fixture_sha256": "812547853a40775d759d1cdffe4d241fbbefd6e66f236cc4f887b1e0bc37f6b5",
+      "retained_fields": [
+        "Status",
+        "Object",
+        "Copyright"
+      ],
+      "omitted_fields_note": "Authentication and echoed request parameters are deliberately excluded.",
+      "historical_release_vintages_verified": false,
+      "remaining_validation": "Target-specific comparable historical coverage and verified historical first-release vintages remain for Tasks 7 and 10. Machine codes, current-vintage target rows, Eurostat category and five material-context selections were verified.",
+      "synthetic_fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_response.json",
+      "flat_fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_2025_official.csv",
+      "flat_fixture_sha256": "cc2d4d032ac08b3b80851b4baaff6ebaaeb3966821726e49ab4f6afbd0183c5e"
     },
     "prohibited_substitutions": [
       "CONSTRUCTION_INPUT_COST_INDEX",
@@ -54,7 +96,54 @@
       "HOUSE_PRICE_INDEX",
       "CONSUMER_PRICE_INDEX",
       "EQUITY_STOCK_PRICE"
-    ]
+    ],
+    "provider_dimension_selection": {
+      "DINSG": "Deutschland insgesamt",
+      "PRE002": "Baupreisindizes",
+      "BAUAR1": "Wohngeb?ude",
+      "BAUAR4": "Bauleistungen am Bauwerk",
+      "STEMW1": "Indizes einschlie?lich Umsatzsteuer",
+      "QUARM1": [
+        "Februar",
+        "Mai",
+        "August",
+        "November"
+      ]
+    },
+    "provider_dimension_codes": {
+      "DINSG": "DG",
+      "STEMW1": "STEMW1",
+      "BAUAR1": "BPNBK",
+      "BAUAR4": "BAULEISTBW"
+    },
+    "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW1|BAUAR1=BPNBK|BAUAR4=BAULEISTBW|PRE002|2021=100",
+    "reference_month_codes": [
+      "MONAT02",
+      "MONAT05",
+      "MONAT08",
+      "MONAT11"
+    ],
+    "quarter_mapping": {
+      "MONAT02": "Q1",
+      "MONAT05": "Q2",
+      "MONAT08": "Q3",
+      "MONAT11": "Q4"
+    },
+    "eurostat_crosscheck": {
+      "dataset_id": "sts_copi_q",
+      "dimensions": {
+        "freq": "Q",
+        "indic_bt": "PRC_PRR",
+        "cpa2_1": "CPA_F41001_X_410014",
+        "s_adj": "NSA",
+        "unit": "I21",
+        "geo": "DE"
+      },
+      "fixture_path": "tests/fixtures/ingestion/eurostat_sts_copi_q_de_official.json",
+      "fixture_sha256": "6d6daef96762894cdbc8919db2f8e763d44781f20f4d30032ce9c83a53dc6dee",
+      "status": "VERIFIED_OFFICIAL_DIMENSIONS",
+      "comparability_note": "Residential producer prices are distinct from COST. Exact national/EU aggregation and VAT comparability remain unverified; never substitute this context series for the primary target."
+    }
   },
   "sources": {
     "DESTATIS_GENESIS": {
@@ -71,19 +160,101 @@
       "terms_url": "https://www.destatis.de/DE/Service/OpenData/nutzungsbedingungen.html",
       "terms_checked_at": "2026-10-18",
       "attribution": "Statistisches Bundesamt (Destatis)",
-      "auth_method": "FREE_REGISTRATION",
+      "auth_method": "FREE_API_TOKEN_OR_ACCOUNT",
       "release_cadence": "QUARTERLY_AND_MONTHLY",
       "allowable_delay_days": 15,
       "source_owner": "Statistisches Bundesamt",
-      "enabled": false,
+      "enabled": true,
       "endpoints": {
         "rest_post_data": "https://genesis.destatis.de/genesisWS/rest/2020/data/tablefile"
       },
       "series_keys": {
         "primary_construction_target": "61261-0002",
-        "material_ppi_metals": "61241-0004",
-        "material_ppi_minerals": "61241-0006"
-      }
+        "material_ppi_context": "61241-0004"
+      },
+      "material_context_series": {
+        "wood_products": {
+          "table_id": "61241-0004",
+          "provider_series_key": "61241-0004|DINSG=DG|GP19M2=GP19-16|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M2": "GP19-16"
+          },
+          "provider_label": "Holz und Holz- Kork- Korb- Flechtwaren ohne Möbel",
+          "measurement_kind": "MATERIAL_PPI_CONTEXT",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0004_2025_official.csv",
+          "fixture_sha256": "ac3aeff1363e2a95347e927e720cfb15ebdbe6c3e7e04126b7bb2cd8a3b86c6f",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
+        },
+        "rubber_and_plastic_products": {
+          "table_id": "61241-0004",
+          "provider_series_key": "61241-0004|DINSG=DG|GP19M2=GP19-22|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M2": "GP19-22"
+          },
+          "provider_label": "Gummi- und Kunststoffwaren",
+          "measurement_kind": "MATERIAL_PPI_CONTEXT",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0004_2025_official.csv",
+          "fixture_sha256": "ac3aeff1363e2a95347e927e720cfb15ebdbe6c3e7e04126b7bb2cd8a3b86c6f",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
+        },
+        "nonmetallic_mineral_products": {
+          "table_id": "61241-0004",
+          "provider_series_key": "61241-0004|DINSG=DG|GP19M2=GP19-23|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M2": "GP19-23"
+          },
+          "provider_label": "Glas und -waren, Keramik, Steine und Erden",
+          "measurement_kind": "MATERIAL_PPI_CONTEXT",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0004_2025_official.csv",
+          "fixture_sha256": "ac3aeff1363e2a95347e927e720cfb15ebdbe6c3e7e04126b7bb2cd8a3b86c6f",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
+        },
+        "basic_metals": {
+          "table_id": "61241-0004",
+          "provider_series_key": "61241-0004|DINSG=DG|GP19M2=GP19-24|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M2": "GP19-24"
+          },
+          "provider_label": "Metalle",
+          "measurement_kind": "MATERIAL_PPI_CONTEXT",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0004_2025_official.csv",
+          "fixture_sha256": "ac3aeff1363e2a95347e927e720cfb15ebdbe6c3e7e04126b7bb2cd8a3b86c6f",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
+        },
+        "fabricated_metal_products": {
+          "table_id": "61241-0004",
+          "provider_series_key": "61241-0004|DINSG=DG|GP19M2=GP19-25|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M2": "GP19-25"
+          },
+          "provider_label": "Metallerzeugnisse",
+          "measurement_kind": "MATERIAL_PPI_CONTEXT",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0004_2025_official.csv",
+          "fixture_sha256": "ac3aeff1363e2a95347e927e720cfb15ebdbe6c3e7e04126b7bb2cd8a3b86c6f",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
+        }
+      },
+      "series_keys_note": "Table IDs are discovery roots. Use provider_dimension_codes/provider_series_key and material_context_series to select exact series."
     },
     "EUROSTAT_STS": {
       "name": "Eurostat Short-Term Business Statistics (STS)",
@@ -103,15 +274,12 @@
       "release_cadence": "MONTHLY_AND_QUARTERLY",
       "allowable_delay_days": 30,
       "source_owner": "European Commission (Eurostat)",
-      "enabled": false,
+      "enabled": true,
       "endpoints": {
         "api_v2": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data"
       },
       "series_keys": {
-        "construction_producer_prices_quarterly": "sts_copi_q",
-        "industrial_producer_prices_domestic_monthly": "sts_inppd_m",
-        "construction_production_monthly": "sts_copr_m",
-        "building_permits_monthly": "sts_cobp_m"
+        "construction_producer_prices_quarterly": "sts_copi_q"
       }
     },
     "ECB_SDMX": {
@@ -132,13 +300,12 @@
       "release_cadence": "DAILY_AND_MONTHLY",
       "allowable_delay_days": 5,
       "source_owner": "European Central Bank",
-      "enabled": false,
+      "enabled": true,
       "endpoints": {
         "sdmx_rest": "https://data-api.ecb.europa.eu/service/data"
       },
       "series_keys": {
-        "eur_usd_exchange_rate": "EXR.D.USD.EUR.SP00.A",
-        "bank_lending_rates_corporations": "MIR.M.U2.B.A20.A.R.A.2240.EUR.N"
+        "eur_usd_exchange_rate": "EXR.D.USD.EUR.SP00.A"
       }
     },
     "BUNDESBANK_SDMX": {
@@ -159,12 +326,12 @@
       "release_cadence": "MONTHLY",
       "allowable_delay_days": 10,
       "source_owner": "Deutsche Bundesbank",
-      "enabled": false,
+      "enabled": true,
       "endpoints": {
         "sdmx_rest": "https://api.statistiken.bundesbank.de/rest/data"
       },
       "series_keys": {
-        "housing_loan_rates_germany": "BBSIS.M.I.ZST.WZ.EUR.A.A.A.000000.G.C.A.A._Z._Z.A"
+        "housing_loan_rates_germany": "BBSIS.M.I.ZAR.GD.EUR.S122.B.A100.R01XX.R.A.A._Z._Z.A"
       }
     },
     "SMARD_DE": {
@@ -185,8 +352,9 @@
       "release_cadence": "DAILY",
       "allowable_delay_days": 3,
       "source_owner": "Bundesnetzagentur",
-      "enabled": false,
+      "enabled": true,
       "endpoints": {
+        "chart_data": "https://www.smard.de/app/chart_data/4169/DE",
         "download_center": "https://www.smard.de/en/downloadcenter"
       },
       "series_keys": {
@@ -211,9 +379,11 @@
       "release_cadence": "DAILY",
       "allowable_delay_days": 7,
       "source_owner": "Publications Office of the European Union",
-      "enabled": false,
+      "enabled": true,
       "endpoints": {
-        "cellar_sparql": "https://publications.europa.eu/webapi/rdf/sparql"
+        "cellar_celex": "https://publications.europa.eu/resource/celex",
+        "cellar_sparql": "https://publications.europa.eu/webapi/rdf/sparql",
+        "eurlex_legal_content": "https://eur-lex.europa.eu/legal-content/EN/TXT/"
       },
       "series_keys": {
         "celex_corpus": "CORE_CONSTRUCTION_ACTS"
@@ -237,11 +407,9 @@
       "release_cadence": "HOURLY",
       "allowable_delay_days": 2,
       "source_owner": "European Commission",
-      "enabled": false,
+      "enabled": true,
       "endpoints": {
-        "presscorner_rss": "https://ec.europa.eu/commission/presscorner/api/rss?language=en",
-        "trade_rss": "https://policy.trade.ec.europa.eu/rss_en",
-        "single_market_rss": "https://single-market-economy.ec.europa.eu/rss_en"
+        "presscorner_rss": "https://ec.europa.eu/commission/presscorner/api/rss?language=en"
       },
       "series_keys": {}
     },

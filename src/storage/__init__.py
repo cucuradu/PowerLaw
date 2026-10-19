@@ -5,6 +5,7 @@ from src.storage.dual_layer_store import (
     DualLayerStorage,
     DualLayerStorageEngine,
     DualLayerGraphStore,
+    WriterLockError,
 )
 
 __all__ = [
@@ -12,4 +13,6 @@ __all__ = [
     "DualLayerStorage",
     "DualLayerStorageEngine",
     "DualLayerGraphStore",
+    "WriterLockError",
 ]
+

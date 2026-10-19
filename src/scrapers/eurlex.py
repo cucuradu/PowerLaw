@@ -32,24 +32,29 @@ USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
 # These are real, important EU laws on carbon, energy, and steel
 TARGET_LAWS = [
     {
-        "celex_id": "32024R1069",
-        "title": "Construction Products Regulation (CPR) recast",
-        "date": "2024-04-24"
+        "celex_id": "32024R3110",
+        "title": "Construction Products Regulation (CPR recast) - Regulation (EU) 2024/3110",
+        "date": "2024-11-27"
     },
     {
         "celex_id": "32024L1275",
-        "title": "Energy Performance of Buildings Directive (EPBD recast)",
+        "title": "Energy Performance of Buildings Directive (EPBD recast) - Directive (EU) 2024/1275",
         "date": "2024-04-24"
     },
     {
         "celex_id": "32023R0956",
-        "title": "Carbon Border Adjustment Mechanism (CBAM)",
+        "title": "Carbon Border Adjustment Mechanism (CBAM) - Regulation (EU) 2023/956",
         "date": "2023-05-10"
     },
     {
-        "celex_id": "32023D1534",
-        "title": "Emissions Trading System (ETS) Reform 2023",
-        "date": "2023-07-26"
+        "celex_id": "32023D0852",
+        "title": "Market Stability Reserve (ETS MSR) - Decision (EU) 2023/852",
+        "date": "2023-04-19"
+    },
+    {
+        "celex_id": "32023L0959",
+        "title": "Emissions Trading System (ETS) Revision - Directive (EU) 2023/959",
+        "date": "2023-05-10"
     },
     {
         "celex_id": "32020R0852",

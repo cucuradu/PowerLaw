@@ -12,17 +12,28 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from src.storage.dashboard_data import get_demo_graph_store
+from tests.sample_data import get_fixture_graph_store
 from src.quant.fragility import compute_systemic_fragility
 from src.quant.macro_fred import MacroFREDEngine
 from src.quant.regime_hmm import ConstructionRegimeHMM, detect_market_regime
 from src.quant.volatility_garch import GARCHVolatilityEngine
+from src.models.dual_layer_model import GraphNode, NodeStateRecord, NodeType
 
 
 @pytest.fixture
 def populated_store(tmp_path, monkeypatch):
     monkeypatch.setenv("POWERLAW_MODE", "demo")
-    return get_demo_graph_store(storage_dir=str(tmp_path / "quant_db"))
+    store = get_fixture_graph_store(storage_dir=str(tmp_path / "quant_db"))
+    # The old 14-point fixture only exercised fabricated baseline responses.
+    for asset, phase in [("COMM_REBAR_STEEL", 0), ("fixture_cement", 1), ("fixture_carbon", 2)]:
+        store.add_node(GraphNode(id=asset, label=asset, node_type=NodeType.COMMODITY))
+        records = [NodeStateRecord(
+            node_id=asset, node_type=NodeType.COMMODITY, timestamp=date.strftime("%Y-%m-%d"),
+            state_value="OBSERVED", metric_name="price", metric_value=100 + i * 0.1 + np.sin(i * 0.3 + phase),
+            source_id="test-fixture", source_type="MARKET_INDEX",
+        ) for i, date in enumerate(pd.date_range("2025-01-01", periods=90))]
+        store.add_state_records_batch(records)
+    return store
 
 
 def test_systemic_fragility(populated_store):
@@ -35,9 +46,11 @@ def test_systemic_fragility(populated_store):
     assert res["status"] in ["NORMAL", "ELEVATED", "FRAGILE"]
 
 
-def test_macro_fred_engine(populated_store):
+def test_macro_fred_engine(populated_store, monkeypatch):
     """Verify keyless FRED macro risk computation and store ingestion."""
     engine = MacroFREDEngine()
+    dates = pd.date_range("2024-01-01", periods=100)
+    monkeypatch.setattr(engine, "fetch_fred_series", lambda code: pd.Series(np.linspace(1.0, 4.0, 100), index=dates))
     state = engine.compute_macro_risk()
 
     assert "macro_risk" in state
