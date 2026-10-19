@@ -1111,3 +1111,17 @@ def test_migration_reference_interval_parsing():
     a_start, a_end, _ = _parse_reference_interval("2023", "ANNUAL")
     assert a_start == "2023-01-01"
     assert a_end == "2024-01-01"
+
+
+def test_record_content_is_timezone_independent_and_accepts_pre_1970_periods():
+    """Content hashing must not use the machine's local timezone; Destatis history starts in 1958."""
+    from src.storage.dual_layer_store import DualLayerStore
+    from src.schemas.ingestion import Observation
+
+    def content(start, end):
+        return DualLayerStore._record_content(Observation(
+            series_id="61261-0002|test", period_start=start, period_end_exclusive=end,
+            value=100.0, unit="2021=100", batch_id="b"))
+
+    assert content("2025-01-01", "2025-04-01")["period_start"].startswith("2025-01-01")
+    assert content("1958-01-01", "1958-04-01")["period_start"].startswith("1958-01-01")
