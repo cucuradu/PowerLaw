@@ -11,10 +11,12 @@ import csv
 import io
 import json
 import logging
+import re
 import zipfile
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from src.schemas.ingestion import Observation, SeriesDefinition, stable_id
 
@@ -41,17 +43,75 @@ EUROSTAT_UNIT_MAP = {
 
 
 def _clean_number(text: str) -> Optional[float]:
-    """Parse numeric value with support for German comma decimals and null markers."""
+    """Parse a number. A comma marks German notation ("1.234,5"); otherwise "." is the decimal point (SDMX)."""
     if not text:
         return None
     val = text.strip()
-    if val in ("-", ".", "...", "nan", "None", ""):
+    if val in ("-", ".", "...", "nan", "NaN", "None", ""):
         return None
-    val = val.replace(",", ".")
+    if "," in val:
+        val = val.replace(".", "").replace(",", ".")
     try:
         return float(val)
     except ValueError:
         return None
+
+
+# Destatis GENESIS legend ("Zeichenerklärung"). "-" means nothing exists ("nichts vorhanden"):
+# for an index that is "no index for this cell", so it stays null rather than becoming 0.
+DESTATIS_SYMBOLS = {
+    "...": "NOT_YET_PUBLISHED",          # Angabe fällt später an
+    ".": "UNKNOWN_OR_CONFIDENTIAL",      # Zahlenwert unbekannt oder geheim zu halten
+    "-": "NOTHING_REPORTED",             # nichts vorhanden
+    "x": "NOT_APPLICABLE",               # Tabellenfach gesperrt, weil Aussage nicht sinnvoll
+    "/": "UNRELIABLE",                   # keine Angaben, da Zahlenwert nicht sicher genug
+}
+DESTATIS_FLAGS = {"p", "r", "s"}         # vorläufig, berichtigt, geschätzt
+
+
+def _destatis_value(raw: str) -> Tuple[Optional[float], Optional[str], Optional[str], str]:
+    """Return (value, missing_reason, provider_status, quality_state) for one Destatis cell."""
+    text = raw.strip()
+    if not text:
+        return None, "NOT_AVAILABLE", None, "accepted"
+    if text in DESTATIS_SYMBOLS:
+        return None, DESTATIS_SYMBOLS[text], None, "accepted"
+    status = None
+    if text.startswith("(") and text.endswith(")"):
+        text, status = text[1:-1].strip(), "LIMITED_RELIABILITY"   # Aussagewert eingeschränkt
+    elif len(text) > 1 and text[-1] in DESTATIS_FLAGS:
+        text, status = text[:-1].strip(), text[-1]
+    value = _clean_number(text)
+    if value is None:
+        return None, "UNPARSEABLE_PROVIDER_VALUE", status, "needs_review"
+    return value, None, status, "accepted"
+
+
+def _period_bounds(time_period: str) -> Tuple[str, str]:
+    """[start, exclusive end) for YYYY, YYYY-MM, YYYY-MM-DD, YYYY-Qn and YYYYQn; anything else is rejected."""
+    import re
+    from datetime import date, timedelta
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", time_period):
+        day = date.fromisoformat(time_period)
+        return day.isoformat(), (day + timedelta(days=1)).isoformat()
+    if re.fullmatch(r"\d{4}-?Q[1-4]", time_period):
+        return _quarter_bounds("", f"{time_period[:4]}-Q{time_period[-1]}")
+    if re.fullmatch(r"\d{4}-\d{2}", time_period):
+        return _month_bounds("", time_period)
+    if re.fullmatch(r"\d{4}", time_period):
+        year = int(time_period)
+        return f"{year:04d}-01-01", f"{year + 1:04d}-01-01"
+    raise ValueError(f"Unsupported provider period format: {time_period!r}")
+
+
+def _sdmx_unit(row: Dict[str, Any]) -> Tuple[str, str]:
+    """(source_unit, normalized unit) from explicit SDMX attributes only; never from key text."""
+    source_unit = (row.get("UNIT") or row.get("UNIT_MEASURE") or "").strip()
+    if row.get("CURRENCY") and row.get("CURRENCY_DENOM"):
+        return source_unit, f"{row['CURRENCY'].strip()}_PER_{row['CURRENCY_DENOM'].strip()}"
+    if source_unit:
+        return source_unit, {"PCPA": "PERCENT", "PC": "PERCENT"}.get(source_unit, source_unit)
+    return "", "UNSPECIFIED"
 
 
 def _quarter_bounds(year_str: str, quarter_str: str) -> Tuple[str, str]:
@@ -134,30 +194,18 @@ def parse_eurostat_jsonstat(payload: bytes, fetched_at: datetime, requested_key:
         str_idx = str(flat_idx)
 
         dim_vals = {dim_ids[d]: coords[d][indices[d]] for d in range(len(dim_ids))}
-        unit_code = dim_vals.get("unit", "I21")
-        time_period = dim_vals.get("time", "")
+        unit_code = dim_vals.get("unit")
+        p_start, p_end = _period_bounds(dim_vals.get("time", ""))
 
-        # Compute period bounds
-        if "-Q" in time_period or "Q" in time_period:
-            p_start, p_end = _quarter_bounds("", time_period)
-        elif len(time_period) == 7 and "-" in time_period:
-            p_start, p_end = _month_bounds("", time_period)
-        elif len(time_period) == 4 and time_period.isdigit():
-            y = int(time_period)
-            p_start, p_end = f"{y:04d}-01-01", f"{y + 1:04d}-01-01"
-        else:
-            p_start, p_end = f"{time_period}-01-01", f"{time_period}-12-31"
-
-        norm_unit = EUROSTAT_UNIT_MAP.get(unit_code, unit_code)
+        norm_unit = EUROSTAT_UNIT_MAP.get(unit_code, unit_code) if unit_code else "UNSPECIFIED"
         dim_parts = [f"{d}={dim_vals[d]}" for d in sorted(dim_ids) if d != "time" and dim_vals.get(d)]
         series_id = f"EUROSTAT_STS|{dataset_id}|{'|'.join(dim_parts)}"
 
         val = values_map[flat_idx] if isinstance(values_map, list) and flat_idx < len(values_map) else values_map.get(str_idx) if isinstance(values_map, dict) else None
-        is_missing = val is None
-
-        missing_reason = "NOT_YET_PUBLISHED" if is_missing else None
-        num_val = float(val) if val is not None else None
         provider_status = status_map[flat_idx] if isinstance(status_map, list) and flat_idx < len(status_map) else status_map.get(str_idx) if isinstance(status_map, dict) else status_map or None
+        # Eurostat flag "c" is confidential; any other absent cell is simply not available.
+        missing_reason = None if val is not None else ("CONFIDENTIAL" if provider_status == "c" else "NOT_AVAILABLE")
+        num_val = float(val) if val is not None else None
 
         obs = Observation(
             series_id=series_id,
@@ -165,7 +213,7 @@ def parse_eurostat_jsonstat(payload: bytes, fetched_at: datetime, requested_key:
             period_end_exclusive=p_end,
             value=num_val,
             original_value_text=str(val) if val is not None else None,
-            source_unit=unit_code,
+            source_unit=unit_code or "",
             unit=norm_unit,
             vintage_id=data.get("updated"),
             published_at=datetime.fromisoformat(data["updated"].replace("Z", "+00:00")) if data.get("updated") else None,
@@ -186,8 +234,8 @@ def parse_eurostat_jsonstat(payload: bytes, fetched_at: datetime, requested_key:
 # Destatis GENESIS Parsers (CSV and Table JSON)
 # =====================================================================
 def parse_destatis_csv(payload: bytes, fetched_at: datetime, requested_key: str = "") -> List[Observation]:
-    """Parse Destatis flat semicolon-delimited CSV."""
-    text = payload.decode("utf-8", errors="replace")
+    """Parse Destatis flat semicolon-delimited CSV (UTF-8; decoding errors fail instead of corrupting labels)."""
+    text = payload.decode("utf-8-sig")
     reader = csv.reader(io.StringIO(text), delimiter=";")
     header = next(reader, None)
     if not header:
@@ -243,20 +291,13 @@ def parse_destatis_csv(payload: bytes, fetched_at: datetime, requested_key: str 
             y = int(year_str)
             p_start, p_end = f"{y:04d}-01-01", f"{y + 1:04d}-01-01"
 
-        raw_family = row[0].strip()
-        if requested_key and "-" in requested_key.split("|")[0]:
-            table_code = requested_key.split("|")[0]
-        elif raw_family == "61261":
-            table_code = "61261-0002"
-        elif raw_family == "61241":
-            table_code = "61241-0004"
-        else:
-            table_code = raw_family
+        # The flat file only names the statistic family (e.g. 61261); the requested table ID is authoritative.
+        requested_table = requested_key.split("|")[0] if requested_key else ""
+        table_code = requested_table if "-" in requested_table else row[0].strip()
 
         series_id = f"{table_code}|{'|'.join(dim_parts)}|{val_var_code}|{unit_str}"
 
-        num_val = _clean_number(raw_val)
-        missing_reason = "CONFIDENTIAL" if raw_val in ("-", ".", "...") else None
+        num_val, missing_reason, provider_status, quality_state = _destatis_value(raw_val)
 
         obs = Observation(
             series_id=series_id,
@@ -268,6 +309,8 @@ def parse_destatis_csv(payload: bytes, fetched_at: datetime, requested_key: str 
             unit=unit_str,
             available_at=fetched_at,
             recorded_at=datetime.now(timezone.utc),
+            provider_status=provider_status,
+            quality_state=quality_state,
             missing_reason=missing_reason,
             batch_id="batch_temp",
             data_origin="live",
@@ -296,9 +339,8 @@ def parse_destatis_table_json(payload: bytes, fetched_at: datetime) -> List[Obse
             break
 
     observations = []
-    data_started = False
     for line in lines:
-        if line.startswith("20") and ";" in line:
+        if re.match(r"^\d{4};", line):
             parts = [p.strip() for p in line.split(";")]
             if len(parts) < 4:
                 continue
@@ -328,8 +370,7 @@ def parse_destatis_table_json(payload: bytes, fetched_at: datetime) -> List[Obse
                 w_dimension = "BAUAR4=BAULEISTBW" if work_type == "Bauleistungen am Bauwerk" else f"BAUAR4_LABEL={work_type}"
 
                 series_id = f"61261-0002|DINSG=DG|STEMW1={tax_code}|{b_dimension}|{w_dimension}|PRE002|2021=100"
-                num_val = _clean_number(raw_val)
-                missing_reason = "CONFIDENTIAL" if raw_val in ("-", ".", "...") else None
+                num_val, missing_reason, provider_status, quality_state = _destatis_value(raw_val)
 
                 obs = Observation(
                     series_id=series_id,
@@ -341,6 +382,8 @@ def parse_destatis_table_json(payload: bytes, fetched_at: datetime) -> List[Obse
                     unit="2021=100",
                     available_at=fetched_at,
                     recorded_at=datetime.now(timezone.utc),
+                    provider_status=provider_status,
+                    quality_state=quality_state,
                     missing_reason=missing_reason,
                     batch_id="batch_temp",
                     data_origin="live",
@@ -353,177 +396,76 @@ def parse_destatis_table_json(payload: bytes, fetched_at: datetime) -> List[Obse
 # =====================================================================
 # SDMX CSV Parsers (ECB, Bundesbank)
 # =====================================================================
-def parse_sdmx_csv(payload: bytes, fetched_at: datetime, default_unit: str = "INDEX") -> List[Observation]:
-    """Parse SDMX-CSV response into Observation objects."""
-    import re
+SDMX_MISSING = {"", "-", ".", "...", "M", "NaN"}
+BERLIN = ZoneInfo("Europe/Berlin")
+
+
+def _sdmx_observation(key: str, time_period: str, obs_val: str, status: Optional[str], source_unit: str, unit: str,
+                      fetched_at: datetime, **extra: Any) -> Observation:
+    p_start, p_end = _period_bounds(time_period)
+    missing = obs_val in SDMX_MISSING
+    return Observation(
+        series_id=key, period_start=p_start, period_end_exclusive=p_end,
+        value=None if missing else _clean_number(obs_val), original_value_text=obs_val or None,
+        source_unit=source_unit or unit, unit=unit, provider_status=status or None,
+        missing_reason="NOT_AVAILABLE" if missing else None,
+        available_at=fetched_at, recorded_at=datetime.now(timezone.utc),
+        batch_id="batch_temp", data_origin="live", **extra)
+
+
+def parse_sdmx_csv(payload: bytes, fetched_at: datetime) -> List[Observation]:
+    """Parse ECB/Bundesbank SDMX CSV (comma or semicolon) or the Bundesbank wide export.
+
+    Units come only from explicit attributes; a missing status stays None.
+    """
     text = payload.decode("utf-8", errors="replace").lstrip("\ufeff")
 
-    # 1. Standard comma-separated SDMX CSV
-    reader = csv.DictReader(io.StringIO(text))
-    if {"KEY", "TIME_PERIOD", "OBS_VALUE"}.issubset(reader.fieldnames or []):
+    # 1./2. Tabular SDMX CSV with one observation per row.
+    for delimiter in (",", ";"):
+        reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+        fields = set(reader.fieldnames or [])
+        key_col = "KEY" if "KEY" in fields else "BBK_ID" if "BBK_ID" in fields else None
+        if not key_col or not {"TIME_PERIOD", "OBS_VALUE"}.issubset(fields):
+            continue
         observations = []
         for row in reader:
-            key = row.get("KEY", "").strip()
-            time_period = row.get("TIME_PERIOD", "").strip()
-            obs_val = row.get("OBS_VALUE", "").strip()
-            status = row.get("OBS_STATUS", "A").strip()
-
+            time_period = (row.get("TIME_PERIOD") or "").strip()
             if not time_period:
                 continue
-
-            is_missing = not obs_val or obs_val in ("-", ".", "...", "M", "NaN")
-            num_val = _clean_number(obs_val) if not is_missing else None
-            missing_reason = "NOT_AVAILABLE" if is_missing else None
-
-            # Period bounds
-            if len(time_period) == 10 and time_period.count("-") == 2:
-                # Daily: YYYY-MM-DD
-                p_start = time_period
-                dt = datetime.strptime(time_period, "%Y-%m-%d")
-                from datetime import timedelta
-                next_day = dt + timedelta(days=1)
-                p_end = next_day.strftime("%Y-%m-%d")
-            elif "-Q" in time_period or "Q" in time_period:
-                p_start, p_end = _quarter_bounds("", time_period)
-            elif len(time_period) == 7 and "-" in time_period:
-                # Monthly: YYYY-MM
-                p_start, p_end = _month_bounds("", time_period)
-            else:
-                year = int(time_period)
-                p_start, p_end = f"{year:04d}-01-01", f"{year + 1:04d}-01-01"
-
-            source_unit = row.get("UNIT", "").strip()
-            unit = {"PCPA": "PERCENT", "PC": "PERCENT"}.get(source_unit, source_unit or default_unit)
-            if row.get("CURRENCY") and row.get("CURRENCY_DENOM"):
-                unit = f"{row['CURRENCY']}_PER_{row['CURRENCY_DENOM']}"
-            elif "USD" in key and "EUR" in key:
-                unit = "USD_PER_EUR"
-            elif "ZST" in key or "ZAR" in key or "MIR" in key or "RATE" in key or "BBSIS" in key:
-                unit = "PERCENT"
-
             release = row.get("LAST_UPDATE") or row.get("LAST_UPDATED") or row.get("UPDATE_DATE")
-            updated_at = datetime.fromisoformat(release.replace("Z", "+00:00")) if release else None
-            obs = Observation(
-                series_id=key,
-                period_start=p_start,
-                period_end_exclusive=p_end,
-                value=num_val,
-                original_value_text=obs_val if obs_val else None,
-                source_unit=source_unit or unit,
-                unit=unit,
-                provider_status=status,
+            source_unit, unit = _sdmx_unit(row)
+            observations.append(_sdmx_observation(
+                (row.get(key_col) or "").strip(), time_period, (row.get("OBS_VALUE") or "").strip(),
+                (row.get("OBS_STATUS") or "").strip(), source_unit, unit, fetched_at,
                 vintage_id=release or None,
-                source_updated_at=updated_at,
-                conversion_lineage_json=json.dumps({"source_attributes": {k: v for k, v in row.items() if k not in {"TIME_PERIOD", "OBS_VALUE"}}}, sort_keys=True),
-                missing_reason=missing_reason,
-                available_at=fetched_at,
-                recorded_at=datetime.now(timezone.utc),
-                batch_id="batch_temp",
-                data_origin="live",
-            )
-            observations.append(obs)
+                source_updated_at=datetime.fromisoformat(release.replace("Z", "+00:00")) if release else None,
+                conversion_lineage_json=json.dumps({"source_attributes": {k: v for k, v in row.items()
+                                                    if k not in {"TIME_PERIOD", "OBS_VALUE"}}}, sort_keys=True)))
         return observations
 
-    # 2. Semicolon-delimited SDMX CSV with headers
-    reader_semi = csv.DictReader(io.StringIO(text), delimiter=";")
-    fieldnames = set(reader_semi.fieldnames or [])
-    if {"TIME_PERIOD", "OBS_VALUE"}.issubset(fieldnames) and any(k in fieldnames for k in ("KEY", "BBK_ID")):
-        key_col = "KEY" if "KEY" in fieldnames else "BBK_ID"
-        observations = []
-        for row in reader_semi:
-            key = row.get(key_col, "").strip()
-            time_period = row.get("TIME_PERIOD", "").strip()
-            obs_val = row.get("OBS_VALUE", "").strip()
-            status = row.get("OBS_STATUS", "A").strip()
-            if not time_period:
-                continue
-            is_missing = not obs_val or obs_val in ("-", ".", "...", "M", "NaN")
-            num_val = _clean_number(obs_val) if not is_missing else None
-            missing_reason = "NOT_AVAILABLE" if is_missing else None
-            if len(time_period) == 10 and time_period.count("-") == 2:
-                p_start = time_period
-                dt = datetime.strptime(time_period, "%Y-%m-%d")
-                from datetime import timedelta
-                p_end = (dt + timedelta(days=1)).strftime("%Y-%m-%d")
-            elif "-Q" in time_period or "Q" in time_period:
-                p_start, p_end = _quarter_bounds("", time_period)
-            elif len(time_period) == 7 and "-" in time_period:
-                p_start, p_end = _month_bounds("", time_period)
-            else:
-                year = int(time_period)
-                p_start, p_end = f"{year:04d}-01-01", f"{year + 1:04d}-01-01"
-            source_unit = row.get("UNIT", "").strip()
-            unit = {"PCPA": "PERCENT", "PC": "PERCENT"}.get(source_unit, source_unit or default_unit)
-            if "ZST" in key or "ZAR" in key or "MIR" in key or "RATE" in key or "BBSIS" in key:
-                unit = "PERCENT"
-            obs = Observation(
-                series_id=key,
-                period_start=p_start,
-                period_end_exclusive=p_end,
-                value=num_val,
-                original_value_text=obs_val if obs_val else None,
-                source_unit=source_unit or unit,
-                unit=unit,
-                provider_status=status,
-                missing_reason=missing_reason,
-                available_at=fetched_at,
-                recorded_at=datetime.now(timezone.utc),
-                batch_id="batch_temp",
-                data_origin="live",
-            )
-            observations.append(obs)
-        return observations
-
-    # 3. Bundesbank multi-section format (series key on row 0, metadata, then YYYY-MM;value rows)
-    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    # 3. Bundesbank wide export: key header row, metadata rows, then "YYYY-MM;value;flags" rows.
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
     if lines and ";" in lines[0]:
         first_cols = [c.strip().strip('"') for c in lines[0].split(";")]
         series_id = first_cols[1] if len(first_cols) > 1 and first_cols[1] else "BUNDESBANK_SERIES"
-        unit = default_unit
+        source_unit, unit, vintage, updated_at = "", "UNSPECIFIED", None, None
         observations = []
         for line in lines[1:]:
             parts = [c.strip().strip('"') for c in line.split(";")]
-            if len(parts) >= 2:
-                k, v = parts[0], parts[1]
-                if k.upper() in ("BBK_UNIT_ENG", "UNIT", "EINHEIT"):
-                    if "PERCENT" in v.upper() or "PROZENT" in v.upper():
-                        unit = "PERCENT"
-                    else:
-                        unit = v.upper()
-                elif re.match(r"^\d{4}(?:-\d{2})?(?:-\d{2})?$", k):
-                    time_period = k
-                    is_missing = not v or v in ("-", ".", "...", "M", "NaN")
-                    num_val = _clean_number(v) if not is_missing else None
-                    missing_reason = "NOT_AVAILABLE" if is_missing else None
-                    if len(time_period) == 10 and time_period.count("-") == 2:
-                        p_start = time_period
-                        dt = datetime.strptime(time_period, "%Y-%m-%d")
-                        from datetime import timedelta
-                        p_end = (dt + timedelta(days=1)).strftime("%Y-%m-%d")
-                    elif len(time_period) == 7 and "-" in time_period:
-                        p_start, p_end = _month_bounds("", time_period)
-                    elif "-Q" in time_period:
-                        p_start, p_end = _quarter_bounds("", time_period)
-                    else:
-                        year = int(time_period)
-                        p_start, p_end = f"{year:04d}-01-01", f"{year + 1:04d}-01-01"
-                    status = parts[2] if len(parts) > 2 and parts[2] else "A"
-                    obs = Observation(
-                        series_id=series_id,
-                        period_start=p_start,
-                        period_end_exclusive=p_end,
-                        value=num_val,
-                        original_value_text=v if v else None,
-                        source_unit=unit,
-                        unit=unit,
-                        provider_status=status,
-                        missing_reason=missing_reason,
-                        available_at=fetched_at,
-                        recorded_at=datetime.now(timezone.utc),
-                        batch_id="batch_temp",
-                        data_origin="live",
-                    )
-                    observations.append(obs)
+            if len(parts) < 2:
+                continue
+            label, value = parts[0], parts[1]
+            if label.upper() in ("BBK_UNIT_ENG", "EINHEIT") and not source_unit:
+                source_unit = value
+                unit = "PERCENT" if value.upper() in ("PERCENT", "PROZENT") else value.upper()
+            elif label == "Stand vom":
+                # Provider release timestamp, Berlin local time: "01.10.2026 10:32:50 Uhr".
+                stamp = datetime.strptime(value.replace("Uhr", "").strip(), "%d.%m.%Y %H:%M:%S").replace(tzinfo=BERLIN)
+                vintage, updated_at = stamp.isoformat(), stamp.astimezone(timezone.utc)
+            elif re.fullmatch(r"\d{4}(?:-\d{2}){0,2}", label):
+                observations.append(_sdmx_observation(
+                    series_id, label, value, parts[2] if len(parts) > 2 else None, source_unit, unit, fetched_at,
+                    vintage_id=vintage, source_updated_at=updated_at))
         if observations:
             return observations
 
@@ -578,38 +520,35 @@ def parse_smard_csv(payload: bytes, fetched_at: datetime) -> List[Observation]:
 
 
 def parse_smard_json(payload: bytes, fetched_at: datetime, requested_key: str = "") -> List[Observation]:
-    """Parse SMARD open JSON chart response into Observation objects."""
+    """Parse a SMARD chart_data file. Each timestamp is local midnight in Berlin for daily resolution."""
     from datetime import timedelta
     data = json.loads(payload.decode("utf-8"))
-    series = data.get("series", [])
+    created = data.get("meta_data", {}).get("created")
+    updated_at = datetime.fromtimestamp(created / 1000.0, tz=timezone.utc) if created else None
     series_id = requested_key or "SMARD|MARKET_DATA_DAY_AHEAD_DE_LU"
     if not series_id.startswith("SMARD|"):
         series_id = f"SMARD|{series_id}"
     observations = []
-    for item in series:
+    for item in data.get("series", []):
         if not isinstance(item, (list, tuple)) or len(item) < 2:
             continue
         ts_ms, val = item[0], item[1]
-        dt = datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc)
-        p_start = dt.strftime("%Y-%m-%d")
-        p_end = (dt + timedelta(days=1)).strftime("%Y-%m-%d")
-        is_missing = val is None
-        num_val = _clean_number(str(val)) if not is_missing else None
-        obs = Observation(
+        day = datetime.fromtimestamp(ts_ms / 1000.0, tz=BERLIN).date()
+        observations.append(Observation(
             series_id=series_id,
-            period_start=p_start,
-            period_end_exclusive=p_end,
-            value=num_val,
+            period_start=day.isoformat(),
+            period_end_exclusive=(day + timedelta(days=1)).isoformat(),
+            value=_clean_number(str(val)) if val is not None else None,
             original_value_text=str(val) if val is not None else None,
             source_unit="EUR/MWh",
             unit="EUR_PER_MWH",
-            missing_reason="NOT_AVAILABLE" if is_missing else None,
+            missing_reason="NOT_AVAILABLE" if val is None else None,
+            source_updated_at=updated_at,
             available_at=fetched_at,
             recorded_at=datetime.now(timezone.utc),
             batch_id="batch_temp",
             data_origin="live",
-        )
-        observations.append(obs)
+        ))
     return observations
 
 
@@ -644,9 +583,9 @@ def normalize_series_response(
             return parse_destatis_table_json(payload, fetched_at)
         return parse_destatis_csv(payload, fetched_at, requested_key=series_key)
     elif source_id == "ECB_SDMX":
-        return parse_sdmx_csv(payload, fetched_at, default_unit="INDEX")
+        return parse_sdmx_csv(payload, fetched_at)
     elif source_id == "BUNDESBANK_SDMX":
-        return parse_sdmx_csv(payload, fetched_at, default_unit="PERCENT")
+        return parse_sdmx_csv(payload, fetched_at)
     elif source_id == "SMARD_DE":
         if payload.strip().startswith(b"{"):
             return parse_smard_json(payload, fetched_at, requested_key=series_key)
@@ -683,7 +622,7 @@ def fetch_series(
         if path.exists():
             return normalize_series_response(source_id, series_key, path.read_bytes(), now)
     elif source_id == "BUNDESBANK_SDMX":
-        path = fixtures_dir / "bundesbank_housing_loan_sample.csv"
+        path = fixtures_dir / "bundesbank_bbsis_pfandbrief_1y_official.csv"
         if path.exists():
             return normalize_series_response(source_id, series_key, path.read_bytes(), now)
     elif source_id == "SMARD_DE":

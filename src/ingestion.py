@@ -961,8 +961,14 @@ def _make_stats_parser(source_id: str) -> Parser:
                     m_kind = {"PRC_PRR": "PRODUCER_PRICE_INDEX", "COST": "CONSTRUCTION_INPUT_COST_INDEX", "PROD": "PRODUCTION_INDEX"}.get(indicator, "UNKNOWN")
                     m_name = m_kind.lower()
                 elif source_id == "DESTATIS_GENESIS":
-                    m_kind = "PRODUCER_PRICE_INDEX"
-                    m_name = "producer_price_index"
+                    # The registry selection states what each verified Destatis series measures.
+                    from src.config import load_data_sources_registry
+                    catalog = load_data_sources_registry()
+                    kinds = {catalog["primary_target"]["provider_series_key"]: catalog["primary_target"]["measurement_kind"]}
+                    kinds.update({sel["provider_series_key"]: sel["measurement_kind"] for sel in
+                                  catalog["sources"]["DESTATIS_GENESIS"].get("material_context_series", {}).values()})
+                    m_kind = kinds.get(o.series_id, "UNKNOWN")
+                    m_name = m_kind.lower()
                     geo_id = "DE"
 
                 series_defs[o.series_id] = SeriesDefinition(

@@ -115,12 +115,12 @@ class TestStatisticsIngestionTask7(unittest.TestCase):
         observations = normalize_series_response("DESTATIS_GENESIS", "61261-0002", content, fetched_at)
         self.assertGreater(len(observations), 100)
 
-        # Check missing value '-' handled properly
-        confidential = [o for o in observations if o.original_value_text == "-"]
-        self.assertGreater(len(confidential), 0)
-        for o in confidential:
+        # '-' is "nichts vorhanden" in the Destatis legend: no index exists for that cell.
+        nothing = [o for o in observations if o.original_value_text == "-"]
+        self.assertGreater(len(nothing), 0)
+        for o in nothing:
             self.assertIsNone(o.value)
-            self.assertEqual(o.missing_reason, "CONFIDENTIAL")
+            self.assertEqual(o.missing_reason, "NOTHING_REPORTED")
 
     def test_destatis_material_ppi_monthly_series(self):
         """Destatis 61241-0004 material PPI parses monthly periods correctly."""
@@ -153,16 +153,16 @@ class TestStatisticsIngestionTask7(unittest.TestCase):
         self.assertEqual(observations[0].unit, "USD_PER_EUR")
 
     def test_bundesbank_sdmx_parsing(self):
-        """Bundesbank SDMX CSV format parses into monthly housing loan rate observations."""
-        fixture_path = self.fixtures_dir / "bundesbank_housing_loan_sample.csv"
+        """Official Bundesbank wide export parses monthly values with the provider's unit."""
+        fixture_path = self.fixtures_dir / "bundesbank_bbsis_pfandbrief_1y_official.csv"
         content = fixture_path.read_bytes()
         fetched_at = datetime(2026, 10, 18, 12, 0, tzinfo=timezone.utc)
 
-        observations = normalize_series_response("BUNDESBANK_SDMX", "BBSIS.M.I.ZST.WZ.EUR.A.A.A.000000.G.C.A.A._Z._Z.A", content, fetched_at)
-        self.assertEqual(len(observations), 3)
-        self.assertEqual(observations[1].value, 3.85)
-        self.assertEqual(observations[1].period_start, "2024-05-01")
-        self.assertEqual(observations[1].period_end_exclusive, "2024-06-01")
+        observations = normalize_series_response("BUNDESBANK_SDMX", "BBSIS.M.I.ZAR.GD.EUR.S122.B.A100.R01XX.R.A.A._Z._Z.A", content, fetched_at)
+        self.assertEqual(len(observations), 12)
+        self.assertEqual(observations[1].value, 2.38)
+        self.assertEqual(observations[1].period_start, "2025-11-01")
+        self.assertEqual(observations[1].period_end_exclusive, "2025-12-01")
         self.assertEqual(observations[1].unit, "PERCENT")
 
     def test_smard_power_price_parsing(self):

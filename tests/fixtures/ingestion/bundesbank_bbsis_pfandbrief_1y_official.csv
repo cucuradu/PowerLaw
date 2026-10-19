@@ -1,0 +1,23 @@
+﻿"";BBSIS.M.I.ZAR.GD.EUR.S122.B.A100.R01XX.R.A.A._Z._Z.A;BBSIS.M.I.ZAR.GD.EUR.S122.B.A100.R01XX.R.A.A._Z._Z.A_FLAGS
+"";Aus der Zinsstruktur abgeleitete Renditen für Pfandbriefe mit    jährl. Kuponzahlungen / RLZ 1 Jahr / gleitende Durchschnitte;
+BBK_UNIT_ENG;percent;
+Dezimalstellen;2;
+Dimension;Eins;
+Einheit;Prozent;
+Format der Zeitangabe;P1M;
+Kategorie;ZRZS;
+Kommentar;"Gleitende Durchschnitte aus Monatsendständen; bei einer Restlaufzeit von 1 Jahr errechnet aus den Monatsendständen von 12 Monaten, bei einer Restlaufzeit von 2 Jahren aus Monatsendständen von 24 Monaten, ... , bei einer Restlaufzeit von 10 Jahren aus Monatsendständen von 120 Monaten; einbezogen werden der Monatsendstand des Berichtsmonats und die davor liegenden Monatsendstände.";
+Kommentar (englisch);"Moving averages from end-of-month levels; calculated from end-of-month levels of 12 months in the case of a residual maturity of one year; end-of-month levels of 24 months in the case of a residual maturity of two years, ... , end-of-months levels of 120 months in the case of a residual maturity of ten years; this includes the end-of-month-level of the reporting month and the end-of-month-levels of the preceding months.";
+Stand vom;01.10.2026 10:32:50 Uhr;
+2025-10;2,41;
+2025-11;2,38;
+2025-12;2,36;
+2026-01;2,33;
+2026-02;2,32;
+2026-03;2,35;
+2026-04;2,41;
+2026-05;2,46;
+2026-06;2,51;
+2026-07;2,57;
+2026-08;2,64;
+2026-09;2,73;

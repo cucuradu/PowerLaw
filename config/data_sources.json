@@ -31,7 +31,7 @@
     "comparable_eurostat_code": "sts_copi_q",
     "coverage_metadata": {
       "geographic_coverage": "DE (Deutschland)",
-      "sector_coverage": "Wohngeb?ude; Bauleistungen am Bauwerk. No exact NACE industry mapping verified.",
+      "sector_coverage": "Wohngebäude; Bauleistungen am Bauwerk. No exact NACE industry mapping verified.",
       "historical_coverage_start": null,
       "continuous_series_start": null,
       "base_period": "2021=100",
@@ -100,9 +100,9 @@
     "provider_dimension_selection": {
       "DINSG": "Deutschland insgesamt",
       "PRE002": "Baupreisindizes",
-      "BAUAR1": "Wohngeb?ude",
+      "BAUAR1": "Wohngebäude",
       "BAUAR4": "Bauleistungen am Bauwerk",
-      "STEMW1": "Indizes einschlie?lich Umsatzsteuer",
+      "STEMW1": "Indizes einschließlich Umsatzsteuer",
       "QUARM1": [
         "Februar",
         "Mai",
