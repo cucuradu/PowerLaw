@@ -426,7 +426,17 @@
         "sdmx_rest": "https://data-api.ecb.europa.eu/service/data"
       },
       "series_keys": {
-        "eur_usd_exchange_rate": "EXR.D.USD.EUR.SP00.A"
+        "germany_housing_loan_rate_new_business": "MIR.M.DE.B.A2C.A.R.A.2250.EUR.N"
+      },
+      "series_notes": {
+        "germany_housing_loan_rate_new_business": "Provider title: bank interest rates - loans to households for house purchase (new business), Germany, AAR/NDER, percent p.a. Verified live 2026-10-20: 2003-01..2026-08."
+      },
+      "retired_series_keys": {
+        "eur_usd_exchange_rate": {
+          "key": "EXR.D.USD.EUR.SP00.A",
+          "since": "2026-10-20",
+          "reason": "No consumer and no direct path to the quarterly construction target; daily history requests time out. Stored rows remain valid."
+        }
       }
     },
     "BUNDESBANK_SDMX": {
@@ -452,7 +462,10 @@
         "sdmx_rest": "https://api.statistiken.bundesbank.de/rest/data"
       },
       "series_keys": {
-        "housing_loan_rates_germany": "BBSIS.M.I.ZAR.GD.EUR.S122.B.A100.R01XX.R.A.A._Z._Z.A"
+        "pfandbrief_yield_1y_moving_average": "BBSIS.M.I.ZAR.GD.EUR.S122.B.A100.R01XX.R.A.A._Z._Z.A"
+      },
+      "series_notes": {
+        "pfandbrief_yield_1y_moving_average": "Provider title: yields on mortgage Pfandbriefe derived from the term structure, residual maturity 1 year, moving average. A covered-bond yield, not a loan rate."
       }
     },
     "SMARD_DE": {

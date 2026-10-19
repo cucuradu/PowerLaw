@@ -56,7 +56,7 @@ def test_only_verified_sources_and_requests_are_active():
     # 61241 answers "no data cube" for every request; suspended rather than failing every Destatis batch.
     assert sources["DESTATIS_GENESIS"]["suspended_series_keys"]["material_ppi_context"]["table_id"] == "61241-0004"
     assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q"]
-    assert list(sources["ECB_SDMX"]["series_keys"].values()) == ["EXR.D.USD.EUR.SP00.A"]
+    assert list(sources["ECB_SDMX"]["series_keys"].values()) == ["MIR.M.DE.B.A2C.A.R.A.2250.EUR.N"]
     news = list(_news_discover("OFFICIAL_NEWS", None, None, 10))
     assert [item["url"] for item in news] == ["https://ec.europa.eu/commission/presscorner/api/rss?language=en"]
     raw = (FIXTURES / "configured_official_news.rss").read_bytes()
@@ -70,7 +70,7 @@ def test_only_verified_sources_and_requests_are_active():
 @pytest.mark.parametrize("source,fixture", [
     ("DESTATIS_GENESIS", "configured_destatis_genesis.zip"),
     ("EUROSTAT_STS", "configured_eurostat_sts.json"),
-    ("ECB_SDMX", "configured_ecb_sdmx.csv"),
+    ("ECB_SDMX", "configured_ecb_mir_de_housing_loans.csv"),
 ])
 def test_configured_real_response_commits_exact_selection_with_pilot_cap(tmp_path, source, fixture):
     item = next(iter(_stats_discover(source, "2025-01-01", "2025-12-31", 1)))
