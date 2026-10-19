@@ -145,7 +145,7 @@ def test_destatis_series_kind_comes_from_the_registry_selection():
     from src.ingestion import _make_stats_parser
     from src.schemas.ingestion import SourceDocument
     registry = load_data_sources_registry()
-    selection = registry["sources"]["DESTATIS_GENESIS"]["material_context_series"]["wood_products"]
+    selection = registry["sources"]["DESTATIS_GENESIS"]["context_series"]["wood_products"]
     content = (FIXTURES / "destatis_61241_0004_2025_official.csv").read_bytes()
     document = SourceDocument.from_content("DESTATIS_GENESIS", "https://genesis.destatis.de/x", "Destatis",
                                            content, "b", data_origin="test", available_at=FETCHED)
@@ -154,3 +154,17 @@ def test_destatis_series_kind_comes_from_the_registry_selection():
     (definition,) = parsed["series"]
     assert definition.measurement_kind == "MATERIAL_PPI_CONTEXT"
     assert definition.frequency == "MONTHLY"
+
+
+def test_destatis_calendar_quarter_variable_is_quarterly_not_annual():
+    """61261-0014 and 62221-0002 use QUARTG (calendar quarters), not QUARM1 (reference months)."""
+    header = ("statistics_code;statistics_label;time_code;time_label;time;1_variable_code;1_variable_label;"
+              "1_variable_attribute_code;1_variable_attribute_label;2_variable_code;2_variable_label;"
+              "2_variable_attribute_code;2_variable_attribute_label;value;value_unit;value_variable_code;value_variable_label")
+    rows = [f"61261;x;JAHR;Jahr;2025;QUARTG;Quartale;QUART{q};{q}. Quartal;DINSG;Deutschland;DG;Deutschland;"
+            f"12{q},5;2021=100;KOS022;Baukostenindizes" for q in (1, 2, 3, 4)]
+    payload = ("\n".join([header, *rows]) + "\n").encode("utf-8")
+    obs = sorted(normalize_series_response("DESTATIS_GENESIS", "61261-0014", payload, FETCHED), key=lambda o: o.period_start)
+    assert [(o.period_start, o.period_end_exclusive) for o in obs] == [
+        ("2025-01-01", "2025-04-01"), ("2025-04-01", "2025-07-01"), ("2025-07-01", "2025-10-01"), ("2025-10-01", "2026-01-01")]
+    assert obs[0].series_id == "61261-0014|DINSG=DG|KOS022|2021=100"

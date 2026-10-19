@@ -32,6 +32,11 @@ DESTATIS_QUARTER_MAP = {
     "Mai": ("04-01", "07-01", "Q2"),
     "August": ("07-01", "10-01", "Q3"),
     "November": ("10-01", "01-01", "Q4"),
+    # QUARTG: calendar quarters (e.g. 61261-0014 construction cost, 62221-0002 negotiated earnings)
+    "QUART1": ("01-01", "04-01", "Q1"),
+    "QUART2": ("04-01", "07-01", "Q2"),
+    "QUART3": ("07-01", "10-01", "Q3"),
+    "QUART4": ("10-01", "01-01", "Q4"),
 }
 
 EUROSTAT_UNIT_MAP = {
@@ -270,7 +275,7 @@ def parse_destatis_csv(payload: bytes, fetched_at: datetime, requested_key: str 
             if code_col in col_map and attr_col in col_map:
                 v_code = row[col_map[code_col]].strip()
                 v_attr = row[col_map[attr_col]].strip()
-                if v_code == "QUARM1":
+                if v_code in ("QUARM1", "QUARTG"):
                     quarter_info = DESTATIS_QUARTER_MAP.get(v_attr)
                 elif v_code == "MONAT":
                     month_info = v_attr

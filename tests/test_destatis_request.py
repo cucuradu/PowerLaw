@@ -15,8 +15,12 @@ def test_target_request_filters_to_the_registered_cell():
     assert (data["startyear"], data["endyear"]) == ("1958", "2026")
 
 
-def test_material_request_lists_all_selected_products_and_clamps_to_table_start():
-    data = _requests()["61241-0004"]
-    assert data["classifyingvariable1"] == "GP19M2"
-    assert data["classifyingkey1"] == "GP19-16,GP19-22,GP19-23,GP19-24,GP19-25"
-    assert data["startyear"] == "1976"
+def test_context_requests_filter_and_clamp_each_table():
+    requests = _requests()
+    assert "61241-0004" not in requests  # suspended: provider has no data cube
+    permits = requests["31111-0020"]
+    filters = {permits[f"classifyingvariable{i}"]: permits[f"classifyingkey{i}"] for i in range(1, 4)}
+    assert filters == {"BAUBR1": "BAUART1", "BAUGB1": "GBD-W", "BAUTK1": "BTK-GEB-NEU"}
+    assert permits["startyear"] == "2003"
+    cost = requests["61261-0014"]
+    assert (cost["classifyingvariable1"], cost["classifyingkey1"], cost["startyear"]) == ("KOSAT1", "KOST011,KOST012", "2000")

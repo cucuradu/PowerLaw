@@ -844,7 +844,7 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
                 required_series_keys = [target["provider_series_key"]]
             else:
                 required_series_keys = [selection["provider_series_key"] for selection in
-                    registry.get("material_context_series", {}).values() if selection["table_id"] == key_val]
+                    registry.get("context_series", {}).values() if selection["table_id"] == key_val]
             if not required_series_keys:
                 raise FetchError("Destatis table has no verified exact series selection")
             # Request only the registered cells: whole tables exceed the GENESIS dialog limit (status 98).
@@ -852,7 +852,7 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
                 selected = [{k: v for k, v in target["provider_dimension_codes"].items() if k != "DINSG"}]
             else:
                 selected = [{k: v for k, v in s["dimensions"].items() if k != "DINSG"}
-                            for s in registry.get("material_context_series", {}).values() if s["table_id"] == key_val]
+                            for s in registry.get("context_series", {}).values() if s["table_id"] == key_val]
             classifying = {}
             for dims in selected:
                 for variable, code in dims.items():
@@ -1017,7 +1017,7 @@ def _make_stats_parser(source_id: str) -> Parser:
                     catalog = load_data_sources_registry()
                     kinds = {catalog["primary_target"]["provider_series_key"]: catalog["primary_target"]["measurement_kind"]}
                     kinds.update({sel["provider_series_key"]: sel["measurement_kind"] for sel in
-                                  catalog["sources"]["DESTATIS_GENESIS"].get("material_context_series", {}).values()})
+                                  catalog["sources"]["DESTATIS_GENESIS"].get("context_series", {}).values()})
                     m_kind = kinds.get(o.series_id, "UNKNOWN")
                     m_name = m_kind.lower()
                     geo_id = "DE"

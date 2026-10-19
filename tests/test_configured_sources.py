@@ -50,8 +50,11 @@ def test_only_verified_sources_and_requests_are_active():
     sources = load_data_sources_registry()["sources"]
     assert {key for key, value in sources.items() if value["enabled"]} == {
         "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
-        "BUNDESBANK_SDMX", "SMARD_DE", "EURLEX_CELLAR"}
-    assert list(sources["DESTATIS_GENESIS"]["series_keys"].values()) == ["61261-0002", "61241-0004"]
+        "BUNDESBANK_SDMX", "EURLEX_CELLAR"}
+    assert list(sources["DESTATIS_GENESIS"]["series_keys"].values()) == [
+        "61261-0002", "61261-0014", "44111-0009", "31111-0020", "62221-0002"]
+    # 61241 answers "no data cube" for every request; suspended rather than failing every Destatis batch.
+    assert sources["DESTATIS_GENESIS"]["suspended_series_keys"]["material_ppi_context"]["table_id"] == "61241-0004"
     assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q"]
     assert list(sources["ECB_SDMX"]["series_keys"].values()) == ["EXR.D.USD.EUR.SP00.A"]
     news = list(_news_discover("OFFICIAL_NEWS", None, None, 10))
@@ -96,17 +99,24 @@ def test_configured_real_response_commits_exact_selection_with_pilot_cap(tmp_pat
         assert "indic_bt=PRC_PRR" in expected and "COST" not in expected
 
 
-def test_configured_material_context_selects_only_five_approved_natural_keys():
-    item = list(_stats_discover("DESTATIS_GENESIS", "2025", "2025", 10))[1]
-    raw = (FIXTURES / "destatis_61241_0004_2025_official.csv").read_bytes()
-    doc = SourceDocument.from_content("DESTATIS_GENESIS", item["canonical_url"], "Destatis", raw,
-        "material-replay", data_origin="test", available_at=FETCHED_AT)
-    result = _make_stats_parser("DESTATIS_GENESIS")(item, raw, doc)
-    expected = {entry["provider_series_key"] for entry in
-        load_data_sources_registry()["sources"]["DESTATIS_GENESIS"]["material_context_series"].values()}
-    assert len(expected) == 5
-    assert {definition.series_id for definition in result["series"]} == expected
-    assert {obs.series_id for obs in result["observations"]} == expected
+def test_each_context_table_fixture_yields_exactly_its_registered_keys():
+    """Every registered context selection is produced by the production parser from its official response."""
+    selections = load_data_sources_registry()["sources"]["DESTATIS_GENESIS"]["context_series"].values()
+    by_table = {}
+    for entry in selections:
+        by_table.setdefault(entry["table_id"], []).append(entry)
+    assert len(by_table["61241-0004"]) == 5
+    for table, entries in by_table.items():
+        expected = {entry["provider_series_key"] for entry in entries}
+        raw = (Path(__file__).parent.parent / entries[0]["fixture_path"]).read_bytes()
+        assert {hashlib.sha256(raw).hexdigest()} == {entry["fixture_sha256"] for entry in entries}
+        doc = SourceDocument.from_content("DESTATIS_GENESIS", "https://genesis.destatis.de/x", "Destatis", raw,
+            "context-replay", data_origin="test", available_at=FETCHED_AT)
+        item = {"series_key": table, "required_series_keys": sorted(expected)}
+        result = _make_stats_parser("DESTATIS_GENESIS")(item, raw, doc)
+        assert {definition.series_id for definition in result["series"]} == expected, table
+        kinds = {entry["provider_series_key"]: entry["measurement_kind"] for entry in entries}
+        assert {d.series_id: d.measurement_kind for d in result["series"]} == kinds, table
 
 
 def test_missing_configured_target_fails_without_empty_commit_or_cursor(tmp_path):

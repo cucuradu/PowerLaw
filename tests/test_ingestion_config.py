@@ -183,7 +183,7 @@ class TestIngestionConfig(unittest.TestCase):
         ]
         verified_enabled = {
             "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
-            "BUNDESBANK_SDMX", "SMARD_DE", "EURLEX_CELLAR",
+            "BUNDESBANK_SDMX", "EURLEX_CELLAR",
         }
         for ck in core_keys:
             self.assertIn(ck, sources, f"Core source {ck} must be present in register")

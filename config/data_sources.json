@@ -170,9 +170,12 @@
       },
       "series_keys": {
         "primary_construction_target": "61261-0002",
-        "material_ppi_context": "61241-0004"
+        "residential_construction_cost": "61261-0014",
+        "residential_order_intake": "44111-0009",
+        "residential_building_permits": "31111-0020",
+        "construction_negotiated_earnings": "62221-0002"
       },
-      "material_context_series": {
+      "context_series": {
         "wood_products": {
           "table_id": "61241-0004",
           "provider_series_key": "61241-0004|DINSG=DG|GP19M2=GP19-16|PRE001|2021=100",
@@ -252,14 +255,127 @@
           "fixture_sha256": "ac3aeff1363e2a95347e927e720cfb15ebdbe6c3e7e04126b7bb2cd8a3b86c6f",
           "historical_release_vintages_verified": false,
           "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
+        },
+        "residential_material_cost": {
+          "table_id": "61261-0014",
+          "provider_series_key": "61261-0014|DINSG=DG|KOSAT1=KOST011|KOS022|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "KOSAT1": "KOST011"
+          },
+          "provider_label": "Baukostenindizes für Wohngebäude: Materialkosten",
+          "measurement_kind": "CONSTRUCTION_INPUT_COST_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0014_2025_official.zip",
+          "fixture_sha256": "123a9c361b29787ec1fa6ffd5d1d767a8fc5aabee9a52906f91f97bae7a34548",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS response 2026-10-19 for 2025 with the classifying filters below; series key produced by the production parser."
+        },
+        "residential_labour_cost": {
+          "table_id": "61261-0014",
+          "provider_series_key": "61261-0014|DINSG=DG|KOSAT1=KOST012|KOS022|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "KOSAT1": "KOST012"
+          },
+          "provider_label": "Baukostenindizes für Wohngebäude: Arbeitskosten",
+          "measurement_kind": "CONSTRUCTION_INPUT_COST_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0014_2025_official.zip",
+          "fixture_sha256": "123a9c361b29787ec1fa6ffd5d1d767a8fc5aabee9a52906f91f97bae7a34548",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS response 2026-10-19 for 2025 with the classifying filters below; series key produced by the production parser."
+        },
+        "residential_order_intake_volume": {
+          "table_id": "44111-0009",
+          "provider_series_key": "44111-0009|DINSG=DG|BTRAG1=BTR-20UMTP|BAUAX1=BAUART11|WERT03=WERTORG|AUF102|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "BTRAG1": "BTR-20UMTP",
+            "BAUAX1": "BAUART11",
+            "WERT03": "WERTORG"
+          },
+          "provider_label": "Auftragseingang Bauhauptgewerbe, Wohnungsbau, Volumenindex, Originalwerte",
+          "measurement_kind": "ORDER_INTAKE_VOLUME_INDEX",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_44111_0009_2025_official.zip",
+          "fixture_sha256": "cb8f4c33bef41bef69e5b7e0fcc809e1c2764df4e72a2c311006680f41455d95",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS response 2026-10-19 for 2025 with the classifying filters below; series key produced by the production parser."
+        },
+        "residential_permits_dwellings": {
+          "table_id": "31111-0020",
+          "provider_series_key": "31111-0020|DINSG=DG|BAUBR1=BAUART1|BAUTK1=BTK-GEB-NEU|BAUGB1=GBD-W|WOHN01|Anzahl",
+          "dimensions": {
+            "DINSG": "DG",
+            "BAUBR1": "BAUART1",
+            "BAUTK1": "BTK-GEB-NEU",
+            "BAUGB1": "GBD-W"
+          },
+          "provider_label": "Baugenehmigungen, Errichtung neuer Wohngebäude: Wohnungen",
+          "measurement_kind": "BUILDING_PERMITS_DWELLINGS",
+          "frequency": "MONTHLY",
+          "base_period": null,
+          "fixture_path": "tests/fixtures/ingestion/destatis_31111_0020_2025_official.zip",
+          "fixture_sha256": "956f932c568c1b3ca548ec12e9002ed8a2d08b29d31c08e5cbc8f6a8de7b9f43",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS response 2026-10-19 for 2025 with the classifying filters below; series key produced by the production parser."
+        },
+        "residential_permits_estimated_cost": {
+          "table_id": "31111-0020",
+          "provider_series_key": "31111-0020|DINSG=DG|BAUBR1=BAUART1|BAUTK1=BTK-GEB-NEU|BAUGB1=GBD-W|VKB001|Tsd. EUR",
+          "dimensions": {
+            "DINSG": "DG",
+            "BAUBR1": "BAUART1",
+            "BAUTK1": "BTK-GEB-NEU",
+            "BAUGB1": "GBD-W"
+          },
+          "provider_label": "Baugenehmigungen, Errichtung neuer Wohngebäude: veranschlagte Kosten des Bauwerks",
+          "measurement_kind": "BUILDING_PERMITS_ESTIMATED_COST",
+          "frequency": "MONTHLY",
+          "base_period": null,
+          "fixture_path": "tests/fixtures/ingestion/destatis_31111_0020_2025_official.zip",
+          "fixture_sha256": "956f932c568c1b3ca548ec12e9002ed8a2d08b29d31c08e5cbc8f6a8de7b9f43",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS response 2026-10-19 for 2025 with the classifying filters below; series key produced by the production parser."
+        },
+        "construction_negotiated_monthly_earnings": {
+          "table_id": "62221-0002",
+          "provider_series_key": "62221-0002|DINSG=DG|WZ08C7=WZ08-F|VST066|2020=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "WZ08C7": "WZ08-F"
+          },
+          "provider_label": "Index der tariflichen Monatsverdienste ohne Sonderzahlungen, Baugewerbe",
+          "measurement_kind": "NEGOTIATED_WAGE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2020=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_62221_0002_2025_official.zip",
+          "fixture_sha256": "87a9551d45292136f8dd10fd6a6bf118147e653e4d133efbd81e2751b726e877",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS response 2026-10-19 for 2025 with the classifying filters below; series key produced by the production parser."
         }
       },
-      "series_keys_note": "Table IDs are discovery roots. Use provider_dimension_codes/provider_series_key and material_context_series to select exact series.",
+      "series_keys_note": "Table IDs are discovery roots. Use provider_dimension_codes/provider_series_key and context_series to select exact series.",
       "table_first_year": {
         "61261-0002": 1958,
-        "61241-0004": 1976
+        "61241-0004": 1976,
+        "61261-0014": 2000,
+        "44111-0009": 1991,
+        "31111-0020": 2003,
+        "62221-0002": 1995
       },
-      "table_first_year_evidence": "Official GENESIS metadata Time.From (tests/fixtures/ingestion/destatis_*_metadata_official.json)."
+      "table_first_year_evidence": "Official GENESIS metadata Time.From (tests/fixtures/ingestion/destatis_*_metadata_official.json).",
+      "suspended_series_keys": {
+        "material_ppi_context": {
+          "table_id": "61241-0004",
+          "since": "2026-10-19",
+          "reason": "Every 61241 table (0002, 0004, 0006) answers GENESIS status 7000 'kein Datenquader gefunden' for all year ranges and filters; re-check before re-enabling."
+        }
+      }
     },
     "EUROSTAT_STS": {
       "name": "Eurostat Short-Term Business Statistics (STS)",
@@ -357,13 +473,14 @@
       "release_cadence": "DAILY",
       "allowable_delay_days": 3,
       "source_owner": "Bundesnetzagentur",
-      "enabled": true,
+      "enabled": false,
       "endpoints": {
         "chart_data": "https://www.smard.de/app/chart_data/4169/DE"
       },
       "series_keys": {
         "wholesale_power_price_germany_luxembourg": "MARKET_DATA_DAY_AHEAD_DE_LU"
-      }
+      },
+      "disabled_reason": "2026-10-19: rows committed before the Berlin-midnight parser fix are dated one day early (2024-12-31..2025-12-30 for calendar 2025); retract them before re-enabling. Low relevance for the quarterly target."
     },
     "EURLEX_CELLAR": {
       "name": "Publications Office of the EU - CELLAR SPARQL & Metadata",

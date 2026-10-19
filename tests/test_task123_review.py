@@ -390,7 +390,7 @@ def test_official_context_keys_resolve_without_replacing_target():
         assert key in data["dimension"][name]["category"]["index"]
     assert euro["dimensions"]["indic_bt"] == "PRC_PRR"
     source = registry["sources"]["DESTATIS_GENESIS"]
-    for series in source["material_context_series"].values():
+    for series in (s for s in source["context_series"].values() if s["table_id"] == "61241-0004"):
         with Path(series["fixture_path"]).open(encoding="utf-8", newline="") as handle:
             rows = list(csv.DictReader(handle, delimiter=";"))
         selected = [row for row in rows if row["3_variable_attribute_code"] == series["dimensions"]["GP19M2"]]
@@ -398,7 +398,7 @@ def test_official_context_keys_resolve_without_replacing_target():
         assert all(row["value_unit"] == series["base_period"] for row in selected)
     verified_enabled = {
         "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
-        "BUNDESBANK_SDMX", "SMARD_DE", "EURLEX_CELLAR",
+        "BUNDESBANK_SDMX", "EURLEX_CELLAR",
     }
     assert {key for key, meta in registry["sources"].items() if meta["enabled"]} == verified_enabled
     assert all(registry["sources"][key]["rights_checked"] for key in verified_enabled)
