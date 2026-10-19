@@ -305,6 +305,40 @@ def _registered_hosts(entry: dict[str, Any]) -> set[str]:
     return hosts
 
 
+def _reconfirm_unchanged_observations(store: DualLayerStore, observations: list[Observation],
+                                      evidence: list[EvidenceLink]) -> tuple[list[Observation], list[EvidenceLink]]:
+    """Drop re-fetched rows equal to their latest committed revision when the provider gives no vintage.
+
+    Without a vintage, fetch time was the only thing distinguishing them, so each run created a duplicate
+    revision. The new document's evidence is re-pointed at the existing revision ("reconfirmed").
+    """
+    candidates = {o.observation_id for o in observations if not o.vintage_id}
+    if not candidates:
+        return observations, evidence
+    latest: dict[str, Observation] = {}
+    for row in store.query_observation_revisions(datetime.now(timezone.utc), "system_as_of"):
+        if row.observation_id in candidates:
+            previous = latest.get(row.observation_id)
+            if previous is None or store._available(row) > store._available(previous):
+                latest[row.observation_id] = row
+
+    def same(a: Observation, b: Observation) -> bool:
+        fields = ("value", "missing_reason", "unit", "source_unit", "is_retracted", "provider_status", "quality_state")
+        return all(getattr(a, f) == getattr(b, f) for f in fields)
+
+    kept, repoint = [], {}
+    for obs in observations:
+        previous = latest.get(obs.observation_id)
+        if not obs.vintage_id and previous is not None and same(obs, previous):
+            repoint[obs.revision_id] = previous.revision_id
+        else:
+            kept.append(obs)
+    links = [EvidenceLink.model_validate({**link.model_dump(exclude={"evidence_id"}),
+                                          "assertion_version_id": repoint[link.assertion_version_id]})
+             if link.assertion_version_id in repoint else link for link in evidence]
+    return kept, links
+
+
 def run_ingestion(source_id: str, *, limit: int, since: str | None = None, until: str | None = None,
                   dry_run: bool = False, settings=None, ledger: Optional[IngestionJobLedger] = None,
                   store: Optional[DualLayerStore] = None, archive: Optional[EvidenceArchive] = None,
@@ -440,6 +474,9 @@ def run_ingestion(source_id: str, *, limit: int, since: str | None = None, until
             report["cost_usd"] = ledger.spent_cost(run_id)
             completed = not failed
             return report
+        before = len(observations)
+        observations, evidence = _reconfirm_unchanged_observations(canonical_store, observations, evidence)
+        report["reconfirmed"] = before - len(observations)
         batch.fetched_count = report["fetched"]; batch.accepted_count = report["accepted"]; batch.review_count = report["review"]; batch.rejected_count = report["rejected"]
         manifest_payload = {"manifest_version": "2", "data_origin": batch.data_origin, "batch_metadata": batch.model_dump(mode="json"), "batch_id": batch_id, "source_id": source_id, "cursor_key": policy.get("cursor_key", "default"), "cursor_value": last_cursor, "documents": [d.model_dump(mode="json") for d in documents], "facts": [f.model_dump(mode="json") for f in facts], "observations": [o.model_dump(mode="json") for o in observations], "evidence_links": [e.model_dump(mode="json") for e in evidence], "entities": [e.model_dump(mode="json") for e in entities], "series": [s.model_dump(mode="json") for s in series]}
         manifest_bytes = json.dumps(manifest_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
