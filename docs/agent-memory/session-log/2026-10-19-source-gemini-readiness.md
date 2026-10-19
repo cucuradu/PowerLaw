@@ -1,0 +1,11 @@
+# Source and Gemini readiness verification
+
+- Goal: verify the other session's completion claim, credential readiness, real sources and actual Gemini request shape before ingestion.
+- Outcome: controlled diagnostics are possible; bulk ingestion and dependable forecasting remain blocked by real integration defects. No product configuration or source code changed.
+- Validation: `data/reports/source-readiness-2026-10-19/run_focused.py` -> 147 passed, one warning in 26.74s; external I/O blocked, no source changes during run. The full reported 471-test suite was not repeated.
+- Live read-only evidence: ADC refresh and Vertex service state verified; GENESIS token authenticated. Retained small Destatis/Eurostat/ECB responses parsed; official RSS returned ten items. Bundesbank URL 404; EUR-Lex first law URL 202 with zero bytes. Embedding metadata global404 versus us-central1 success. Billing metadata403 leaves credit balance/expiry unverified.
+- Request evidence: real installed SDK serialized the actual GNNRuleList extraction/review prompts through local mock transport. Live free CountTokens accepted draft prompt/schema for both active Flash Lite and requested3.8,2255tokens each. No live generation/embedding inference or paid API usage.
+- Configuration: production mode but legacy LanceDB path; all sources disabled; active model Flash Lite, not3.8; generation budget0 and model prices unset. ADC needs no new API key. Audit records contain presence/status only, no key values or authorization headers.
+- Reproduced issues: live Destatis246series violates8-series cap; provider natural target key rejected by outlook; BudgetError swallowed and law committed as no-rules success; unverified wrong-horizon/future PredictionRecord accepted without frozen manifest/calibration proof.
+- Files changed: added `docs/superpowers/reviews/2026-10-19-source-and-gemini-readiness.md`, this log, and corrected `docs/agent-memory/current-work.md`. Audit scripts/evidence are ignored under `data/reports/source-readiness-2026-10-19/`.
+- Next: repair target selection/IDs, extraction-failure lifecycle, source endpoints, embedding routing and isolated paths; preserve cap/zero paid budget. User checks trial credit balance/expiry in Billing before a small capped real generation comparison. Keep predictions experimental until persisted artifacts/calibration are verified.

@@ -1,0 +1,9 @@
+# Session: 2026-10-18 - Task 4 second pass
+
+- Goal: Audit the Task 4 repair for additional misses and implement the remaining review findings without changing later ingestion/backfill/training tasks.
+- Outcome: Fixed parsed-work restart reuse, lease-token enforcement on ledger publication/cursor updates, fail-closed SDK calls without an ingestion budget context, conservative settlement of failed paid attempts, empty parser rejection, registered endpoint/redirect enforcement, correct partial-error terminal state, blocking-stream total timeout, typed parser payload validation, CLI error redaction, report cost refresh, and safe connection diagnostics.
+- Files changed: `src/ingestion.py`, `src/storage/ingestion_jobs.py`, `src/utils/api_wrapper.py`, `scripts/ops/ingest.py`, `tests/test_ingestion_runner.py`, `tests/test_api_wrapper.py`.
+- Validation: Focused repair suite `38 passed`; full offline suite `284 passed, 28 subtests` with `tests/test_multimodal_single.py` excluded; connection diagnostics CLI executed without paid or remote calls; changed-file diagnostics reported no errors; `git diff --check` clean except line-ending warnings.
+- Decisions: Failed paid attempts are conservatively settled at their reserved worst-case amount because dispatch/billing cannot be disproven after an SDK exception. New production URLs and redirects must match registered source endpoint hosts before acquisition.
+- Unresolved issues: Remote S3 upload/read/checksum/restore smoke testing needs an isolated configured endpoint/prefix. Exhaustive crash injection at every persistence boundary remains operational follow-up. No production ingestion, migration, deletion, or paid request was performed.
+- Next action: Configure an isolated remote object-storage test prefix and run the opt-in smoke/recovery rehearsal.

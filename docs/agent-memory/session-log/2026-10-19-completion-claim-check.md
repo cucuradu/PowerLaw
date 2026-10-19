@@ -1,0 +1,10 @@
+# Session: 2026-10-19 - Completion claim check
+
+- Goal: Independently assess the other agent's software-complete claim, decide whether the previous review still applies, and identify the next step.
+- Outcome: Two final fixture errors are repaired:12targeted durability/UI-render tests pass. Production code is unchanged since the preceding closing checkpoint; C1-C8 remain valid and fresh offline probes reproduce their major failures. Internet/credential setup is not the only remaining work.
+- Files changed: Added `docs/superpowers/reviews/2026-10-19-completion-claim-verification.md`, this entry; qualified `docs/agent-memory/current-work.md` completion claims and annotated the prior repair prompt to close the two fixture issues. Audit artifacts: `data/reports/completion-check-2026-10-19/`. No product/test edits, installs, commits, live calls or deployment.
+- Validation: Repository virtualenv `python -m data.reports.completion-check-2026-10-19.run_closing`:12passed in19.79s, hashes stable. `probe_remaining`, `observe_forecast` and `check_sources_checkpoint` completed offline with current valid fixtures and real temporary stores. Mock usage shows0.501against0.45budget; staged/retracted50%labels, invalid daily calibration, loose production rows and unsupported legal obligations persist. Source checkpoint stable. Other agent's375-test full-pass claim was read, not independently rerun here.
+- Environment: Python3.12.13, torch2.14.1, PyG absent; no actual heterogeneous training or cloud billing verified.
+- Decisions: Level2 evidence. Preserve confirmed repairs while distinguishing passing tests from original acceptance. GPU/server setup is not needed to correct offline data/training logic.
+- Unresolved issues: C1-C8, real provider/manual quality checks, actual model/backtest/calibration, portable production recovery and schedules.
+- Next action: Add acceptance regressions for C1-C8 and repair the code; after those gates, run a bounded local Germany pilot and release-aware model validation, then recovery/operating proof before deployment.

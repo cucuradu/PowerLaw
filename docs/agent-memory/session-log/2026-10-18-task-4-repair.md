@@ -1,0 +1,9 @@
+# Session: 2026-10-18 - Task 4 repair
+
+- Goal: Implement all corrections in `docs/superpowers/reviews/2026-10-18-task-4-fix-prompt.md` while preserving Tasks 1-3 and unrelated worktree changes.
+- Outcome: Repaired collection identity/replay, durable discovery/work state, manifest recovery, lease ownership/renewal, composite cursors, immutable budget reservations, ingestion SDK budget context, archive hash/path isolation, source/parser policy, error redaction, lazy discovery and bounded HTTP cleanup.
+- Files changed: `src/ingestion.py`, `src/storage/ingestion_jobs.py`, `src/utils/minio_client.py`, `src/utils/api_wrapper.py`, `src/config.py`, `src/schemas/ingestion.py`, `src/storage/dual_layer_store.py`, `tests/test_ingestion_runner.py`, `tests/test_object_storage.py`, `tests/test_api_wrapper.py`.
+- Validation: Focused repair suite `32 passed`; related shared-contract suite `150 passed, 28 subtests`; full offline suite `278 passed, 28 subtests` with `tests/test_multimodal_single.py` excluded. `get_errors` reported no errors for changed source/tests. `git diff --check` clean except line-ending warnings.
+- Decisions: Archived manifest checksum is stored separately as `archive_sha256`; `manifest_sha256` remains the canonical staged-payload digest used by Task 3 replay checks. New polls receive fresh run IDs; resumes use durable run IDs and manifests.
+- Unresolved issues: Remote S3 upload/read/restore smoke testing remains pending because no isolated configured endpoint/prefix is available. Exhaustive injected-crash coverage at every durable boundary remains an operational follow-up. No production ingestion, migration, deletion or paid request was performed.
+- Next action: Configure an isolated remote test prefix and run the opt-in object-storage smoke test before claiming cloud readiness.

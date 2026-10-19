@@ -1,0 +1,10 @@
+# Session: 2026-10-18 — Task 5 review
+
+- Goal: Review Task 5 completion and prepare a repair prompt as in the Task 4 review.
+- Outcome: Task 5 is incomplete. Its 8 existing tests pass; isolated probes confirm 26 defects across entry points, replacement safety, evidence/review, coverage/extraction, identity/version history, dates, archiving and actual SPARQL query generation.
+- Files changed: Added `docs/superpowers/reviews/2026-10-18-task-5-fix-prompt.md`, this entry, ignored local probe `data/reports/task5_review_probe.py`, local source-hash report and the Task 5 current-work follow-up. No product code changed.
+- Validation: `python -m pytest tests/test_law_ingestion.py -q -p no:cacheprovider --tb=short` — 8 passed. Then reran legal/ingestion/schema suites with all configured storage explicitly isolated: `python -m pytest tests/test_law_ingestion.py tests/test_ingestion_schema.py tests/test_schema.py -q -p no:cacheprovider --tb=short` — 36 passed, 28 subtests passed. `python -m data.reports.task5_review_probe` — 26/26 defects reproduced using temporary stores and fake HTTP/model calls. Initial baseline constructors can open the global configured search-view DB despite injected temporary canonical stores; this isolation defect was reproduced/documented.
+- Source verification: Official EUR-Lex pages identify the construction-products recast as CELEX 32024R3110 and 32023D1534 as a digital-innovation-hubs decision; seed/fixture labels need correction. Links are in the prompt. No paid model requests were made.
+- Decisions: Level 2 — Passing current Task 5 tests does not establish completion. Implementation repairs are for the other session.
+- Unresolved issues: Repairs are in the prompt. Task 4 shared files changed during this review; its latest repairs were not revalidated. Full suite, live archive/source-adapter integration and manual pilot legal review were not run.
+- Next action: Repair Task 5, coordinate shared runner/store edits with the Task 4 session, and verify corrected behavior before marking complete.
