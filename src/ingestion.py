@@ -847,11 +847,25 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
                     registry.get("material_context_series", {}).values() if selection["table_id"] == key_val]
             if not required_series_keys:
                 raise FetchError("Destatis table has no verified exact series selection")
+            # Request only the registered cells: whole tables exceed the GENESIS dialog limit (status 98).
+            if key_val == target["table_id"]:
+                selected = [{k: v for k, v in target["provider_dimension_codes"].items() if k != "DINSG"}]
+            else:
+                selected = [{k: v for k, v in s["dimensions"].items() if k != "DINSG"}
+                            for s in registry.get("material_context_series", {}).values() if s["table_id"] == key_val]
+            classifying = {}
+            for dims in selected:
+                for variable, code in dims.items():
+                    classifying.setdefault(variable, set()).add(code)
+            first_year = int(registry.get("table_first_year", {}).get(key_val, 0))
+            request_data = {"name": key_val, "area": "all", "format": "ffcsv", "language": "de",
+                            "startyear": str(max(int(since[:4]), first_year)), "endyear": until[:4], "job": "false"}
+            for number, variable in enumerate(sorted(classifying), start=1):
+                request_data[f"classifyingvariable{number}"] = variable
+                request_data[f"classifyingkey{number}"] = ",".join(sorted(classifying[variable]))
             canonical_url = f"{base_url}?name={key_val}"
             url = base_url
-            request_contract = {"request_method": "POST", "auth_source": source_id,
-                "request_data": {"name": key_val, "area": "all", "format": "ffcsv", "language": "de",
-                    "startyear": since[:4], "endyear": until[:4], "job": "false"}}
+            request_contract = {"request_method": "POST", "auth_source": source_id, "request_data": request_data}
             content_type = "application/zip"
         elif source_id == "ECB_SDMX":
             required_series_keys = [key_val]

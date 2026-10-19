@@ -254,7 +254,12 @@
           "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
         }
       },
-      "series_keys_note": "Table IDs are discovery roots. Use provider_dimension_codes/provider_series_key and material_context_series to select exact series."
+      "series_keys_note": "Table IDs are discovery roots. Use provider_dimension_codes/provider_series_key and material_context_series to select exact series.",
+      "table_first_year": {
+        "61261-0002": 1958,
+        "61241-0004": 1976
+      },
+      "table_first_year_evidence": "Official GENESIS metadata Time.From (tests/fixtures/ingestion/destatis_*_metadata_official.json)."
     },
     "EUROSTAT_STS": {
       "name": "Eurostat Short-Term Business Statistics (STS)",
