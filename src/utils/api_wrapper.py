@@ -259,11 +259,13 @@ def get_completion(
 def get_completion_with_json(
     prompt: str, use_pro: bool = False,
     response_schema: Optional[Any] = None, thinking_level: Optional[str] = None,
+    max_output_tokens: Optional[int] = None,
 ) -> str:
     """Return JSON text, preserving the provided schema and its constraints."""
     if not prompt or not prompt.strip():
         raise ValueError("Prompt cannot be empty")
-    config = _generation_config(use_pro=use_pro, thinking_level=thinking_level, max_output_tokens=1024, json_output=True, response_schema=response_schema)
+    limit = 8192 if max_output_tokens is None else max_output_tokens
+    config = _generation_config(use_pro=use_pro, thinking_level=thinking_level, max_output_tokens=limit, json_output=True, response_schema=response_schema)
     reservation = _reserve_paid_attempt("completion_json", prompt, config)
     response = None
     try:

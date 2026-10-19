@@ -354,8 +354,7 @@
       "source_owner": "Bundesnetzagentur",
       "enabled": true,
       "endpoints": {
-        "chart_data": "https://www.smard.de/app/chart_data/4169/DE",
-        "download_center": "https://www.smard.de/en/downloadcenter"
+        "chart_data": "https://www.smard.de/app/chart_data/4169/DE"
       },
       "series_keys": {
         "wholesale_power_price_germany_luxembourg": "MARKET_DATA_DAY_AHEAD_DE_LU"

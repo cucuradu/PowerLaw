@@ -781,7 +781,7 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
     if not endpoints:
         raise FetchError("source has no verified acquisition endpoint")
     base_url = next(iter(endpoints.values()))
-    if source_id == "SMARD_DE" and ("downloadcenter" in base_url.lower() or "downloadcenter" in str(endpoints).lower()):
+    if source_id == "SMARD_DE" and ("downloadcenter" in base_url.lower() or "chart_data" not in endpoints):
         raise FetchError("SMARD requires a verified official export; download center is not a data API")
     for key_name, key_val in keys.items():
         if count >= limit:
@@ -882,10 +882,14 @@ def _make_stats_parser(source_id: str) -> Parser:
         if source_id in {"ECB_SDMX", "BUNDESBANK_SDMX"}:
             import csv
             import io
-            for row in csv.DictReader(io.StringIO(content.decode("utf-8-sig"))):
-                source_dimensions[row.get("KEY", "")] = {key: value for key, value in row.items()
-                    if key not in {"KEY", "TIME_PERIOD", "OBS_VALUE"} and not key.startswith("OBS_")
-                    and key not in {"LAST_UPDATE", "LAST_UPDATED", "UPDATE_DATE"} and value}
+            text = content.decode("utf-8-sig", errors="replace")
+            delimiter = ";" if ";" in text.split("\n", 1)[0] else ","
+            for row in csv.DictReader(io.StringIO(text), delimiter=delimiter):
+                row_key = row.get("KEY") or row.get("") or ""
+                if row_key:
+                    source_dimensions[row_key] = {key: value for key, value in row.items()
+                        if key and key not in {"KEY", "TIME_PERIOD", "OBS_VALUE"} and not key.startswith("OBS_")
+                        and key not in {"LAST_UPDATE", "LAST_UPDATED", "UPDATE_DATE"} and value}
         observations = []
         evidence = []
         for o in raw_obs:
