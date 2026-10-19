@@ -67,15 +67,26 @@ class Settings(BaseModel):
 
 
 _SETTINGS_INSTANCE: Optional[Settings] = None
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _repo_path(value: str) -> Path:
+    """Relative paths in .env/defaults are relative to the repository, not the caller's working directory."""
+    path = Path(value)
+    return path if path.is_absolute() else REPO_ROOT / path
 
 
 def get_settings() -> Settings:
     """
     Returns the singleton Settings instance, resolved from environment variables.
+    The repository .env is loaded first; variables already set in the process environment win.
     """
     global _SETTINGS_INSTANCE
     if _SETTINGS_INSTANCE is not None:
         return _SETTINGS_INSTANCE
+
+    from dotenv import load_dotenv
+    load_dotenv(REPO_ROOT / ".env", override=False)
 
     mode = os.getenv("POWERLAW_MODE", "production").lower()
     if mode not in ["production", "demo", "test"]:
@@ -83,29 +94,25 @@ def get_settings() -> Settings:
 
     # Base data directory
     if os.getenv("POWERLAW_DATA_DIR"):
-        data_dir = Path(os.environ["POWERLAW_DATA_DIR"])
-    elif mode == "demo":
-        data_dir = Path("./data/demo")
-    elif mode == "test":
-        data_dir = Path("./data/test")
+        data_dir = _repo_path(os.environ["POWERLAW_DATA_DIR"])
     else:
-        data_dir = Path("./data/production")
+        data_dir = _repo_path({"demo": "data/demo", "test": "data/test"}.get(mode, "data/production"))
 
     # LanceDB Path
     if os.getenv("LANCEDB_PATH"):
-        lancedb_path = Path(os.environ["LANCEDB_PATH"])
+        lancedb_path = _repo_path(os.environ["LANCEDB_PATH"])
     else:
         lancedb_path = data_dir / "lancedb"
 
     # SQLite Path
     if os.getenv("POWERLAW_SQLITE_PATH"):
-        sqlite_path = Path(os.environ["POWERLAW_SQLITE_PATH"])
+        sqlite_path = _repo_path(os.environ["POWERLAW_SQLITE_PATH"])
     else:
         sqlite_path = data_dir / "ingestion.sqlite"
 
     # Cache & Temp dirs
-    cache_dir = Path(os.getenv("POWERLAW_CACHE_DIR", str(data_dir / "cache")))
-    temp_dir = Path(os.getenv("POWERLAW_TEMP_DIR", str(data_dir / "temp")))
+    cache_dir = _repo_path(os.getenv("POWERLAW_CACHE_DIR", str(data_dir / "cache")))
+    temp_dir = _repo_path(os.getenv("POWERLAW_TEMP_DIR", str(data_dir / "temp")))
 
     # Numeric budgets
     cache_limit = int(os.getenv("POWERLAW_CACHE_LIMIT_BYTES", str(2 * 1024 * 1024 * 1024)))
@@ -168,7 +175,7 @@ def load_data_sources_registry(registry_path: Optional[Path] = None) -> dict:
     Enforces access_fee == 0 and requires_paid_subscription is False for all tracked sources.
     """
     if registry_path is None:
-        registry_path = Path("config/data_sources.json")
+        registry_path = Path(__file__).resolve().parent.parent / "config" / "data_sources.json"
 
     if not registry_path.exists():
         raise FileNotFoundError(f"Data sources registry not found at {registry_path}")
@@ -183,6 +190,11 @@ def load_data_sources_registry(registry_path: Optional[Path] = None) -> dict:
         validate_source_entry(src_id, src_meta)
 
     return data
+
+
+def primary_target_series_id() -> str:
+    """Canonical series_id of the forecast target, exactly as statistics ingestion stores it."""
+    return load_data_sources_registry()["primary_target"]["provider_series_key"]
 
 
 def validate_source_entry(source_id: str, entry: dict) -> None:

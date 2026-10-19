@@ -479,7 +479,7 @@ def get_job_status(job_id: str, ledger: Optional[Any] = None) -> Dict[str, Any]:
 
 def get_construction_outlook(
     cutoff: Optional[Union[datetime, str]] = None,
-    target_series_id: str = "series:destatis:61261-0002",
+    target_series_id: Optional[str] = None,
     store: Optional[Any] = None,
     prediction_record: Optional[Any] = None,
     dataset_manifest: Optional[Any] = None,
@@ -496,6 +496,9 @@ def get_construction_outlook(
     """
     from src.storage.dual_layer_store import DualLayerStore
     from src.quant.forecasting import calibrate_residual_interval
+    from src.config import primary_target_series_id
+
+    target_series_id = target_series_id or primary_target_series_id()
 
     # Anti-proxy enforcement
     FORBIDDEN_PROXIES = {
@@ -515,11 +518,10 @@ def get_construction_outlook(
             f"Consumer price indices (CPI/HICP) cannot substitute for construction PPI (requested: '{target_series_id}')."
         )
 
+    # Ingested series_id formats: Destatis "61261-xxxx|dims...", Eurostat "EUROSTAT_STS|sts_copi_q|dims...".
     if not (
-        target_lower.startswith("series:destatis:61261")
-        or target_lower.startswith("series:eurostat:sts_copi")
-        or target_lower.startswith("series:eurostat:prc_copi")
-        or target_lower.startswith("series:construction:")
+        target_lower.startswith("61261-")
+        or target_lower.startswith("eurostat_sts|sts_copi")
     ):
         raise ValueError(
             f"Target series '{target_series_id}' is not a recognized construction producer-price index. "
@@ -572,7 +574,9 @@ def get_construction_outlook(
             "details": "No observations available for target series.",
         }
     else:
-        latest = target_obs[-1]
+        # Unpublished quarters ("...") are stored as null rows; the latest observation is the last measured one.
+        measured = [o for o in target_obs if o.get("value") is not None]
+        latest = measured[-1] if measured else target_obs[-1]
         avail = latest.get("available_at")
         if isinstance(avail, str):
             avail_dt = datetime.fromisoformat(avail.replace("Z", "+00:00"))
@@ -583,10 +587,13 @@ def get_construction_outlook(
         if avail_dt and avail_dt.tzinfo is None:
             avail_dt = avail_dt.replace(tzinfo=timezone.utc)
 
-        # Staleness check: > 180 days lag relative to cutoff
+        # Staleness: > 180 days between the reference period's end and cutoff. Fetch time is not
+        # used, because re-fetching an old release would otherwise make it look fresh.
         is_stale = False
-        if avail_dt and (cutoff - avail_dt).days > 180:
-            is_stale = True
+        period_end = latest.get("period_end_exclusive")
+        if period_end:
+            end_dt = datetime.fromisoformat(str(period_end)[:10]).replace(tzinfo=timezone.utc)
+            is_stale = (cutoff - end_dt).days > 180
 
         status = "STALE" if is_stale else (latest.get("status") or "AVAILABLE").upper()
         p_start = latest.get("period_start", "")
@@ -600,7 +607,8 @@ def get_construction_outlook(
         if is_stale:
             source_gaps.append(
                 f"Latest available observation for {target_series_id} is from {period_str} "
-                f"(published {avail_dt.date() if avail_dt else 'unknown'}), which is over 180 days stale relative to cutoff {cutoff.date()}."
+                f"(period ended {str(period_end)[:10]}; available {avail_dt.date() if avail_dt else 'unknown'}), "
+                f"which is over 180 days stale relative to cutoff {cutoff.date()}."
             )
 
         val = float(latest.get("value")) if latest.get("value") is not None else None

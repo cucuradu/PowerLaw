@@ -3,6 +3,7 @@ Automated Test Suite for Task 11:
 Construction outlook with evidence, limitations, and strict absence of causal claims
 or financial proxy substitution.
 """
+from src.config import primary_target_series_id
 
 import tempfile
 import unittest
@@ -20,6 +21,8 @@ from src.schemas.ingestion import (
 )
 from src.storage.dual_layer_store import DualLayerStore
 from src.storage.dashboard_data import get_construction_outlook
+
+TARGET = primary_target_series_id()
 
 
 class TestConstructionOutlook(unittest.TestCase):
@@ -67,7 +70,7 @@ class TestConstructionOutlook(unittest.TestCase):
             batch_id="batch_init"
         )
         self.e_series_construction = Entity(
-            entity_id="series:destatis:61261-0002",
+            entity_id=TARGET,
             entity_type="ECONOMIC_INDEX",
             canonical_label="German Construction PPI Residential (Destatis 61261-0002)",
             created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
@@ -82,7 +85,7 @@ class TestConstructionOutlook(unittest.TestCase):
         )
 
         self.series_def = SeriesDefinition(
-            series_id="series:destatis:61261-0002",
+            series_id=TARGET,
             source_id="destatis",
             dataset_id="61261-0002",
             provider_series_key="PREIS_BAUWERKE_WOHN",
@@ -177,7 +180,7 @@ class TestConstructionOutlook(unittest.TestCase):
             source_id="reuters",
             subject_id="event:news:steel_curtailment",
             predicate="IMPACTS",
-            object_id="series:destatis:61261-0002",
+            object_id=TARGET,
             valid_from=datetime(2024, 2, 1, tzinfo=timezone.utc),
             available_at=datetime(2024, 2, 1, tzinfo=timezone.utc),
             recorded_at=datetime(2024, 2, 1, tzinfo=timezone.utc),
@@ -236,9 +239,9 @@ class TestConstructionOutlook(unittest.TestCase):
     def test_missing_target_price_data(self):
         """When target series has no observations, returns clean report with explicit missing status and gaps."""
         cutoff = datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
-        outlook = get_construction_outlook(cutoff=cutoff, target_series_id="series:destatis:61261-0002", store=self.store)
+        outlook = get_construction_outlook(cutoff=cutoff, target_series_id=TARGET, store=self.store)
 
-        assert outlook["target_series_id"] == "series:destatis:61261-0002"
+        assert outlook["target_series_id"] == TARGET
         assert "residential" in outlook["target_definition"].lower()
         assert outlook["latest_observation"] is None
         assert outlook["point_forecast"] is None
@@ -259,7 +262,7 @@ class TestConstructionOutlook(unittest.TestCase):
         )
         obs_old = Observation(
             observation_id="obs:61261:2023Q2",
-            series_id="series:destatis:61261-0002",
+            series_id=TARGET,
             period_start="2023-04-01",
             period_end_exclusive="2023-07-01",
             value=105.0,
@@ -289,7 +292,7 @@ class TestConstructionOutlook(unittest.TestCase):
 
         # Cutoff is 2024-06-30 (over 3 quarters later, definitely stale)
         cutoff = datetime(2024, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
-        outlook = get_construction_outlook(cutoff=cutoff, target_series_id="series:destatis:61261-0002", store=self.store)
+        outlook = get_construction_outlook(cutoff=cutoff, target_series_id=TARGET, store=self.store)
 
         assert outlook["latest_observation"] is not None
         assert outlook["latest_observation"]["period"] == "2023-Q2"
@@ -313,7 +316,7 @@ class TestConstructionOutlook(unittest.TestCase):
             year = 2022 + ((i - 1) // 4)
             obs = Observation(
                 observation_id=f"obs:61261:{year}Q{q_num}",
-                series_id="series:destatis:61261-0002",
+                series_id=TARGET,
                 period_start=f"{year}-{(q_num-1)*3+1:02d}-01",
                 period_end_exclusive=f"{year}-{q_num*3:02d}-28",
                 value=100.0 + i * 1.5,
@@ -344,7 +347,7 @@ class TestConstructionOutlook(unittest.TestCase):
         self.store.commit_batch("batch_short_history")
 
         cutoff = datetime(2023, 7, 1, tzinfo=timezone.utc)
-        outlook = get_construction_outlook(cutoff=cutoff, target_series_id="series:destatis:61261-0002", store=self.store)
+        outlook = get_construction_outlook(cutoff=cutoff, target_series_id=TARGET, store=self.store)
 
         assert outlook["interval"]["calibration_status"] == "insufficient_calibration_history"
         assert outlook["interval"]["lower"] is None
@@ -354,7 +357,7 @@ class TestConstructionOutlook(unittest.TestCase):
     def test_forthcoming_obligation_vs_active_obligation(self):
         """Active rules (valid_from <= cutoff) and forthcoming obligations (valid_from > cutoff) are strictly separated."""
         cutoff = datetime(2024, 6, 30, tzinfo=timezone.utc)
-        outlook = get_construction_outlook(cutoff=cutoff, target_series_id="series:destatis:61261-0002", store=self.store)
+        outlook = get_construction_outlook(cutoff=cutoff, target_series_id=TARGET, store=self.store)
 
         reg_context = outlook["regulatory_context"]
         active = [r for r in reg_context if r["status"] == "ACTIVE"]
@@ -418,7 +421,7 @@ class TestConstructionOutlook(unittest.TestCase):
         self.store.commit_batch("batch_smard")
 
         cutoff = datetime(2024, 6, 30, tzinfo=timezone.utc)
-        outlook = get_construction_outlook(cutoff=cutoff, target_series_id="series:destatis:61261-0002", store=self.store)
+        outlook = get_construction_outlook(cutoff=cutoff, target_series_id=TARGET, store=self.store)
 
         supply = outlook["supply_context"]
         reported = [s for s in supply if s["kind"] == "REPORTED"]
@@ -443,7 +446,7 @@ class TestConstructionOutlook(unittest.TestCase):
         )
         obs_v1 = Observation(
             observation_id="obs:61261:2023Q4",
-            series_id="series:destatis:61261-0002",
+            series_id=TARGET,
             period_start="2023-10-01",
             period_end_exclusive="2024-01-01",
             value=110.0,
@@ -481,7 +484,7 @@ class TestConstructionOutlook(unittest.TestCase):
         )
         obs_v2 = Observation(
             observation_id="obs:61261:2023Q4",
-            series_id="series:destatis:61261-0002",
+            series_id=TARGET,
             period_start="2023-10-01",
             period_end_exclusive="2024-01-01",
             value=112.5,
@@ -511,7 +514,7 @@ class TestConstructionOutlook(unittest.TestCase):
 
         # Query as of 2024-03-01: should see value=110.0 (v1), NOT 112.5 (v2)
         cutoff = datetime(2024, 3, 1, tzinfo=timezone.utc)
-        outlook = get_construction_outlook(cutoff=cutoff, target_series_id="series:destatis:61261-0002", store=self.store)
+        outlook = get_construction_outlook(cutoff=cutoff, target_series_id=TARGET, store=self.store)
 
         assert outlook["latest_observation"] is not None
         assert outlook["latest_observation"]["value"] == 110.0
@@ -539,7 +542,7 @@ class TestConstructionOutlook(unittest.TestCase):
     def test_no_evidence_presented_as_causal_proof(self):
         """Disclaimers must explicitly declare that graph edges and models are not causal proof."""
         cutoff = datetime(2024, 6, 30, tzinfo=timezone.utc)
-        outlook = get_construction_outlook(cutoff=cutoff, target_series_id="series:destatis:61261-0002", store=self.store)
+        outlook = get_construction_outlook(cutoff=cutoff, target_series_id=TARGET, store=self.store)
 
         assert "limitations" in outlook
         disclaimer = " ".join(outlook["limitations"]).lower()
@@ -557,7 +560,7 @@ class TestConstructionOutlook(unittest.TestCase):
         facts_before = len(self.store._canonical_facts)
 
         cutoff = datetime(2024, 6, 30, tzinfo=timezone.utc)
-        _ = get_construction_outlook(cutoff=cutoff, target_series_id="series:destatis:61261-0002", store=self.store)
+        _ = get_construction_outlook(cutoff=cutoff, target_series_id=TARGET, store=self.store)
 
         assert len(self.store._canonical_batches) == batches_before
         assert len(self.store._canonical_observations) == obs_before

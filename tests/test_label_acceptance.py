@@ -1,4 +1,5 @@
 """First-release labels must be committed, comparable and backed by a release."""
+from src.config import primary_target_series_id
 import copy
 import numpy as np
 import pytest
@@ -9,7 +10,7 @@ from src.storage.dual_layer_store import DualLayerStore
 from src.models.gnn_dataset import build_forecast_dataset
 from src.quant.forecasting import evaluate_baselines
 
-SID = "series:destatis:61261-0002"
+SID = primary_target_series_id()
 
 
 def fixture(tmp_path, *, commit=True, vintage="release:2024-08", end="2024-07-01",
@@ -50,13 +51,14 @@ def test_retracted_release_does_not_train(tmp_path):
     assert not build(store)["samples"][0]["y_mask"][0, 0]
 
 
-def test_release_time_includes_denominator_and_missing_target_index(tmp_path):
+def test_release_time_includes_denominator_and_resolves_target_index(tmp_path):
     store, _ = fixture(tmp_path, denominator_release="2024-09-01T00:00:00Z")
     sample = build(store)["samples"][0]
     assert sample["first_release_available_at"] == utc("2024-09-01T00:00:00Z")
     assert sample["y"][0, 0] == pytest.approx(10)
-    assert sample["target_series_index"].tolist() == [-1]
-    assert sample["target_series_present"] is False
+    # The committed target series is a graph node, so the model can read its prediction.
+    assert sample["target_series_index"].tolist() == [0]
+    assert sample["target_series_present"] is True
 
 
 def test_manifest_changes_when_committed_release_changes(tmp_path):

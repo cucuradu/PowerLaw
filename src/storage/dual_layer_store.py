@@ -1987,10 +1987,18 @@ class DualLayerStore:
         for key, ent in self._canonical_entities.items():
             if ent.batch_id in eligible and self._utc(ent.created_at) <= cutoff:
                 node_ids.add(key)
+        # Measured series are graph nodes under their ingested series_id, so targets and features resolve.
+        series = {d.series_id: d for d in self.query_series(cutoff, mode)}
+        node_ids.update(series)
         nodes = []
         for key in sorted(node_ids):
             ent = self._canonical_entities.get(key)
             legacy = self._nodes.get(key)
+            s_def = series.get(key) if ent is None else None
+            if s_def is not None:
+                nodes.append({"id": key, "label": s_def.metric_name, "node_type": "SERIES",
+                              "node_subtype": s_def.measurement_kind, "jurisdiction": s_def.geography_id})
+                continue
             nodes.append({"id": key, "label": ent.canonical_label if ent else legacy.label if legacy else key,
                           "node_type": ent.entity_type if ent else legacy.node_type if legacy else "UNKNOWN",
                           "node_subtype": ent.entity_subtype if ent else None,

@@ -3,6 +3,7 @@ Automated Test Suite for Task 10:
 Real forecasting dataset, release-aware as-of export, PyG HeteroData projection,
 baselines, conformal calibration, and optional sparse Hetero GNN.
 """
+from src.config import primary_target_series_id
 
 import os
 import json
@@ -42,6 +43,8 @@ from src.models.gnn_dataset import build_forecast_dataset
 from src.quant.forecasting import evaluate_baselines, calibrate_residual_interval
 from src.gnn.temporal_gnn import TemporalHeteroGNN
 from src.gnn.trainer import HeteroGNNTrainer
+
+TARGET = primary_target_series_id()
 
 
 class TestForecastDatasetAndGNN(unittest.TestCase):
@@ -102,7 +105,7 @@ class TestForecastDatasetAndGNN(unittest.TestCase):
             batch_id="batch_init"
         )
         self.e_series = Entity(
-            entity_id="series:destatis:61261-0002",
+            entity_id=TARGET,
             entity_type="ECONOMIC_INDEX",
             canonical_label="German Construction PPI Residential",
             created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
@@ -110,7 +113,7 @@ class TestForecastDatasetAndGNN(unittest.TestCase):
         )
 
         self.series_def = SeriesDefinition(
-            series_id="series:destatis:61261-0002",
+            series_id=TARGET,
             source_id="destatis",
             dataset_id="61261-0002",
             provider_series_key="PREIS_BAUWERKE_WOHN",
@@ -167,7 +170,7 @@ class TestForecastDatasetAndGNN(unittest.TestCase):
         fact_measures = Fact(
             fact_id="fact:measures:01",
             fact_version_id="fact:measures:01:v1",
-            subject_id="series:destatis:61261-0002",
+            subject_id=TARGET,
             predicate="MEASURES",
             object_id="commodity:cement",
             valid_from=datetime(2023, 1, 1, tzinfo=timezone.utc),
@@ -246,7 +249,7 @@ class TestForecastDatasetAndGNN(unittest.TestCase):
         obs_future = Observation(
             observation_id="obs:de:ppi:2026-Q3",
             revision_id="obs:de:ppi:2026-Q3:v1",
-            series_id="series:destatis:61261-0002",
+            series_id=TARGET,
             period_start="2026-07-01",
             period_end_exclusive="2026-10-01",
             value=125.4,
@@ -395,7 +398,7 @@ class TestForecastDatasetAndGNN(unittest.TestCase):
         Label remains masked until that release.
         """
         origin = datetime(2026, 9, 30, 23, 59, 59, 999999, tzinfo=timezone.utc)
-        target_series = "series:destatis:61261-0002"
+        target_series = TARGET
 
         # Ingest historical Q1 and Q2 released in May and Aug 2026
         # Q3 is NOT released until 2026-11-15
@@ -750,7 +753,7 @@ class TestForecastDatasetAndGNN(unittest.TestCase):
             {
                 "origin": datetime(2026, 6, 30, 23, 59, 59, 999999, tzinfo=timezone.utc),
                 "first_release_available_at": datetime(2026, 8, 15, tzinfo=timezone.utc),
-                "target_series_id": "series:destatis:61261-0002",
+                "target_series_id": TARGET,
                 "target_series_present": True,
                 "snapshots": [hdata for _ in range(8)],
                 "target_series_index": np.array([0], dtype=np.int64),
@@ -760,7 +763,7 @@ class TestForecastDatasetAndGNN(unittest.TestCase):
             {
                 "origin": datetime(2026, 9, 30, tzinfo=timezone.utc),
                 "first_release_available_at": datetime(2026, 11, 15, tzinfo=timezone.utc),
-                "target_series_id": "series:destatis:61261-0002",
+                "target_series_id": TARGET,
                 "target_series_present": True,
                 "snapshots": [hdata for _ in range(8)],
                 "target_series_index": np.array([0], dtype=np.int64),
@@ -772,7 +775,7 @@ class TestForecastDatasetAndGNN(unittest.TestCase):
             {
                 "origin": datetime(2026, 12, 31, tzinfo=timezone.utc),
                 "first_release_available_at": datetime(2027, 2, 15, tzinfo=timezone.utc),
-                "target_series_id": "series:destatis:61261-0002",
+                "target_series_id": TARGET,
                 "target_series_present": True,
                 "snapshots": [hdata for _ in range(8)],
                 "target_series_index": np.array([0], dtype=np.int64),

@@ -205,8 +205,10 @@ def build_forecast_dataset(
     definition = definitions.get(target_series_id)
     if definition is None or definition.frequency.upper() not in {"Q", "QUARTERLY"}:
         raise ValueError("A committed quarterly target definition is required")
-    if definition.dataset_id != "61261-0002" or definition.geography_id not in {"DE", "geo:DE"}:
-        raise ValueError("The primary target is German residential construction PPI 61261-0002")
+    from src.config import load_data_sources_registry
+    target_table = load_data_sources_registry()["primary_target"]["table_id"]
+    if definition.dataset_id != target_table or definition.geography_id not in {"DE", "geo:DE"}:
+        raise ValueError(f"The primary target is German residential construction PPI {target_table}")
     if definition.measurement_kind.upper() not in {"PRODUCER_PRICE_INDEX", "PRODUCER_PRICE"}:
         raise ValueError("Input costs, material prices and consumer prices cannot replace construction PPI")
 
@@ -246,7 +248,7 @@ def build_forecast_dataset(
             snapshots.append(to_heterodata(raw) if HAS_PYG else raw)
         snapshot_hashes.append(hashes)
         last = snapshots[-1]
-        ids = list(last["series"].node_id) if HAS_PYG else sorted(n["id"] for n in last.get("nodes", []) if n["id"].startswith("series:"))
+        ids = list(last["series"].node_id) if HAS_PYG else sorted(n["id"] for n in last.get("nodes", []) if n.get("node_type") in ("SERIES", "ECONOMIC_INDEX") or n["id"].startswith("series:"))
         index = ids.index(target_series_id) if target_series_id in ids else -1
         candidates = []
         for denominator, da in verified:
