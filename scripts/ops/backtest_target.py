@@ -37,20 +37,29 @@ def load_predictors(store: DualLayerStore, revisions: list) -> dict:
     config = json.loads((REPO_ROOT / "config" / "predictor_release_lags.json").read_text(encoding="utf-8"))["predictors"]
     predictors = {}
     for name, spec in config.items():
-        earliest = {}
+        series_ids = spec.get("series_ids") or [spec["series_id"]]
+        cells = {}  # (series, period) -> earliest {value, available_at}
         for o in revisions:
-            if o.series_id != spec["series_id"] or o.value is None or o.is_retracted:
+            if o.series_id not in series_ids or o.value is None or o.is_retracted:
                 continue
             if spec["availability"] == "rule":
                 day = datetime.fromisoformat(o.period_end_exclusive).date() + timedelta(days=spec["lag_days"])
                 when = datetime(day.year, day.month, day.day, 23, 59, 59, tzinfo=BERLIN).astimezone(timezone.utc)
             else:
                 when = store._available(o)
-            if o.period_start not in earliest or when < earliest[o.period_start]["available_at"]:
-                earliest[o.period_start] = {"period_start": o.period_start, "value": o.value, "available_at": when}
-        if not earliest:
-            raise SystemExit(f"Predictor {name} ({spec['series_id']}) has no committed observations")
-        predictors[name] = {**spec, "levels": list(earliest.values())}
+            cell = (o.series_id, o.period_start)
+            if cell not in cells or when < cells[cell]["available_at"]:
+                cells[cell] = {"value": o.value, "available_at": when}
+        # A composite is the mean of its component levels, public once its last component is.
+        levels = []
+        for period in sorted({p for _, p in cells}):
+            parts = [cells.get((sid, period)) for sid in series_ids]
+            if all(parts):
+                levels.append({"period_start": period, "value": sum(c["value"] for c in parts) / len(parts),
+                               "available_at": max(c["available_at"] for c in parts)})
+        if not levels:
+            raise SystemExit(f"Predictor {name} ({series_ids}) has no committed observations")
+        predictors[name] = {**spec, "levels": levels}
     return predictors
 
 
@@ -84,30 +93,71 @@ def main() -> None:
     evidence = [n for n, p in predictors.items() if p["availability"] == "evidence"]
     with_predictors = rolling_origin_backtest(
         levels, origins, fit_start=args.fit_start, vat_schedule=schedule, predictors=predictors,
-        predictor_sets={"evidence": evidence, "all": list(predictors)})
+        predictor_sets={**{name: [name] for name in evidence}, "evidence": evidence, "all": list(predictors)})
 
-    def section(result, reference):
+    # Next Destatis release, judged where a user stands: 20 days into each quarter (releases come 2-13 days in).
+    sets = {"evidence": evidence}
+    next_release = rolling_origin_backtest(
+        levels, [o + timedelta(days=20) for o in origins], fit_start=args.fit_start, vat_schedule=schedule,
+        predictors=predictors, predictor_sets=sets, target_rule="next_release", live_origin=now)
+
+    def section(result, reference, horizon):
         return {**{k: result[k] for k in ("settings", "models", "intervals")},
-                "diebold_mariano_vs_" + reference: comparisons(result, reference),
+                "diebold_mariano_vs_" + reference: comparisons(result, reference, horizon),
                 "predictions": [{**row, "origin": row["origin"].isoformat(),
                                  "label_available_at": row["label_available_at"].isoformat()}
                                 for row in result["predictions"]]}
 
     report = {"target_series_id": target, "generated_at": now.isoformat(), "store": str(get_settings().lancedb_path),
-              "label": "100 * (level[Q+1] / level[Q] - 1), Q = origin quarter; release-dated latest-vintage levels",
+              "label": "100 * (level[target] / level[denominator] - 1); release-dated latest-vintage levels",
               "revision_note": "Values are latest vintage dated by first release; PP300 QoQ revisions first->latest: mean 0.06 pp, max 0.35 pp.",
               "predictors": {n: {k: v for k, v in p.items() if k != "levels"} for n, p in predictors.items()},
-              "without_predictors": section(baseline, "mean_4q"),
-              "with_predictors": section(with_predictors, "ar4_seasonal_vat_direct")}
-    output = Path(args.output) if args.output else Path(get_settings().data_dir) / "reports" / f"backtest-{now:%Y%m%d}.json"
+              "without_predictors": section(baseline, "mean_4q", 2),
+              "with_predictors": section(with_predictors, "ar4_seasonal_vat_direct", 2),
+              "next_release": section(next_release, "ar4_seasonal_vat_direct", 1)}
+    reports = Path(get_settings().data_dir) / "reports"
+    output = Path(args.output) if args.output else reports / f"backtest-{now:%Y%m%d}.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print(json.dumps({"output": str(output), **{
+    forecast = forecast_record(next_release, report["next_release"], levels, target, now, output)
+    (reports / "forecast-latest.json").write_text(json.dumps(forecast, indent=2), encoding="utf-8")
+    print(json.dumps({"output": str(output), "forecast": forecast, **{
         key: {"models": report[key]["models"], "intervals": report[key]["intervals"],
               "dm": {n: {"p": v["p_value"], "stat": v["statistic"]} for n, v in report[key][dm].items()}}
         for key, dm in (("without_predictors", "diebold_mariano_vs_mean_4q"),
-                        ("with_predictors", "diebold_mariano_vs_ar4_seasonal_vat_direct"))}}, indent=2))
+                        ("with_predictors", "diebold_mariano_vs_ar4_seasonal_vat_direct"),
+                        ("next_release", "diebold_mariano_vs_ar4_seasonal_vat_direct"))}}, indent=2))
 
+
+PRIMARY_MODEL = "arx_vat_evidence"  # chosen on the 2-quarter-ahead run (decisions.md), checked on next_release
+REFERENCE_MODELS = ("ar4_seasonal_vat", "mean_4q", "no_change")
+
+
+def forecast_record(result: dict, section: dict, levels: list, target: str, now: datetime, report_path: Path) -> dict:
+    """What the dashboard shows: the live next-release forecast and the measured record of the same setup."""
+    live = result["live"]
+    model = PRIMARY_MODEL if live and live["forecasts"].get(PRIMARY_MODEL) is not None else "ar4_seasonal_vat"
+    known = {o["period_start"]: o["value"] for o in sorted(levels, key=lambda o: o["available_at"]) if o["available_at"] <= now}
+    last = live["last_observed_period_start"] if live else None
+    growth, width = (live["forecasts"][model], live["interval_half_width"][model]) if live else (None, None)
+    return {
+        "generated_at": now.isoformat(), "target_series_id": target, "backtest_report": str(report_path),
+        "model": model, "alpha": result["settings"]["alpha"],
+        "last_released_period_start": last, "last_released_level": known.get(last),
+        "target_period_start": live["target_period_start"] if live else None,
+        "forecast_growth_pct": growth,
+        "interval_growth_pct": [growth - width, growth + width] if growth is not None and width is not None else None,
+        "forecast_level": known[last] * (1 + growth / 100) if growth is not None and last in known else None,
+        "reference_forecasts_growth_pct": {name: live["forecasts"].get(name) for name in REFERENCE_MODELS} if live else {},
+        "track_record": {name: {**section["models"][name], "interval": section["intervals"][name]}
+                         for name in (model,) + REFERENCE_MODELS if name in section["models"]},
+        "diebold_mariano_vs_ar4_seasonal_vat_direct": section["diebold_mariano_vs_ar4_seasonal_vat_direct"].get(model),
+        "limitations": [
+            "Errors and coverage are measured on past releases with only data public at each origin (rolling origin).",
+            "Values are latest-vintage levels dated by first release, not first-release values.",
+            "The 2021-23 cost shock produced errors of about 2 pp for every model; intervals undercover in such regimes.",
+            "Order intake and material prices are dated by Bundesbank real-time vintages; no assumed release lags are used.",
+        ]}
 
 if __name__ == "__main__":
     main()

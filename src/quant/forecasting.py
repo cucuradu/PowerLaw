@@ -165,6 +165,8 @@ def _transform(values: Dict[int, float], p: int, transform: str) -> Optional[flo
     try:
         if transform == "yoy_3m_sum":  # removes the monthly seasonal pattern and smooths noise
             return 100 * math.log(sum(values[p - k] for k in range(3)) / sum(values[p - 12 - k] for k in range(3)))
+        if transform == "momentum_3m":  # last 3 months over the 3 before: recent cost pressure
+            return 100 * math.log(sum(values[p - k] for k in range(3)) / sum(values[p - 3 - k] for k in range(3)))
         if transform == "yoy":
             return 100 * math.log(values[p] / values[p - 4])
         if transform == "qoq":
@@ -223,14 +225,15 @@ def _direct_forecast(growth: Dict[int, float], last: int, target: int, origin_qu
 
 
 def diebold_mariano(actual, forecast_a, forecast_b, horizon: int = 1) -> Dict[str, Any]:
-    """Two-sided DM test on squared errors with Newey-West variance (horizon - 1 lags) and the
+    """Two-sided DM test on squared errors with Bartlett-weighted Newey-West variance (horizon - 1 lags) and the
     Harvey-Leybourne-Newbold small-sample correction; negative statistic: forecast_a is more accurate."""
     d = (np.asarray(actual) - np.asarray(forecast_a)) ** 2 - (np.asarray(actual) - np.asarray(forecast_b)) ** 2
     n = len(d)
     if n < 10:
         return {"n": n, "statistic": None, "p_value": None}
     centred = d - d.mean()
-    variance = float(np.mean(centred ** 2)) + 2 * sum(float(np.mean(centred[k:] * centred[:-k])) for k in range(1, horizon))
+    variance = float(np.mean(centred ** 2)) + 2 * sum((1 - k / horizon) * float(np.mean(centred[k:] * centred[:-k]))
+                                                      for k in range(1, horizon))
     if variance <= 0:
         return {"n": n, "statistic": None, "p_value": None}
     statistic = float(d.mean() / math.sqrt(variance / n))
@@ -242,7 +245,8 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
                             alpha: float = 0.10, min_calibration: int = 20, ar_order: int = 4,
                             vat_schedule: Optional[List[Dict[str, Any]]] = None,
                             predictors: Optional[Dict[str, Dict[str, Any]]] = None,
-                            predictor_sets: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
+                            predictor_sets: Optional[Dict[str, List[str]]] = None,
+                            target_rule: str = "after_origin_quarter", live_origin=None) -> Dict[str, Any]:
     """Expanding-window backtest of next-quarter growth on release-dated quarterly levels.
 
     `levels`: {period_start, value, available_at}. At each origin only levels released by then are used.
@@ -275,16 +279,23 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
         predictors = {name: {**p, "levels": [{**r, "available_at": utc(r["available_at"])} for r in p["levels"]
                                              if r.get("value") is not None]}
                       for name, p in (predictors or {}).items()}
+    if target_rule not in ("after_origin_quarter", "next_release"):
+        raise ValueError(f"Unknown target_rule {target_rule!r}")
     rows: List[Dict[str, Any]] = []
-    for origin in sorted(utc(o) for o in origins):
-        denominator = origin.year * 4 + (origin.month - 1) // 3
-        target = denominator + 1
-        if target not in level or denominator not in level:
-            continue
+    live = None
+    schedule = [(utc(o), False) for o in origins] + ([(utc(live_origin), True)] if live_origin is not None else [])
+    for origin, is_live in sorted(schedule, key=lambda item: item[0]):
+        origin_quarter = origin.year * 4 + (origin.month - 1) // 3
         visible = {q: v for q, (v, when) in level.items() if when <= origin}
         if not visible:
             continue
         last = max(visible)
+        # after_origin_quarter: growth of the quarter after the origin's quarter (both unreleased at the origin).
+        # next_release: growth of the first quarter not yet released at the origin.
+        denominator = origin_quarter if target_rule == "after_origin_quarter" else last
+        target = denominator + 1
+        if not is_live and (target not in level or denominator not in level):
+            continue
         growth = {q: 100 * (visible[q] / visible[q - 1] - 1) for q in visible if q - 1 in visible}
         recent = [growth.get(q) for q in range(last - 3, last + 1)]
         forecasts = {
@@ -306,12 +317,12 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
                       / (1 + vat_rate(vat_schedule, _reference_date(denominator), known_at=origin)))
             forecasts["ar4_seasonal_vat"] = None if ex_forecast is None else 100 * ((1 + ex_forecast / 100) * factor - 1)
             if predictor_sets:
-                features = {name: _feature_at_origin(p, origin, denominator) for name, p in predictors.items()}
+                features = {name: _feature_at_origin(p, origin, origin_quarter) for name, p in predictors.items()}
                 runs = {"ar4_seasonal_vat_direct": []}
                 runs.update({f"arx_vat_{s}": [features[n] for n in members] for s, members in predictor_sets.items()})
                 for model, feats in runs.items():
                     ex = (None if any(f is None for f in feats) else
-                          _direct_forecast(ex_growth, last, target, denominator, fit_from, ar_order, feats))
+                          _direct_forecast(ex_growth, last, target, origin_quarter, fit_from, ar_order, feats))
                     forecasts[model] = None if ex is None else 100 * ((1 + ex / 100) * factor - 1)
         known = [r for r in rows if r["label_available_at"] <= origin]
         widths = {}
@@ -319,13 +330,16 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
             residuals = [abs(r["actual"] - r["forecasts"][name]) for r in known if r["forecasts"][name] is not None]
             widths[name] = (calibrate_residual_interval(residuals, alpha)["interval_half_width"]
                             if len(residuals) >= min_calibration and forecasts[name] is not None else None)
-        rows.append({"origin": origin, "target_period_start": _quarter_start(target),
-                     "denominator_period_start": _quarter_start(denominator),
-                     "last_observed_period_start": _quarter_start(last),
-                     "actual": 100 * (level[target][0] / level[denominator][0] - 1),
-                     "label_available_at": max(level[target][1], level[denominator][1]),
-                     "last_growth": growth.get(last), "forecasts": forecasts,
-                     "calibration_count": len(known), "interval_half_width": widths})
+        row = {"origin": origin, "target_period_start": _quarter_start(target),
+               "denominator_period_start": _quarter_start(denominator),
+               "last_observed_period_start": _quarter_start(last),
+               "last_growth": growth.get(last), "forecasts": forecasts,
+               "calibration_count": len(known), "interval_half_width": widths}
+        if is_live:
+            live = row
+            continue
+        rows.append({**row, "actual": 100 * (level[target][0] / level[denominator][0] - 1),
+                     "label_available_at": max(level[target][1], level[denominator][1])})
 
     common = [r for r in rows if all(r["forecasts"][n] is not None for n in names)]
     models = {}
@@ -350,9 +364,9 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
         intervals[name] = {"n": len(scored), "nominal": 1 - alpha,
                            "coverage": float(np.mean(hits)) if scored else None,
                            "mean_half_width": float(np.mean([r["interval_half_width"][name] for r in scored])) if scored else None}
-    return {"predictions": rows, "models": models, "intervals": intervals,
+    return {"predictions": rows, "models": models, "intervals": intervals, "live": live,
             "settings": {"fit_start": fit_start, "alpha": alpha, "min_calibration": min_calibration, "ar_order": ar_order,
-                         "predictor_sets": predictor_sets or {}}}
+                         "predictor_sets": predictor_sets or {}, "target_rule": target_rule}}
 
 
 def calibrate_residual_interval(

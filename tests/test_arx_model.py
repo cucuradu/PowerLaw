@@ -62,3 +62,19 @@ def test_diebold_mariano_detects_a_clearly_better_forecast():
     good, bad = actual + rng.normal(0, 0.1, 80), actual + rng.normal(0, 1, 80)
     test = diebold_mariano(actual, good, bad, horizon=2)
     assert test["statistic"] < 0 and test["p_value"] < 0.001
+
+
+def test_next_release_rule_forecasts_the_first_unreleased_quarter_live():
+    target, predictor, schedule = _synthetic()
+    live_origin = datetime(2015, 7, 5, tzinfo=timezone.utc)  # 2015-Q2 is released only on 2015-07-11
+    result = rolling_origin_backtest(
+        target, [o + timedelta(days=20) for o in _origins(2010, 2014)], fit_start="1995-01-01", vat_schedule=schedule,
+        predictors={"x": {"levels": predictor, "frequency": "QUARTERLY", "transform": "qoq"}},
+        predictor_sets={"x": ["x"]}, target_rule="next_release", live_origin=live_origin)
+    row = result["predictions"][0]  # origin 2010-04-20: 2010-Q1 released 2010-04-10, so next release is 2010-Q2
+    assert (row["last_observed_period_start"], row["target_period_start"]) == ("2010-01-01", "2010-04-01")
+    live = result["live"]
+    assert "actual" not in live
+    assert (live["last_observed_period_start"], live["target_period_start"]) == ("2015-01-01", "2015-04-01")
+    assert live["forecasts"]["arx_vat_x"] is not None and live["interval_half_width"]["arx_vat_x"] is not None
+    assert result["models"]["arx_vat_x"]["mae"] < result["models"]["ar4_seasonal_vat_direct"]["mae"]

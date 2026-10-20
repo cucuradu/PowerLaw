@@ -8,6 +8,18 @@
       "frequency": "MONTHLY", "transform": "yoy_3m_sum", "availability": "evidence",
       "basis": "Bundesbank real-time vintages IO1/AFC15 (registry BUNDESBANK_RTD residential_order_intake_release_calendar)."
     },
+    "materials": {
+      "series_ids": [
+        "61241-0004|DINSG=DG|GP19M2=GP19-16|PRE001|2021=100",
+        "61241-0004|DINSG=DG|GP19M2=GP19-22|PRE001|2021=100",
+        "61241-0004|DINSG=DG|GP19M2=GP19-23|PRE001|2021=100",
+        "61241-0004|DINSG=DG|GP19M2=GP19-24|PRE001|2021=100",
+        "61241-0004|DINSG=DG|GP19M2=GP19-25|PRE001|2021=100"
+      ],
+      "label": "Producer prices of construction materials: mean of wood, rubber/plastics, glass/ceramics/stone, metals, metal products (2021=100)",
+      "frequency": "MONTHLY", "transform": "momentum_3m", "availability": "evidence",
+      "basis": "Bundesbank real-time PP1/PP100 vintages date every 61241 index (one Destatis release; registry BUNDESBANK_RTD industrial_producer_price_release_calendar)."
+    },
     "permits": {
       "series_id": "31111-0020|DINSG=DG|BAUBR1=BAUART1|BAUTK1=BTK-GEB-NEU|BAUGB1=GBD-W|WOHN01|Anzahl",
       "label": "Building permits, new residential buildings, dwellings",
