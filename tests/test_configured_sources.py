@@ -53,7 +53,7 @@ def test_only_verified_sources_and_requests_are_active():
         "BUNDESBANK_SDMX", "BUNDESBANK_RTD", "EURLEX_CELLAR"}
     assert list(sources["DESTATIS_GENESIS"]["series_keys"].values()) == [
         "61261-0002", "61261-0014", "61241-0004", "44111-0009", "31111-0020", "62221-0002"]
-    assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q"]
+    assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q", "ei_bsbu_m_r2"]
     assert list(sources["ECB_SDMX"]["series_keys"].values()) == ["MIR.M.DE.B.A2C.A.R.A.2250.EUR.N"]
     news = list(_news_discover("OFFICIAL_NEWS", None, None, 10))
     assert [item["url"] for item in news] == ["https://ec.europa.eu/commission/presscorner/api/rss?language=en"]
@@ -103,7 +103,7 @@ def test_each_context_table_fixture_yields_exactly_its_registered_keys():
     by_table = {}
     for entry in selections:
         by_table.setdefault(entry["table_id"], []).append(entry)
-    assert len(by_table["61241-0004"]) == 5
+    assert len(by_table["61241-0004"]) == 6  # five material groups and energy
     for table, entries in by_table.items():
         expected = {entry["provider_series_key"] for entry in entries}
         raw = (Path(__file__).parent.parent / entries[0]["fixture_path"]).read_bytes()
@@ -192,3 +192,19 @@ def test_explicit_successful_empty_law_extraction_is_allowed(tmp_path, monkeypat
     monkeypatch.setattr("src.main.get_completion_with_json", lambda **kw: '{"rules": []}')
     pipeline = LawIngestionPipeline(store=DualLayerStore(tmp_path / "db"))
     assert pipeline.extract_rules_from_full_text("A provision with no economic rules.", "32024R9999") == []
+
+
+def test_eurostat_survey_selections_request_and_parse_exactly_the_registered_series():
+    """Builder price expectations and material shortages come from one survey request (official 2025 response)."""
+    registry = load_data_sources_registry()["sources"]["EUROSTAT_STS"]
+    items = {item["upstream_id"]: item for item in _stats_discover("EUROSTAT_STS", "2025-01", "2025-12", 10)}
+    survey = items["ei_bsbu_m_r2"]
+    assert "indic=BS-CPE-BAL" in survey["url"] and "indic=BS-FLBA5-PC" in survey["url"]
+    expected = {s["provider_series_key"]: s["measurement_kind"] for s in registry["context_series"].values()}
+    assert set(survey["required_series_keys"]) == set(expected)
+    raw = (FIXTURES / "eurostat_ei_bsbu_m_r2_de_2025_official.json").read_bytes()
+    doc = SourceDocument.from_content("EUROSTAT_STS", survey["canonical_url"], "Eurostat", raw, "survey-replay",
+                                      data_origin="test", available_at=FETCHED_AT)
+    result = _make_stats_parser("EUROSTAT_STS")(survey, raw, doc)
+    assert {d.series_id: d.measurement_kind for d in result["series"]} == expected
+    assert len([o for o in result["observations"] if o.value is not None]) == 24

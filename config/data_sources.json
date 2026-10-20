@@ -257,6 +257,22 @@
           "historical_release_vintages_verified": false,
           "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
         },
+        "energy_supply": {
+          "table_id": "61241-0004",
+          "provider_series_key": "61241-0004|DINSG=DG|GP19M2=GP19-35|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M2": "GP19-35"
+          },
+          "provider_label": "Energieversorgung",
+          "measurement_kind": "ENERGY_PPI_CONTEXT",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0004_2025_official.csv",
+          "fixture_sha256": "ac3aeff1363e2a95347e927e720cfb15ebdbe6c3e7e04126b7bb2cd8a3b86c6f",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Current-vintage 2025 monthly rows and exact product codes only."
+        },
         "residential_material_cost": {
           "table_id": "61261-0014",
           "provider_series_key": "61261-0014|DINSG=DG|KOSAT1=KOST011|KOS022|2021=100",
@@ -394,7 +410,32 @@
         "api_v2": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data"
       },
       "series_keys": {
-        "construction_producer_prices_quarterly": "sts_copi_q"
+        "construction_producer_prices_quarterly": "sts_copi_q",
+        "construction_business_survey": "ei_bsbu_m_r2"
+      },
+      "context_series": {
+        "construction_price_expectations": {
+          "table_id": "ei_bsbu_m_r2",
+          "provider_series_key": "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=DE|indic=BS-CPE-BAL|s_adj=NSA",
+          "dimensions": {"freq": "M", "geo": "DE", "indic": "BS-CPE-BAL", "s_adj": "NSA"},
+          "provider_label": "Price expectations over the next 3 months - construction (balance)",
+          "measurement_kind": "SURVEY_PRICE_EXPECTATIONS",
+          "frequency": "MONTHLY",
+          "fixture_path": "tests/fixtures/ingestion/eurostat_ei_bsbu_m_r2_de_2025_official.json",
+          "fixture_sha256": "0c6de5a6e1d0aa0b9e8d7c063e08de306acc30bbd16410b75fab1b17275d92c9",
+          "verified_scope": "European Commission business survey of construction firms, Germany, unadjusted; 1980-01..2026-09 checked live 2026-10-20."
+        },
+        "construction_material_shortage": {
+          "table_id": "ei_bsbu_m_r2",
+          "provider_series_key": "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=DE|indic=BS-FLBA5-PC|s_adj=NSA",
+          "dimensions": {"freq": "M", "geo": "DE", "indic": "BS-FLBA5-PC", "s_adj": "NSA"},
+          "provider_label": "Factors limiting building activity - shortage of material and/or equipment (% of firms)",
+          "measurement_kind": "SURVEY_MATERIAL_SHORTAGE",
+          "frequency": "MONTHLY",
+          "fixture_path": "tests/fixtures/ingestion/eurostat_ei_bsbu_m_r2_de_2025_official.json",
+          "fixture_sha256": "0c6de5a6e1d0aa0b9e8d7c063e08de306acc30bbd16410b75fab1b17275d92c9",
+          "verified_scope": "Same survey; 1991-01..2026-09 checked live 2026-10-20."
+        }
       }
     },
     "ECB_SDMX": {
@@ -595,7 +636,7 @@
       "dated_series": {
         "construction_price_release_calendar": "primary_target",
         "residential_order_intake_release_calendar": "residential_order_intake_volume",
-        "industrial_producer_price_release_calendar": ["wood_products", "rubber_and_plastic_products", "nonmetallic_mineral_products", "basic_metals", "fabricated_metal_products"]
+        "industrial_producer_price_release_calendar": ["wood_products", "rubber_and_plastic_products", "nonmetallic_mineral_products", "basic_metals", "fabricated_metal_products", "energy_supply"]
       },
       "revision_bounds": {
         "construction_price_release_calendar": {"qoq_growth_pp_mean": 0.06, "qoq_growth_pp_max": 0.35},

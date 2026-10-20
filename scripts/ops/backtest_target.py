@@ -91,12 +91,15 @@ def main() -> None:
     schedule = load_vat_schedule()
     baseline = rolling_origin_backtest(levels, origins, fit_start=args.fit_start, vat_schedule=schedule)
     evidence = [n for n, p in predictors.items() if p["availability"] == "evidence"]
+    survey = [n for n, p in predictors.items() if p.get("group") == "survey"]  # near real time, published monthly
+    selected = [n for n, p in predictors.items() if p.get("in_forecast")]  # inputs of the published model
     with_predictors = rolling_origin_backtest(
         levels, origins, fit_start=args.fit_start, vat_schedule=schedule, predictors=predictors,
-        predictor_sets={**{name: [name] for name in evidence}, "evidence": evidence, "all": list(predictors)})
+        predictor_sets={**{name: [name] for name in evidence + survey}, "evidence": evidence,
+                        "evidence_survey": evidence + survey, "selected": selected, "all": list(predictors)})
 
     # Next Destatis release, judged where a user stands: 20 days into each quarter (releases come 2-13 days in).
-    sets = {"evidence": evidence}
+    sets = {"evidence": evidence, "selected": selected}
     next_release = rolling_origin_backtest(
         levels, [o + timedelta(days=20) for o in origins], fit_start=args.fit_start, vat_schedule=schedule,
         predictors=predictors, predictor_sets=sets, target_rule="next_release", live_origin=now)
@@ -129,7 +132,7 @@ def main() -> None:
                         ("next_release", "diebold_mariano_vs_ar4_seasonal_vat_direct"))}}, indent=2))
 
 
-PRIMARY_MODEL = "arx_vat_evidence"  # chosen on the 2-quarter-ahead run (decisions.md), checked on next_release
+PRIMARY_MODEL = "arx_vat_selected"  # inputs flagged in_forecast; best on both backtests 2026-10-20 (decisions.md)
 REFERENCE_MODELS = ("ar4_seasonal_vat", "mean_4q", "no_change")
 
 
@@ -156,7 +159,8 @@ def forecast_record(result: dict, section: dict, levels: list, target: str, now:
             "Errors and coverage are measured on past releases with only data public at each origin (rolling origin).",
             "Values are latest-vintage levels dated by first release, not first-release values.",
             "The 2021-23 cost shock produced errors of about 2 pp for every model; intervals undercover in such regimes.",
-            "Order intake and material prices are dated by Bundesbank real-time vintages; no assumed release lags are used.",
+            "Orders, material and energy prices are dated by Bundesbank real-time vintages; the builders' survey is "
+            "taken as public 10 days after month end (it is published at the end of the month).",
         ]}
 
 if __name__ == "__main__":

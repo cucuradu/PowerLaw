@@ -28,9 +28,10 @@ def main() -> None:
     today = datetime.now(timezone.utc).date()
     steps = [run("scripts.ops.ingest", "--source", source, "--since", (today - timedelta(days=days)).isoformat(),
                  "--until", today.isoformat(), "--limit", "500") for source, days in SOURCES]
-    target_ok = all(s["exit_code"] == 0 for s in steps[:2])
+    # Only Destatis is required: without fresh Bundesbank vintages new values are dated by fetch time (later, never earlier).
+    target_ok = steps[0]["exit_code"] == 0
     steps.append(run("scripts.ops.backtest_target") if target_ok else
-                 {"step": "scripts.ops.backtest_target", "skipped": "Destatis or Bundesbank real-time update failed"})
+                 {"step": "scripts.ops.backtest_target", "skipped": "Destatis update failed"})
     log = Path(get_settings().data_dir) / "reports" / "update-log.jsonl"
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("a", encoding="utf-8") as handle:

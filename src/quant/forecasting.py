@@ -167,6 +167,8 @@ def _transform(values: Dict[int, float], p: int, transform: str) -> Optional[flo
             return 100 * math.log(sum(values[p - k] for k in range(3)) / sum(values[p - 12 - k] for k in range(3)))
         if transform == "momentum_3m":  # last 3 months over the 3 before: recent cost pressure
             return 100 * math.log(sum(values[p - k] for k in range(3)) / sum(values[p - 3 - k] for k in range(3)))
+        if transform == "mean_3m":  # survey balances are levels; average the quarter's three months
+            return sum(values[p - k] for k in range(3)) / 3
         if transform == "yoy":
             return 100 * math.log(values[p] / values[p - 4])
         if transform == "qoq":

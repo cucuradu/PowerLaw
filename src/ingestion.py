@@ -827,13 +827,21 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
         required_series_keys = []
         if source_id == "EUROSTAT_STS":
             crosscheck = target["eurostat_crosscheck"]
-            if key_val != crosscheck["dataset_id"]:
+            if key_val == crosscheck["dataset_id"]:
+                selections = [crosscheck["dimensions"]]
+            else:
+                selections = [s["dimensions"] for s in registry.get("context_series", {}).values() if s["table_id"] == key_val]
+            if not selections:
                 raise FetchError("Eurostat dataset has no verified exact series selection")
-            dimensions = crosscheck["dimensions"]
-            required_series_keys = [f"EUROSTAT_STS|{key_val}|" + "|".join(
-                f"{key}={dimensions[key]}" for key in sorted(dimensions))]
+            required_series_keys = [f"EUROSTAT_STS|{key_val}|" + "|".join(f"{key}={dims[key]}" for key in sorted(dims))
+                                    for dims in selections]
+            query: dict[str, list] = {}
+            for dims in selections:  # extra combinations are dropped by the required-series filter
+                for key, value in dims.items():
+                    if value not in query.setdefault(key, []):
+                        query[key].append(value)
             canonical_url = f"{base_url.rstrip('/')}/{key_val}"
-            url = f"{canonical_url}?{urlencode({'format': 'JSON', 'lang': 'EN', **dimensions})}"
+            url = f"{canonical_url}?{urlencode({'format': 'JSON', 'lang': 'EN', **query}, doseq=True)}"
             if since:
                 url += f"&sinceTimePeriod={since}"
             if until:
@@ -1008,8 +1016,9 @@ def _make_stats_parser(source_id: str) -> Parser:
                     geo_id = dim_dict.get("geo")
                     dim_dict["dataset"] = parts[1]
                     freq = {"D": "DAILY", "M": "MONTHLY", "Q": "QUARTERLY", "A": "ANNUAL"}.get(dim_dict.get("freq"), freq)
-                    indicator = dim_dict.get("indic_bt", "")
-                    m_kind = {"PRC_PRR": "PRODUCER_PRICE_INDEX", "COST": "CONSTRUCTION_INPUT_COST_INDEX", "PROD": "PRODUCTION_INDEX"}.get(indicator, "UNKNOWN")
+                    indicator = dim_dict.get("indic_bt") or dim_dict.get("indic", "")
+                    m_kind = {"PRC_PRR": "PRODUCER_PRICE_INDEX", "COST": "CONSTRUCTION_INPUT_COST_INDEX", "PROD": "PRODUCTION_INDEX",
+                              "BS-CPE-BAL": "SURVEY_PRICE_EXPECTATIONS", "BS-FLBA5-PC": "SURVEY_MATERIAL_SHORTAGE"}.get(indicator, "UNKNOWN")
                     m_name = m_kind.lower()
                 elif source_id == "DESTATIS_GENESIS":
                     # The registry selection states what each verified Destatis series measures.
