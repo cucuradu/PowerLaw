@@ -57,3 +57,9 @@
 - **One naming source:** sector and commodity entities are built only through `src/utils/taxonomy.py` from `config/sectors.json`; entities are immutable, so never rename an existing code. Law entities are reused if already stored.
 - **Paid extraction:** run manually with `python -m scripts.ops.extract_laws` (per-run budget unchanged, USD 1; total ceiling EUR 100); segment answers are cached so interrupted laws resume. The weekly update does not call Gemini.
 - **Projections:** model chosen on origins before 2018, scored on 2018+; the dashboard states per series whether it beat "no change".
+
+## Trades layer and tested links (2026-10-20)
+
+- **Trades:** the target's 41 trade price indices (61261-0002, excluding VAT, 1958+) are stored and release-dated with the target. Their official weights (base 2021, per mille) come from the IT.NRW report PDF (source `STATISTISCHE_BIBLIOTHEK`), stored as COMPONENT_OF facts with the table row as evidence; weights x national trade indices rebuild the national index within 0.13 points (2021-Q1..2026-Q3).
+- **Material -> trade links are model output, not facts:** experts propose them (`config/trade_inputs.json`), `scripts.ops.estimate_links` tests each against the price data controlling for the common trend; the network shows only proposed and supported links (14 of 42). An unrestricted scan "found" 375 links before the common-factor control and still finds implausible ones after it, so data-only edges are not accepted.
+- **Events are not training nodes:** one-off shocks (Covid, Ukraine) enter models only through their measured channels (energy, materials, survey); they stay as dated annotations for explanation and regime labels.

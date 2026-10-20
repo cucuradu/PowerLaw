@@ -1027,7 +1027,7 @@ PRICE_METRICS = {"producer_price", "output_price", "material_cost", "labour_cost
 
 
 def get_sector_network(store: Any, cutoff: Optional[datetime] = None, year: Optional[int] = None,
-                       top: int = 12) -> Dict[str, Any]:
+                       top: int = 12, links: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Construction's neighbourhood as public at the cutoff, built only from accepted, evidenced facts.
 
     Suppliers and buyers come from one input-output year (Eurostat), materials from the product classification,
@@ -1076,6 +1076,19 @@ def get_sector_network(store: Any, cutoff: Optional[datetime] = None, year: Opti
         if f.object_id in nodes:
             add(f.subject_id, "material")
             edges.append({"source": f.subject_id, "target": f.object_id, "kind": "part of"})
+    # Trades that make up the price index, with their official weights (groups first, so trades find their parent).
+    components = sorted((f for f in facts if f.predicate == "COMPONENT_OF"), key=lambda f: f.object_id != "sec_F")
+    for f in components:
+        if f.object_id in nodes:
+            add(f.subject_id, "trade")
+            edges.append({"source": f.subject_id, "target": f.object_id, "kind": "component",
+                          "share": payload(f)["share_of_total"]})
+    # Material -> trade links: model output, shown only where an expert hypothesis is supported by the price data.
+    for link in (links or {}).get("links", []):
+        source, target = f"commodity_{link['material']}", f"sec_{link['trade']}"
+        if link["hypothesised"] and link["verdict"] == "supported" and source in nodes and target in nodes:
+            edges.append({"source": source, "target": target, "kind": "feeds", "pass_through": link["pass_through"],
+                          "p": link["p"]})
     measures = [f for f in facts if f.predicate == "MEASURES" and f.object_id in nodes]
     changes = _price_changes(store, cutoff, {f.subject_id for f in measures})
     for f in measures:
@@ -1105,4 +1118,10 @@ def get_sector_network(store: Any, cutoff: Optional[datetime] = None, year: Opti
 def load_projections(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
     """Projections written offline by scripts.ops.project_series (never computed by the dashboard)."""
     path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "projections-latest.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def load_graph_links(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
+    """Material -> trade link tests written offline by scripts.ops.estimate_links."""
+    path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "graph-links-latest.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None

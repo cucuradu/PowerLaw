@@ -1,0 +1,26 @@
+{
+  "description": "Expert hypotheses: which building materials feed which construction trades (codes from config/sectors.json, materials from its commodities). These are priors, not facts: scripts/ops/estimate_links.py tests each one against the price data and reports which the data supports.",
+  "author_basis": "Typical bill of materials per trade in German residential construction (shell and finishing work).",
+  "trades": {
+    "F_BPNB005": ["diesel", "gravel", "sand"],
+    "F_BPNB035": ["plastic_pipes", "gravel"],
+    "F_BPNB090": ["clay_bricks", "concrete_blocks", "lime", "sand"],
+    "F_BPNB095": ["ready_mixed_concrete", "cement", "steel_bars", "precast_concrete"],
+    "F_BPNB110": ["sawn_softwood", "osb_panels", "prefabricated_timber_buildings"],
+    "F_BPNB115": ["steel_sections"],
+    "F_BPNB125": ["bitumen_products", "foam_insulation_boards"],
+    "F_BPNB130": ["clay_roof_tiles", "concrete_blocks", "bitumen_products", "sawn_softwood"],
+    "F_BPNB440": ["lime", "cement", "sand"],
+    "F_BPNB441": ["foam_insulation_boards", "paints"],
+    "F_BPNB443": ["plasterboard"],
+    "F_BPNB450": ["cement", "sand"],
+    "F_BPNB460": ["wooden_windows_doors", "plastic_windows_doors"],
+    "F_BPNB480": ["metal_windows_doors", "steel_sections"],
+    "F_BPNB485": ["insulating_glass"],
+    "F_BPNB495": ["paints"],
+    "F_BPNB520": ["heat_pumps"],
+    "F_BPNB525": ["heating_boilers", "radiators", "heat_pumps"],
+    "F_BPNB530": ["plastic_pipes"],
+    "F_BPNB535": ["electric_cables"]
+  }
+}

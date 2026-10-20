@@ -16,7 +16,7 @@ import streamlit.components.v1 as components
 from pyvis.network import Network
 from pathlib import Path
 
-from src.storage.dashboard_data import event_labels, get_forecast_drivers, get_graph_store, get_sector_network, series_names
+from src.storage.dashboard_data import event_labels, get_forecast_drivers, get_graph_store, get_sector_network, load_graph_links, series_names
 from src.models.dual_layer_model import (
     GraphNode,
     GraphEdge,
@@ -41,12 +41,13 @@ view = st.radio("View", ["Sector network", "Forecast drivers", "Stored records"]
 GROUP_STYLE = {  # colour, size
     "construction": ("#2563EB", 46), "own sector": ("#2563EB", 20), "supplier": ("#10B981", 22), "cost": ("#14B8A6", 20),
     "buyer": ("#F59E0B", 20), "final demand": ("#FBBF24", 22), "material": ("#8B5CF6", 10), "law": ("#EF4444", 16),
+    "trade": ("#38BDF8", 12),
 }
 
 
 @st.cache_data(show_spinner=False)
 def _sector_network(storage_dir: str, generation: int, year, top: int):
-    return get_sector_network(get_graph_store(storage_dir).canonical_store, year=year, top=top)
+    return get_sector_network(get_graph_store(storage_dir).canonical_store, year=year, top=top, links=load_graph_links())
 
 
 def _pct(value) -> str:
@@ -67,7 +68,7 @@ def render_sector_network(height: int = 700) -> None:
     st.markdown(
         f"German construction in **{data['year']}**: **green** product groups it buys (line width = share of its output "
         "value), **teal** labour, profit, depreciation and taxes, **orange** who buys its work, **purple** building "
-        "materials with their latest price change, **red** laws that regulate any of them (EU laws through rules "
+        "materials with their latest price change, **light blue** the trades that make up the price index (line width = official weight; dashed purple = a material link an expert proposed and the price data confirmed), **red** laws that regulate any of them (EU laws through rules "
         "extracted from the text, German laws through quoted sections). Every link is backed by a stored source.")
     net = Network(height=f"{height}px", width="100%", bgcolor="#0B0F19", font_color="#F3F4F6", directed=True)
     for node in data["nodes"]:
@@ -90,6 +91,12 @@ def render_sector_network(height: int = 700) -> None:
             examples = "\n".join(f"- {e[:160]}" for e in edge.get("examples", []))
             net.add_edge(edge["source"], edge["target"], title=f"{edge['rules']} provisions\n{examples}", color="#EF4444",
                          width=1, dashes=True)
+        elif edge["kind"] == "component":
+            net.add_edge(edge["source"], edge["target"], title=f"{_pct(edge['share'])} of the construction price index (official weight)",
+                         color="#38BDF8", width=1 + 20 * edge["share"])
+        elif edge["kind"] == "feeds":
+            net.add_edge(edge["source"], edge["target"], color="#A78BFA", width=1, dashes=True,
+                         title=f"Expert link confirmed by price data: pass-through {edge['pass_through']:+.2f} (p = {edge['p']:.3f})")
         else:
             net.add_edge(edge["source"], edge["target"], title=edge["kind"], color="#64748B", width=1)
     net.set_options('{"physics": {"solver": "forceAtlas2Based", "forceAtlas2Based": {"gravitationalConstant": -90, '

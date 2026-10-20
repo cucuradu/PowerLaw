@@ -855,6 +855,744 @@
           "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "trade_bauleistbw": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BAULEISTBW|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BAULEISTBW"
+          },
+          "provider_label": "Bauleistungen am Bauwerk (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_rohbauarb": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=ROHBAUARB|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "ROHBAUARB"
+          },
+          "provider_label": "Rohbauarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_ausbauarb": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=AUSBAUARB|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "AUSBAUARB"
+          },
+          "provider_label": "Ausbauarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb005": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB005|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB005"
+          },
+          "provider_label": "Erdarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb020": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB020|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB020"
+          },
+          "provider_label": "Verbauarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb025": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB025|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB025"
+          },
+          "provider_label": "Ramm-, Rüttel- und Pressarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb035": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB035|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB035"
+          },
+          "provider_label": "Entwässerungskanalarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb090": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB090|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB090"
+          },
+          "provider_label": "Mauerarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb095": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB095|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB095"
+          },
+          "provider_label": "Betonarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb110": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB110|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB110"
+          },
+          "provider_label": "Zimmer- und Holzbauarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb115": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB115|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB115"
+          },
+          "provider_label": "Stahlbauarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb125": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB125|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB125"
+          },
+          "provider_label": "Abdichtungsarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb130": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB130|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB130"
+          },
+          "provider_label": "Dachdeckungsarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb135": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB135|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB135"
+          },
+          "provider_label": "Klempnerarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb260": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB260|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB260"
+          },
+          "provider_label": "Gerüstarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb400": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB400|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB400"
+          },
+          "provider_label": "Naturwerksteinarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb405": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB405|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB405"
+          },
+          "provider_label": "Betonwerksteinarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb440": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB440|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB440"
+          },
+          "provider_label": "Putz- und Stuckarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb441": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB441|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB441"
+          },
+          "provider_label": "Wärmedämm-Verbundsysteme (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb443": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB443|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB443"
+          },
+          "provider_label": "Trockenbauarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb444": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB444|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB444"
+          },
+          "provider_label": "Vorgehängte hinterlüftete Fassaden (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb445": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB445|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB445"
+          },
+          "provider_label": "Fliesen- und Plattenarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb450": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB450|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB450"
+          },
+          "provider_label": "Estricharbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb460": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB460|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB460"
+          },
+          "provider_label": "Tischlerarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb465": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB465|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB465"
+          },
+          "provider_label": "Parkett- und Holzpflasterarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb470": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB470|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB470"
+          },
+          "provider_label": "Beschlagarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb475": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB475|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB475"
+          },
+          "provider_label": "Rollladenarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb480": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB480|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB480"
+          },
+          "provider_label": "Metallbauarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb485": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB485|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB485"
+          },
+          "provider_label": "Verglasungsarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb495": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB495|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB495"
+          },
+          "provider_label": "Maler- und Lackierarbeiten, Beschichtungen (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb500": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB500|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB500"
+          },
+          "provider_label": "Korrosionsschutzarbeiten an Stahlbauten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb505": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB505|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB505"
+          },
+          "provider_label": "Bodenbelagarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb510": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB510|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB510"
+          },
+          "provider_label": "Tapezierarbeiten (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb520": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB520|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB520"
+          },
+          "provider_label": "Raumlufttechnische Anlagen (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb525": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB525|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB525"
+          },
+          "provider_label": "Heiz- und zentrale Wassererwärmungsanlagen (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb530": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB530|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB530"
+          },
+          "provider_label": "Gas-, Wasser- und Entwässerungsanl. innerh. v.Geb. (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb535": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB535|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB535"
+          },
+          "provider_label": "Elektro-, Sicherheits- u. informationstechn. Anl. (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb540": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB540|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB540"
+          },
+          "provider_label": "Blitzschutz-, Überspannungsschutz-, Erdungsanlagen (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb545": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB545|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB545"
+          },
+          "provider_label": "Aufzugsanl., Fahrtreppen, Fahrsteige, Förderanl. (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb550": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB550|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB550"
+          },
+          "provider_label": "Gebäudeautomation (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
+        },
+        "trade_bpnb555": {
+          "table_id": "61261-0002",
+          "provider_series_key": "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB555|PRE002|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "STEMW1": "STEMW2",
+            "BAUAR1": "BPNBK",
+            "BAUAR4": "BPNB555"
+          },
+          "provider_label": "Dämm- und Brandschutzarbeiten an techn. Anlagen (ohne Umsatzsteuer)",
+          "measurement_kind": "CONSTRUCTION_TRADE_PRICE_INDEX",
+          "frequency": "QUARTERLY",
+          "base_period": "2021=100",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Trade price indices for residential buildings excluding VAT, published in the same Destatis release as the target; codes checked live 2026-10-20.",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61261_0002_trades_2025_official.zip",
+          "fixture_sha256": "6b3406753fb42239fbd2ece06070deec5b4094151f0ce792c09544df50b5d114"
         }
       },
       "series_keys_note": "Table IDs are discovery roots. Use provider_dimension_codes/provider_series_key and context_series to select exact series.",
@@ -1178,7 +1916,50 @@
         "industrial_producer_price_release_calendar": "BBKRT/M.DE.N.P.PP1.PP100.R.I"
       },
       "dated_series": {
-        "construction_price_release_calendar": "primary_target",
+        "construction_price_release_calendar": [
+          "primary_target",
+          "trade_bauleistbw",
+          "trade_rohbauarb",
+          "trade_ausbauarb",
+          "trade_bpnb005",
+          "trade_bpnb020",
+          "trade_bpnb025",
+          "trade_bpnb035",
+          "trade_bpnb090",
+          "trade_bpnb095",
+          "trade_bpnb110",
+          "trade_bpnb115",
+          "trade_bpnb125",
+          "trade_bpnb130",
+          "trade_bpnb135",
+          "trade_bpnb260",
+          "trade_bpnb400",
+          "trade_bpnb405",
+          "trade_bpnb440",
+          "trade_bpnb441",
+          "trade_bpnb443",
+          "trade_bpnb444",
+          "trade_bpnb445",
+          "trade_bpnb450",
+          "trade_bpnb460",
+          "trade_bpnb465",
+          "trade_bpnb470",
+          "trade_bpnb475",
+          "trade_bpnb480",
+          "trade_bpnb485",
+          "trade_bpnb495",
+          "trade_bpnb500",
+          "trade_bpnb505",
+          "trade_bpnb510",
+          "trade_bpnb520",
+          "trade_bpnb525",
+          "trade_bpnb530",
+          "trade_bpnb535",
+          "trade_bpnb540",
+          "trade_bpnb545",
+          "trade_bpnb550",
+          "trade_bpnb555"
+        ],
         "residential_order_intake_release_calendar": "residential_order_intake_volume",
         "industrial_producer_price_release_calendar": [
           "wood_products",
@@ -1352,6 +2133,94 @@
               "quote": "des Bauhauptgewerbes oder des Baunebengewerbes"
             }
           ]
+        }
+      }
+    },
+    "STATISTISCHE_BIBLIOTHEK": {
+      "name": "Statistische Bibliothek (federal and state statistical publications)",
+      "category": "OFFICIAL_STATISTICS",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "trial": false,
+      "training_allowed": true,
+      "commercial_use_allowed": true,
+      "ai_training_restricted": false,
+      "rights_checked": true,
+      "rights": "Official statistical publication; reproduction and distribution, including extracts, permitted with source attribution.",
+      "terms_url": "https://www.it.nrw/impressum",
+      "terms_checked_at": "2026-10-20",
+      "attribution": "Information und Technik Nordrhein-Westfalen (IT.NRW)",
+      "auth_method": "NONE",
+      "release_cadence": "QUARTERLY",
+      "allowable_delay_days": 120,
+      "source_owner": "Statistische Ämter des Bundes und der Länder",
+      "enabled": true,
+      "endpoints": {
+        "library": "https://www.statistischebibliothek.de"
+      },
+      "documents": {
+        "construction_price_weights_2021": {
+          "url": "https://www.statistischebibliothek.de/mir/servlets/MCRFileNodeServlet/NWHeft_derivate_00020381/m143202444_A.pdf",
+          "title": "Preisindizes für Wohn- und Nichtwohngebäude, Instandhaltung und Straßenbau in NRW, November 2024",
+          "pages": [
+            11,
+            18
+          ],
+          "total": "Bauleistungen am Bauwerk",
+          "parent": "F",
+          "rows": {
+            "ROHBAUARB": "Rohbauarbeiten",
+            "AUSBAUARB": "Ausbauarbeiten",
+            "BPNB005": "Erdarbeiten",
+            "BPNB035": "Entwässerungskanalarbeiten",
+            "BPNB090": "Mauerarbeiten",
+            "BPNB095": "Betonarbeiten",
+            "BPNB110": "Zimmer- und Holzbauarbeiten",
+            "BPNB115": "Stahlbauarbeiten",
+            "BPNB125": "Abdichtungsarbeiten",
+            "BPNB130": "Dachdeckungs- und Dachabdichtungsarbeiten",
+            "BPNB135": "Klempnerarbeiten",
+            "BPNB260": "Gerüstarbeiten",
+            "BPNB400": "Naturwerksteinarbeiten",
+            "BPNB405": "Betonwerksteinarbeiten",
+            "BPNB440": "Putz- und Stuckarbeiten",
+            "BPNB441": "Wärmedämm-Verbundsysteme",
+            "BPNB443": "Trockenbauarbeiten",
+            "BPNB444": "Vorgehängte hinterlüftete Fassaden",
+            "BPNB445": "Fliesen- und Plattenarbeiten",
+            "BPNB450": "Estricharbeiten",
+            "BPNB460": "Tischlerarbeiten",
+            "BPNB465": "Parkettarbeiten",
+            "BPNB470": "Beschlagarbeiten",
+            "BPNB475": "Rollladenarbeiten",
+            "BPNB480": "Metallbauarbeiten",
+            "BPNB485": "Verglasungsarbeiten",
+            "BPNB495": "Maler- und Lackierarbeiten – Beschichtungen",
+            "BPNB505": "Bodenbelagarbeiten",
+            "BPNB510": "Tapezierarbeiten",
+            "BPNB520": "Raumlufttechnische Anlagen",
+            "BPNB525": "Heizanlagen und zentrale Wassererwärmungs-",
+            "BPNB530": "Gas-, Wasser- und Entwässerungsanlagen",
+            "BPNB535": "Elektro-, Sicherheits- u. Informationstechnische",
+            "BPNB540": "Blitzschutz-, Überspannungsschutz- und",
+            "BPNB545": "Aufzugsanlagen, Fahrtreppen, Fahrsteige,",
+            "BPNB555": "Dämm- und Brandschutzarbeiten an"
+          },
+          "shell_trades": [
+            "BPNB005",
+            "BPNB020",
+            "BPNB025",
+            "BPNB035",
+            "BPNB090",
+            "BPNB095",
+            "BPNB110",
+            "BPNB115",
+            "BPNB125",
+            "BPNB130",
+            "BPNB135",
+            "BPNB260"
+          ],
+          "verified_scope": "Wägungsanteile (per mille) for residential building work, base 2021 = 100; checked against national trade indices."
         }
       }
     }

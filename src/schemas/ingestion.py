@@ -479,6 +479,11 @@ ALLOWED_RELATION_ENDPOINTS: Dict[str, Dict[str, Any]] = {
         "object_types": {"LAW"},
         "allow_null_object": False,
     },
+    "COMPONENT_OF": {
+        "subject_types": {"SECTOR", "COMMODITY", "ECONOMIC_INDEX"},
+        "object_types": {"SECTOR", "ECONOMIC_INDEX"},
+        "allow_null_object": False,
+    },
     "IMPLEMENTS": {
         "subject_types": {"LAW"},
         "object_types": {"LAW"},

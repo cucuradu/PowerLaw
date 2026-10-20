@@ -396,6 +396,334 @@
         "commodity": "natural_gas",
         "metric": "producer_price"
       }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BAULEISTBW|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: all building work (total)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=ROHBAUARB|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: shell construction work",
+      "status": "active",
+      "measures": {
+        "sector": "F_ROHBAUARB",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=AUSBAUARB|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: finishing work",
+      "status": "active",
+      "measures": {
+        "sector": "F_AUSBAUARB",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB005|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: earthworks",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB005",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB020|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: trench sheeting",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB020",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB025|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: piling",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB025",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB035|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: drainage sewer work",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB035",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB090|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: masonry",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB090",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB095|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: concrete work",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB095",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB110|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: carpentry and timber construction",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB110",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB115|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: structural steelwork",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB115",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB125|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: waterproofing",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB125",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB130|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: roofing",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB130",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB135|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: sheet metal work",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB135",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB260|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: scaffolding",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB260",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB400|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: natural stone work",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB400",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB405|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: cast stone work",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB405",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB440|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: plastering",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB440",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB441|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: external wall insulation (ETICS)",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB441",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB443|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: drywall",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB443",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB444|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: ventilated facades",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB444",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB445|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: tiling",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB445",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB450|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: screed",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB450",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB460|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: joinery (windows, doors)",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB460",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB465|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: parquet",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB465",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB470|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: fittings and hardware",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB470",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB475|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: roller shutters",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB475",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB480|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: metalwork (windows, railings)",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB480",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB485|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: glazing",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB485",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB495|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: painting and coating",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB495",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB500|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: corrosion protection on steel",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB500",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB505|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: floor coverings",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB505",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB510|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: wallpapering",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB510",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB520|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: ventilation systems",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB520",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB525|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: heating and hot water systems",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB525",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB530|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: gas, water and drainage installations",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB530",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB535|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: electrical and communication systems",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB535",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB540|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: lightning protection and earthing",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB540",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB545|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: lifts",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB545",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB550|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: building automation",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB550",
+        "metric": "output_price"
+      }
+    },
+    "61261-0002|DINSG=DG|STEMW1=STEMW2|BAUAR1=BPNBK|BAUAR4=BPNB555|PRE002|2021=100": {
+      "name": "Construction prices excl. VAT: insulation and fire protection of services",
+      "status": "active",
+      "measures": {
+        "sector": "F_BPNB555",
+        "metric": "output_price"
+      }
     }
   }
 }

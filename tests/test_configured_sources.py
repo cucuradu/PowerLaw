@@ -50,7 +50,8 @@ def test_only_verified_sources_and_requests_are_active():
     sources = load_data_sources_registry()["sources"]
     assert {key for key, value in sources.items() if value["enabled"]} == {
         "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
-        "BUNDESBANK_SDMX", "BUNDESBANK_RTD", "EURLEX_CELLAR", "EUROSTAT_NAIO", "GESETZE_IM_INTERNET"}
+        "BUNDESBANK_SDMX", "BUNDESBANK_RTD", "EURLEX_CELLAR", "EUROSTAT_NAIO", "GESETZE_IM_INTERNET",
+        "STATISTISCHE_BIBLIOTHEK"}
     assert list(sources["DESTATIS_GENESIS"]["series_keys"].values()) == [
         "61261-0002", "61261-0014", "61241-0004", "44111-0009", "31111-0020", "62221-0002", "61241-0006"]
     assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q", "ei_bsbu_m_r2"]
@@ -65,8 +66,24 @@ def test_only_verified_sources_and_requests_are_active():
     assert all(fact.available_at == FETCHED_AT for fact in result["facts"])
 
 
+def test_target_table_replay_commits_target_and_trades_but_respects_the_pilot_cap(tmp_path):
+    item = next(i for i in _stats_discover("DESTATIS_GENESIS", "2025-01-01", "2025-12-31", 20) if i["upstream_id"] == "61261-0002")
+    raw = (FIXTURES / "destatis_61261_0002_trades_2025_official.zip").read_bytes()
+    fetch = lambda url, **kw: (raw, url, item["content_type"], 200)
+    capped = run_ingestion("DESTATIS_GENESIS", limit=1, settings=settings_at(tmp_path / "pilot"), max_series=8,
+                           store=DualLayerStore(settings_at(tmp_path / "pilot").lancedb_path), discover=lambda *a: [item], fetch=fetch)
+    assert capped["source_errors"][-1]["code"] == "PILOT_SERIES_CAP"
+    settings = settings_at(tmp_path / "full")
+    store = DualLayerStore(settings.lancedb_path)
+    report = run_ingestion("DESTATIS_GENESIS", limit=1, settings=settings, store=store, discover=lambda *a: [item], fetch=fetch)
+    assert report["status"] == "committed", report["source_errors"]
+    target = load_data_sources_registry()["primary_target"]["provider_series_key"]
+    assert set(store._canonical_series) == set(item["required_series_keys"]) and len(item["required_series_keys"]) == 42
+    assert {o.period_start: o.value for o in store._canonical_observations.values() if o.series_id == target} == {
+        "2025-01-01": 132.6, "2025-04-01": 133.6, "2025-07-01": 134.3, "2025-10-01": 135.0}
+
+
 @pytest.mark.parametrize("source,fixture", [
-    ("DESTATIS_GENESIS", "configured_destatis_genesis.zip"),
     ("EUROSTAT_STS", "configured_eurostat_sts.json"),
     ("ECB_SDMX", "configured_ecb_mir_de_housing_loans.csv"),
 ])

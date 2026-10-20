@@ -11,7 +11,9 @@ def test_target_request_filters_to_the_registered_cell():
     data = _requests()["61261-0002"]
     filters = {data[f"classifyingvariable{i}"]: data[f"classifyingkey{i}"]
                for i in range(1, 6) if data.get(f"classifyingvariable{i}")}
-    assert filters == {"STEMW1": "STEMW1", "BAUAR1": "BPNBK", "BAUAR4": "BAULEISTBW"}
+    # The target cell (with VAT) plus the trade indices excluding VAT, from the same release.
+    assert filters["BAUAR1"] == "BPNBK" and filters["STEMW1"] == "STEMW1,STEMW2"
+    assert {"BAULEISTBW", "BPNB095", "BPNB525"} <= set(filters["BAUAR4"].split(","))
     assert (data["startyear"], data["endyear"]) == ("1958", "2026")
 
 

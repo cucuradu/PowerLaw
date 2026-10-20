@@ -222,6 +222,166 @@
   "D21X31": {
    "label": "Taxes less subsidies on products",
    "kind": "PRIMARY_INPUT"
+  },
+  "F_ROHBAUARB": {
+   "label": "Shell construction work",
+   "kind": "TRADE"
+  },
+  "F_AUSBAUARB": {
+   "label": "Finishing work",
+   "kind": "TRADE"
+  },
+  "F_BPNB005": {
+   "label": "Trade: Earthworks",
+   "kind": "TRADE"
+  },
+  "F_BPNB020": {
+   "label": "Trade: Trench sheeting",
+   "kind": "TRADE"
+  },
+  "F_BPNB025": {
+   "label": "Trade: Piling",
+   "kind": "TRADE"
+  },
+  "F_BPNB035": {
+   "label": "Trade: Drainage sewer work",
+   "kind": "TRADE"
+  },
+  "F_BPNB090": {
+   "label": "Trade: Masonry",
+   "kind": "TRADE"
+  },
+  "F_BPNB095": {
+   "label": "Trade: Concrete work",
+   "kind": "TRADE"
+  },
+  "F_BPNB110": {
+   "label": "Trade: Carpentry and timber construction",
+   "kind": "TRADE"
+  },
+  "F_BPNB115": {
+   "label": "Trade: Structural steelwork",
+   "kind": "TRADE"
+  },
+  "F_BPNB125": {
+   "label": "Trade: Waterproofing",
+   "kind": "TRADE"
+  },
+  "F_BPNB130": {
+   "label": "Trade: Roofing",
+   "kind": "TRADE"
+  },
+  "F_BPNB135": {
+   "label": "Trade: Sheet metal work",
+   "kind": "TRADE"
+  },
+  "F_BPNB260": {
+   "label": "Trade: Scaffolding",
+   "kind": "TRADE"
+  },
+  "F_BPNB400": {
+   "label": "Trade: Natural stone work",
+   "kind": "TRADE"
+  },
+  "F_BPNB405": {
+   "label": "Trade: Cast stone work",
+   "kind": "TRADE"
+  },
+  "F_BPNB440": {
+   "label": "Trade: Plastering",
+   "kind": "TRADE"
+  },
+  "F_BPNB441": {
+   "label": "Trade: External wall insulation (ETICS)",
+   "kind": "TRADE"
+  },
+  "F_BPNB443": {
+   "label": "Trade: Drywall",
+   "kind": "TRADE"
+  },
+  "F_BPNB444": {
+   "label": "Trade: Ventilated facades",
+   "kind": "TRADE"
+  },
+  "F_BPNB445": {
+   "label": "Trade: Tiling",
+   "kind": "TRADE"
+  },
+  "F_BPNB450": {
+   "label": "Trade: Screed",
+   "kind": "TRADE"
+  },
+  "F_BPNB460": {
+   "label": "Trade: Joinery (windows, doors)",
+   "kind": "TRADE"
+  },
+  "F_BPNB465": {
+   "label": "Trade: Parquet",
+   "kind": "TRADE"
+  },
+  "F_BPNB470": {
+   "label": "Trade: Fittings and hardware",
+   "kind": "TRADE"
+  },
+  "F_BPNB475": {
+   "label": "Trade: Roller shutters",
+   "kind": "TRADE"
+  },
+  "F_BPNB480": {
+   "label": "Trade: Metalwork (windows, railings)",
+   "kind": "TRADE"
+  },
+  "F_BPNB485": {
+   "label": "Trade: Glazing",
+   "kind": "TRADE"
+  },
+  "F_BPNB495": {
+   "label": "Trade: Painting and coating",
+   "kind": "TRADE"
+  },
+  "F_BPNB500": {
+   "label": "Trade: Corrosion protection on steel",
+   "kind": "TRADE"
+  },
+  "F_BPNB505": {
+   "label": "Trade: Floor coverings",
+   "kind": "TRADE"
+  },
+  "F_BPNB510": {
+   "label": "Trade: Wallpapering",
+   "kind": "TRADE"
+  },
+  "F_BPNB520": {
+   "label": "Trade: Ventilation systems",
+   "kind": "TRADE"
+  },
+  "F_BPNB525": {
+   "label": "Trade: Heating and hot water systems",
+   "kind": "TRADE"
+  },
+  "F_BPNB530": {
+   "label": "Trade: Gas, water and drainage installations",
+   "kind": "TRADE"
+  },
+  "F_BPNB535": {
+   "label": "Trade: Electrical and communication systems",
+   "kind": "TRADE"
+  },
+  "F_BPNB540": {
+   "label": "Trade: Lightning protection and earthing",
+   "kind": "TRADE"
+  },
+  "F_BPNB545": {
+   "label": "Trade: Lifts",
+   "kind": "TRADE"
+  },
+  "F_BPNB550": {
+   "label": "Trade: Building automation",
+   "kind": "TRADE"
+  },
+  "F_BPNB555": {
+   "label": "Trade: Insulation and fire protection of services",
+   "kind": "TRADE"
   }
  },
  "commodities": {

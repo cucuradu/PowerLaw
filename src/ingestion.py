@@ -441,7 +441,7 @@ def run_ingestion(source_id: str, *, limit: int, since: str | None = None, until
                 try:
                     parser_item = item
                     if source_id in ("EURLEX_CELLAR", "BUNDESBANK_RTD", "EUROSTAT_NAIO", "DESTATIS_GENESIS", "EUROSTAT_STS",
-                                     "ECB_SDMX", "BUNDESBANK_SDMX", "GESETZE_IM_INTERNET"):
+                                     "ECB_SDMX", "BUNDESBANK_SDMX", "GESETZE_IM_INTERNET", "STATISTISCHE_BIBLIOTHEK"):
                         parser_item = dict(item, _store=canonical_store)
                     elif source_id == "OFFICIAL_NEWS":
                         committed_batches = {key for key, value in canonical_store._canonical_batches.items() if value.status == "committed"}
@@ -851,19 +851,15 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
                 url += f"&untilTimePeriod={until}"
             content_type = "application/json"
         elif source_id == "DESTATIS_GENESIS":
+            context = [s for s in registry.get("context_series", {}).values() if s["table_id"] == key_val]
+            required_series_keys = [s["provider_series_key"] for s in context]
+            # Request only the registered cells: whole tables exceed the GENESIS dialog limit (status 98).
+            selected = [{k: v for k, v in s["dimensions"].items() if k != "DINSG"} for s in context]
             if key_val == target["table_id"]:
-                required_series_keys = [target["provider_series_key"]]
-            else:
-                required_series_keys = [selection["provider_series_key"] for selection in
-                    registry.get("context_series", {}).values() if selection["table_id"] == key_val]
+                required_series_keys.insert(0, target["provider_series_key"])
+                selected.insert(0, {k: v for k, v in target["provider_dimension_codes"].items() if k != "DINSG"})
             if not required_series_keys:
                 raise FetchError("Destatis table has no verified exact series selection")
-            # Request only the registered cells: whole tables exceed the GENESIS dialog limit (status 98).
-            if key_val == target["table_id"]:
-                selected = [{k: v for k, v in target["provider_dimension_codes"].items() if k != "DINSG"}]
-            else:
-                selected = [{k: v for k, v in s["dimensions"].items() if k != "DINSG"}
-                            for s in registry.get("context_series", {}).values() if s["table_id"] == key_val]
             classifying = {}
             for dims in selected:
                 for variable, code in dims.items():
@@ -1270,6 +1266,74 @@ def _gii_parse(item: SourceItem, content: bytes, document: SourceDocument) -> di
 
 
 register_source("GESETZE_IM_INTERNET", _gii_discover, _gii_parse)
+
+
+# =====================================================================
+# Published statistical reports (PDF): the construction price index weighting scheme
+# =====================================================================
+def _library_discover(source_id: str, since: Optional[str], until: Optional[str], limit: int) -> Iterable[SourceItem]:
+    registry = load_data_sources_registry()["sources"][source_id]
+    for key, doc in islice(registry["documents"].items(), limit):
+        yield {"item_id": f"{source_id}_{key}", "upstream_id": key, "url": doc["url"], "canonical_url": doc["url"],
+               "publisher": registry.get("attribution", source_id), "content_type": "application/pdf"}
+
+
+def _pdf_lines(content: bytes, pages: list[int]) -> list[str]:
+    import pymupdf
+    with pymupdf.open(stream=content, filetype="pdf") as pdf:
+        return [line.strip() for number in range(pages[0] - 1, min(pages[1], len(pdf)))
+                for line in pdf[number].get_text().splitlines() if line.strip()]
+
+
+def _weight_after(lines: list[str], label: str) -> Optional[tuple[float, str]]:
+    """Per-mille weight printed after a row label (row labels may wrap onto one continuation line)."""
+    for index, line in enumerate(lines):
+        if line == label:
+            for offset in (1, 2):
+                value = lines[index + offset] if index + offset < len(lines) else ""
+                if re.fullmatch(r"\d{1,3}(?: \d{3})*(?:,\d+)?", value):
+                    return float(value.replace(" ", "").replace(",", ".")), " ".join(lines[index:index + offset + 1])
+    return None
+
+
+def _library_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
+    from src.utils.taxonomy import sector_entity
+    config = load_data_sources_registry()["sources"][document.source_id]["documents"][item["upstream_id"]]
+    try:
+        lines = _pdf_lines(content, config["pages"])
+    except Exception as exc:  # malformed PDF
+        raise FetchError(f"report PDF could not be read: {_safe_error(exc)}") from exc
+    total = _weight_after(lines, config["total"])
+    if total is None or total[0] != 1000:
+        raise FetchError("weighting table total (1 000 per mille) not found")
+    origin = {"batch_id": document.batch_id, "data_origin": document.data_origin}
+    parent = config["parent"]
+    entities = {parent: sector_entity(parent, **origin)}
+    pairs: list[tuple[Fact, str]] = []
+    for code, label in config["rows"].items():
+        found = _weight_after(lines, label)
+        if found is None:
+            raise FetchError(f"weight row {label!r} not found in report")
+        weight, quote = found
+        group = None if code in ("ROHBAUARB", "AUSBAUARB") else ("ROHBAUARB" if code in config["shell_trades"] else "AUSBAUARB")
+        node, target = f"F_{code}", f"F_{group}" if group else parent
+        entities[node] = sector_entity(node, **origin)
+        payload = {"weight_per_mille": weight, "share_of_total": round(weight / 1000, 6), "scheme": "Basis 2021 = 100",
+                   "index": "Bauleistungen am Bauwerk, Wohngebäude", "subject_type": "SECTOR", "object_type": "SECTOR"}
+        pairs.append((Fact(subject_id=f"sec_{node}", predicate="COMPONENT_OF", object_id=f"sec_{target}",
+                           payload_json=json.dumps(payload, sort_keys=True), valid_from=datetime(2021, 1, 1, tzinfo=timezone.utc),
+                           available_at=document.available_at, source_id=document.source_id, **origin), quote))
+    facts = _new_facts_only(item.get("_store"), [fact for fact, _ in pairs])
+    quotes = {fact.fact_version_id: quote for fact, quote in pairs}
+    evidence = [EvidenceLink(assertion_version_id=f.fact_version_id, assertion_kind="FACT", document_version_id=document.version_id,
+                             selector_type="TABLE_CELL", selector_json=json.dumps({"pages": config["pages"], "row": quotes[f.fact_version_id]}),
+                             quoted_text=quotes[f.fact_version_id], support_type="DIRECT", available_at=document.available_at,
+                             batch_id=document.batch_id) for f in facts]
+    return {"status": "accepted", "facts": facts, "observations": [], "evidence_links": evidence, "entities": list(entities.values()),
+            "series": [], "accepted_count": len(facts), "review_count": 0, "rejected_count": 0}
+
+
+register_source("STATISTISCHE_BIBLIOTHEK", _library_discover, _library_parse)
 
 
 # =====================================================================
