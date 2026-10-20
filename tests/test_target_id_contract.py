@@ -79,3 +79,35 @@ def test_ingested_target_is_a_series_node_in_the_as_of_graph(tmp_path):
     assert key in {n["id"] for n in nodes if n["node_type"] == "SERIES"}
     # Not visible before the series definition was available.
     assert key not in {n["id"] for n in export_as_of(datetime(2026, 1, 1, tzinfo=timezone.utc), store=store)["nodes"]}
+
+
+def _forecast(target_period_start, growth=1.0, interval=(-0.5, 2.5)):
+    return {"generated_at": FETCHED.isoformat(), "target_series_id": primary_target_series_id(),
+            "backtest_report": "reports/backtest.json", "model": "arx_vat_evidence",
+            "target_period_start": target_period_start, "forecast_growth_pct": growth,
+            "interval_growth_pct": list(interval)}
+
+
+def test_outlook_shows_the_offline_forecast_record_as_levels(tmp_path):
+    from src.scrapers.statistics import _quarter_bounds
+    from src.storage.dashboard_data import prediction_record_from_forecast
+    store, latest = _stage_real_genesis_response(tmp_path)
+    year, quarter = int(latest.period_start[:4]), (int(latest.period_start[5:7]) - 1) // 3 + 1
+    nxt = _quarter_bounds("", f"{year + (quarter == 4)}-Q{quarter % 4 + 1}")[0]
+    outlook = get_construction_outlook(cutoff=FETCHED, store=store,
+                                       prediction_record=prediction_record_from_forecast(_forecast(nxt)))
+    assert outlook["model_info"] == "arx_vat_evidence"
+    assert outlook["target_period"] == f"{nxt[:4]}-Q{(int(nxt[5:7]) - 1) // 3 + 1}"
+    assert outlook["point_forecast"] == round(latest.value * 1.01, 2)
+    assert outlook["interval"]["calibration_status"] == "calibrated"
+    assert (outlook["interval"]["lower"], outlook["interval"]["upper"]) == (
+        round(latest.value * 0.995, 2), round(latest.value * 1.025, 2))
+
+
+def test_outlook_rejects_a_forecast_for_an_already_released_quarter(tmp_path):
+    from src.storage.dashboard_data import prediction_record_from_forecast
+    store, latest = _stage_real_genesis_response(tmp_path)
+    outlook = get_construction_outlook(cutoff=FETCHED, store=store,
+                                       prediction_record=prediction_record_from_forecast(_forecast(latest.period_start)))
+    assert outlook["point_forecast"] is None
+    assert any("already released" in gap for gap in outlook["source_gaps"])

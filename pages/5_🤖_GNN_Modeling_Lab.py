@@ -13,9 +13,6 @@ from dotenv import load_dotenv
 
 from src.storage.dashboard_data import get_graph_store
 from src.models.gnn_dataset import DualLayerGNNDataset
-from src.gnn.graph_exporter import GNNGraphExporter
-from src.gnn.trainer import TGNNTrainer
-from src.gnn.temporal_gnn import HAS_TORCH
 
 load_dotenv()
 
@@ -29,7 +26,6 @@ st.set_page_config(
 try:
     store = get_graph_store()
     gnn_ds = DualLayerGNNDataset(store)
-    exporter = GNNGraphExporter(store)
 except Exception as e:
     st.error(f"Failed to initialize GNN Modeling Lab: {e}")
     st.stop()
@@ -157,13 +153,17 @@ st.divider()
 st.subheader("3. 🧠 Temporal GNN (read-only)")
 st.caption("Paused: the GNN is not yet shown to beat the VAT-aware autoregressive baseline in the rolling-origin backtest.")
 
-if "tgnn_trainer" not in st.session_state:
+trainer = st.session_state.get("tgnn_trainer")
+if trainer is None and st.button("🧠 Load trained GNN checkpoint"):
+    from src.gnn.trainer import TGNNTrainer
+
     trainer = TGNNTrainer(store)
     st.session_state.tgnn_trained = trainer.load_checkpoint()
     st.session_state.tgnn_trainer = trainer
-trainer = st.session_state.tgnn_trainer
 
-if not st.session_state.tgnn_trained:
+if trainer is None:
+    st.info("Load the offline-trained checkpoint to inspect predictions and simulations.")
+elif not st.session_state.tgnn_trained:
     st.info("No trained checkpoint found. Training is an offline job, not a dashboard action.")
 else:
     tab_loss, tab_shock, tab_preds = st.tabs(["📉 Training History", "🔮 Counterfactual Shock", "🎯 Predictions"])
@@ -173,7 +173,7 @@ else:
             fig_loss = px.line(hist, x="epoch", y=[c for c in ("total_loss", "state_loss", "link_loss", "risk_loss") if c in hist],
                                labels=dict(value="Loss", epoch="Epoch", variable="Component"), title="Checkpoint loss history")
             fig_loss.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
-            st.plotly_chart(fig_loss, use_container_width=True)
+            st.plotly_chart(fig_loss, width="stretch")
         else:
             st.info("Checkpoint has no recorded training history.")
     with tab_shock:
@@ -183,11 +183,11 @@ else:
         c_s1, c_s2 = st.columns([2, 1])
         shock_target = c_s1.selectbox("Shock Target Node (Policy / Action):", options=candidates, index=0 if candidates else None)
         shock_mag = c_s2.slider("Shock Magnitude (Delta):", min_value=-50.0, max_value=50.0, value=25.0, step=5.0)
-        if shock_target and st.button("🔮 Run Counterfactual Shock Simulation", use_container_width=True):
+        if shock_target and st.button("🔮 Run Counterfactual Shock Simulation", width="stretch"):
             shock_df = trainer.simulate_shock(shock_target, shock_magnitude=shock_mag)
-            st.dataframe(shock_df, use_container_width=True, hide_index=True)
+            st.dataframe(shock_df, width="stretch", hide_index=True)
     with tab_preds:
-        st.dataframe(trainer.predict(), use_container_width=True, hide_index=True)
+        st.dataframe(trainer.predict(), width="stretch", hide_index=True)
 
 # --- 4. EXPORT TENSORS ---
 st.divider()
@@ -212,20 +212,22 @@ with col_d1:
         data=json_export,
         file_name=f"constructpulse_gnn_dataset_{snapshot.get('as_of_date', 'latest')}.json",
         mime="application/json",
-        use_container_width=True
+        width="stretch"
     )
 
 with col_d2:
-    # Full Graph export via GNNGraphExporter
-    try:
-        full_export = exporter.export_json(indent=2)
-        st.download_button(
-            label="📦 Download Full Multimodal Graph & Centralities (JSON)",
-            data=full_export,
-            file_name=f"constructpulse_full_graph_export.json",
-            mime="application/json",
-            use_container_width=True
-        )
-    except Exception as e:
-        st.info(f"Full export unavailable: {e}")
+    if st.button("📦 Prepare Full Graph Export", width="stretch"):
+        try:
+            from src.gnn.graph_exporter import GNNGraphExporter
+
+            full_export = GNNGraphExporter(store).export_json(indent=2)
+            st.download_button(
+                label="Download Full Multimodal Graph & Centralities (JSON)",
+                data=full_export,
+                file_name="constructpulse_full_graph_export.json",
+                mime="application/json",
+                width="stretch",
+            )
+        except Exception as e:
+            st.info(f"Full export unavailable: {e}")
 

@@ -7,6 +7,7 @@ Provides unified access to:
 """
 
 import os
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -58,9 +59,7 @@ def get_graph_store(storage_dir: Optional[str] = None) -> DualLayerGraphStore:
     return store
 
 
-def _canonical_law_rows(storage_dir: str, cutoff: datetime) -> List[Dict[str, Any]]:
-    from src.storage.dual_layer_store import DualLayerStore
-    store = DualLayerStore(storage_dir)
+def _canonical_law_rows(store: Any, cutoff: datetime) -> List[Dict[str, Any]]:
     rows = []
     for fact in store.query_facts(cutoff):
         if fact.data_origin != "live" or fact.predicate != "MANDATES" or not fact.payload_json:
@@ -83,9 +82,7 @@ def _canonical_law_rows(storage_dir: str, cutoff: datetime) -> List[Dict[str, An
     return rows
 
 
-def _canonical_news_rows(storage_dir: str, cutoff: datetime) -> List[Dict[str, Any]]:
-    from src.storage.dual_layer_store import DualLayerStore
-    store = DualLayerStore(storage_dir)
+def _canonical_news_rows(store: Any, cutoff: datetime) -> List[Dict[str, Any]]:
     articles = {}
     for fact in store.query_facts(cutoff):
         if fact.data_origin != "live" or not fact.payload_json:
@@ -121,7 +118,8 @@ def get_all_laws_data(storage_dir: Optional[str] = None, *, cutoff: Optional[dat
     if storage_dir is None:
         storage_dir = str(get_configured_db_path())
     if settings.mode == "production":
-        return _canonical_law_rows(storage_dir, cutoff or datetime.now(timezone.utc))
+        store = get_graph_store(storage_dir).canonical_store
+        return _canonical_law_rows(store, cutoff or datetime.now(timezone.utc))
     # 1. Try LanceDB if populated
     try:
         import lancedb
@@ -183,7 +181,11 @@ def get_all_laws_data(storage_dir: Optional[str] = None, *, cutoff: Optional[dat
 def get_all_news_data(cutoff: Optional[datetime] = None) -> List[Dict[str, Any]]:
     """Retrieve news articles with extracted receptor signals, actions, and reactions."""
     settings = get_settings()
-    articles = _canonical_news_rows(str(settings.lancedb_path), cutoff or datetime.now(timezone.utc)) if settings.mode == "production" else []
+    if settings.mode == "production":
+        store = get_graph_store(str(settings.lancedb_path)).canonical_store
+        articles = _canonical_news_rows(store, cutoff or datetime.now(timezone.utc))
+    else:
+        articles = []
 
     # 1. Resolve mode-appropriate news file path
     prod_news_file = settings.data_dir / "raw" / "news" / "scraped_news.json"
@@ -258,6 +260,7 @@ def get_all_news_data(cutoff: Optional[datetime] = None) -> List[Dict[str, Any]]
         item["timeframe"] = a.get("timeframe") or first_rx.get("timeframe")
         item["target_asset"] = a.get("target_asset") or first_rx.get("affected_entity")
         item["metric"] = a.get("metric")
+        item["receptor_signal"] = a.get("receptor_signal")
 
         normalized.append(item)
 
@@ -477,6 +480,33 @@ def get_job_status(job_id: str, ledger: Optional[Any] = None) -> Dict[str, Any]:
 # CONSTRUCTION OUTLOOK WITH EVIDENCE & LIMITATIONS (TASK 11)
 # ============================================================================
 
+def load_latest_forecast(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
+    """Read the forecast record written by `scripts.ops.backtest_target` (read-only; None when absent or unreadable)."""
+    path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "forecast-latest.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def prediction_record_from_forecast(forecast: Optional[Dict[str, Any]]) -> Optional[Any]:
+    """PredictionRecord for the outlook; growth and interval stay in percent of the last released level."""
+    from src.schemas.ingestion import PredictionRecord
+    from src.scrapers.statistics import _period_bounds
+    if not forecast or forecast.get("forecast_growth_pct") is None or not forecast.get("target_period_start"):
+        return None
+    start = forecast["target_period_start"]
+    interval = forecast.get("interval_growth_pct") or [None, None]
+    digest = hashlib.sha256(json.dumps(forecast, sort_keys=True).encode()).hexdigest()
+    return PredictionRecord(
+        prediction_id=f"pred_{digest}", dataset_id=str(forecast.get("backtest_report")), model_id=forecast["model"],
+        target_series_id=forecast["target_series_id"], forecast_origin=forecast["generated_at"],
+        target_period_start=start, target_period_end_exclusive=_period_bounds(f"{start[:4]}-Q{(int(start[5:7]) - 1) // 3 + 1}")[1],
+        point_change_pct=forecast["forecast_growth_pct"], lower90=interval[0], upper90=interval[1],
+        calibration_status="CALIBRATED" if interval[0] is not None else "UNAVAILABLE",
+        manifest_uri=forecast.get("backtest_report"))
+
+
 def get_construction_outlook(
     cutoff: Optional[Union[datetime, str]] = None,
     target_series_id: Optional[str] = None,
@@ -494,7 +524,6 @@ def get_construction_outlook(
     5. Absence of causal claims for graph edges, news signals, and GNN predictions.
     6. Read-only operation: does not mutate storage or trigger ingestion/training.
     """
-    from src.storage.dual_layer_store import DualLayerStore
     from src.quant.forecasting import calibrate_residual_interval
     from src.config import primary_target_series_id
 
@@ -538,7 +567,7 @@ def get_construction_outlook(
 
     # Store resolution
     settings = get_settings()
-    canonical_store = store or DualLayerStore(settings.lancedb_path)
+    canonical_store = store or get_graph_store(str(settings.lancedb_path)).canonical_store
 
     # Retrieve committed observations as of cutoff
     obs_table = canonical_store.query_observations(cutoff=cutoff, mode="public_as_of")
@@ -561,6 +590,8 @@ def get_construction_outlook(
     next_q = 1 if cur_q == 4 else cur_q + 1
     next_y = cur_y + 1 if cur_q == 4 else cur_y
     target_period: str = f"{next_y}-Q{next_q}"
+    model_info = "No validated forecast record"
+    point_growth_pct = None
 
     if not target_obs:
         source_gaps.append(
@@ -578,6 +609,12 @@ def get_construction_outlook(
         measured = [o for o in target_obs if o.get("value") is not None]
         latest = measured[-1] if measured else target_obs[-1]
         avail = latest.get("available_at")
+        # Revisions can repeat a value (fetch-dated and release-dated); show when the value first became public.
+        if hasattr(canonical_store, "query_observation_revisions"):
+            first = [canonical_store._available(r) for r in canonical_store.query_observation_revisions(cutoff, "public_as_of")
+                     if r.series_id == target_series_id and r.period_start == latest.get("period_start")
+                     and r.value == latest.get("value")]
+            avail = min(first) if first else avail
         if isinstance(avail, str):
             avail_dt = datetime.fromisoformat(avail.replace("Z", "+00:00"))
         elif isinstance(avail, datetime):
@@ -655,6 +692,12 @@ def get_construction_outlook(
             pred_target = getattr(prediction_record, "target_series_id", None)
             pred_origin = getattr(prediction_record, "forecast_origin", None)
             origin_valid = pred_origin is not None and canonical_store._utc(pred_origin) <= cutoff
+            # A forecast is only current if it targets the quarter right after the latest released one.
+            pred_period = getattr(prediction_record, "target_period_start", None)
+            if origin_valid and pred_target == target_series_id and pred_period and p_start and pred_period <= p_start:
+                source_gaps.append(f"Forecast record targets {pred_period[:7]}, which is already released; "
+                                   "rerun `python -m scripts.ops.backtest_target`.")
+                origin_valid = False
             if origin_valid and pred_target == target_series_id:
                 manifest_valid = True
                 if dataset_manifest is not None:
@@ -666,13 +709,19 @@ def get_construction_outlook(
                     point_growth_pct = float(getattr(prediction_record, "point_change_pct", 0.0))
                     if val is not None:
                         point_forecast = round(val * (1.0 + point_growth_pct / 100.0), 2)
+                    # lower90/upper90 are growth in percent, like point_change_pct; shown as index levels.
+                    low, high = getattr(prediction_record, "lower90", None), getattr(prediction_record, "upper90", None)
                     interval_data = {
-                        "lower": getattr(prediction_record, "lower90", None),
-                        "upper": getattr(prediction_record, "upper90", None),
+                        "lower": round(val * (1 + low / 100), 2) if val is not None and low is not None else None,
+                        "upper": round(val * (1 + high / 100), 2) if val is not None and high is not None else None,
+                        "lower_growth_pct": low, "upper_growth_pct": high,
                         "confidence_level": 0.90,
                         "calibration_status": getattr(prediction_record, "calibration_status", "calibrated").lower(),
                         "details": "Conformal 90% interval from frozen prediction artifact.",
                     }
+                    pred_q = (int(pred_period[5:7]) - 1) // 3 + 1
+                    target_period = f"{pred_period[:4]}-Q{pred_q}"
+                    model_info = getattr(prediction_record, "model_id", model_info)
                 else:
                     source_gaps.append("Forecast artifact manifest mismatch: dataset or target specification differs.")
             else:
@@ -835,8 +884,9 @@ def get_construction_outlook(
         "latest_observation": latest_observation,
         "forecast_origin": cutoff.isoformat(),
         "target_period": target_period,
-        "model_info": "Defensible Baseline (No-Change / Lag-1)",
+        "model_info": model_info,
         "point_forecast": point_forecast,
+        "point_growth_pct": point_growth_pct,
         "interval": interval_data,
         "supply_context": supply_context,
         "regulatory_context": regulatory_context,

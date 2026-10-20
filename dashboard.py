@@ -17,9 +17,9 @@ from dotenv import load_dotenv
 from src.storage.dashboard_data import (
     get_graph_store,
     get_system_kpis,
-    get_all_laws_data,
-    get_all_news_data,
-    get_construction_outlook
+    get_construction_outlook,
+    load_latest_forecast,
+    prediction_record_from_forecast,
 )
 
 load_dotenv()
@@ -80,11 +80,24 @@ st.markdown("""
 
 
 # --- DATA INITIALIZATION ---
+@st.cache_data(ttl=60, show_spinner=False)
+def _load_dashboard_data(storage_dir: str, generation: int):
+    graph_store = get_graph_store(storage_dir)
+    forecast = load_latest_forecast()  # written offline by scripts.ops.backtest_target; never computed here
+    return (
+        get_system_kpis(storage_dir),
+        get_construction_outlook(store=graph_store.canonical_store,
+                                 prediction_record=prediction_record_from_forecast(forecast)),
+        graph_store.get_history_df(),
+        forecast,
+    )
+
+
 try:
-    kpis = get_system_kpis()
     store = get_graph_store()
-    laws = get_all_laws_data()
-    news = get_all_news_data()
+    kpis, outlook, history_df, forecast = _load_dashboard_data(
+        str(store.storage_dir), store._generation
+    )
 except Exception as e:
     st.error(f"Error loading system telemetry: {e}")
     st.stop()
@@ -183,8 +196,6 @@ st.caption(
 )
 
 try:
-    outlook = get_construction_outlook()
-
     # 1. Target & Forecast Summary Bar
     oc1, oc2, oc3, oc4 = st.columns(4)
     with oc1:
@@ -211,7 +222,7 @@ try:
             st.metric(
                 label=f"Forecast PPI ({t_period})",
                 value=f"{pt_fc:.2f}",
-                delta=f"Model: {outlook.get('model_info', 'Baseline')}",
+                delta=f"{outlook['point_growth_pct']:+.2f}% q/q · {outlook.get('model_info')}",
                 delta_color="normal"
             )
         else:
@@ -229,7 +240,8 @@ try:
             st.metric(
                 label="90% Conformal Interval",
                 value=f"[{interval['lower']:.2f}, {interval['upper']:.2f}]",
-                delta="Calibrated (≥20 historical quarters)",
+                delta=f"{interval['lower_growth_pct']:+.2f}% to {interval['upper_growth_pct']:+.2f}% q/q"
+                      if interval.get("lower_growth_pct") is not None else "Calibrated (≥20 historical quarters)",
                 delta_color="normal"
             )
         else:
@@ -247,6 +259,23 @@ try:
             delta="Strict Anti-Proxy (No Financial Substitution)",
             delta_color="normal"
         )
+
+    # Measured track record of the same forecast setup (rolling origin, data public at each origin)
+    if forecast and forecast.get("track_record"):
+        record = forecast["track_record"]
+        rows = [{"Model": name, "Origins": m["n"], "MAE (pp q/q)": round(m["mae"], 3),
+                 "RMSE (pp q/q)": round(m["rmse"], 3),
+                 "90% interval coverage": None if m["interval"]["coverage"] is None else f"{m['interval']['coverage']:.0%}",
+                 "Mean half-width (pp)": None if m["interval"]["mean_half_width"] is None else round(m["interval"]["mean_half_width"], 2)}
+                for name, m in record.items()]
+        st.markdown(f"**Forecast track record** — next-release growth, measured on past releases "
+                    f"(record generated {forecast['generated_at'][:10]})")
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+        refs = {k: v for k, v in (forecast.get("reference_forecasts_growth_pct") or {}).items() if v is not None}
+        if refs:
+            st.caption("Reference forecasts for the same quarter: " + ", ".join(f"{k} {v:+.2f}%" for k, v in refs.items()))
+        for note in forecast.get("limitations", []):
+            st.caption(f"• {note}")
 
     # 2. Tabs for Context, Gaps & Evidence
     out_tab1, out_tab2, out_tab3, out_tab4 = st.tabs([
@@ -309,7 +338,6 @@ st.divider()
 st.markdown("### 📈 Live Construction Commodity Price Trajectories & Market Spreads")
 st.caption("Historical price benchmarks and equity indices extracted from the Behind-The-Graph Tabular Ledger (LanceDB).")
 
-history_df = store.get_history_df()
 if not history_df.empty and "metric_value" in history_df.columns:
     # Filter to physical commodities and stocks
     plot_df = history_df.dropna(subset=["metric_value", "timestamp"]).copy()
