@@ -594,9 +594,19 @@
       "release_cadence": "QUARTERLY",
       "allowable_delay_days": 20,
       "series_keys": {
-        "construction_price_release_calendar": "BBKRT/Q.DE....PP300"
+        "construction_price_release_calendar": "BBKRT/Q.DE....PP300",
+        "residential_order_intake_release_calendar": "BBKRT/M.DE.N.I.IO1.AFC15.C.I"
+      },
+      "dated_series": {
+        "construction_price_release_calendar": "primary_target",
+        "residential_order_intake_release_calendar": "residential_order_intake_volume"
+      },
+      "revision_bounds": {
+        "construction_price_release_calendar": {"qoq_growth_pp_mean": 0.06, "qoq_growth_pp_max": 0.35},
+        "residential_order_intake_release_calendar": {"yoy_3m_sum_growth_pp_mean_abs": 0.17, "yoy_3m_sum_growth_pp_p90_abs": 0.38, "yoy_3m_sum_growth_pp_max_abs": 1.35}
       },
       "series_notes": {
+        "residential_order_intake_release_calendar": "Orders received, main construction industry, residential construction, constant prices, unadjusted index (IO1/AFC15, PRICEUNIT C, CALCBASIS I): 251 monthly vintages 2005-11-22..2026-09-25, verified 2026-10-20. Latest vintage equals Destatis 44111-0009 (residential order intake volume index) on all 427 months; vintage 2025-09-25 ends at 2025-07, matching Destatis press release PD25_348 of 25.09.2025. Measured YoY 3-month-sum growth revision first->latest vintage: mean abs 0.17 pp, p90 0.38 pp, max 1.35 pp.",
         "construction_price_release_calendar": "PP300 construction price index vintages, one per Destatis release (84 vintages 2006-01-06..2026-10-09, verified 2026-10-20; 2025-04-10 matches Destatis press release PD25_137). PP300 is not the target series (differs by up to 1.7 index points); only its release dates are used to date target availability. Measured QoQ growth revision first->latest vintage: mean 0.06 pp, max 0.35 pp."
       }
     }

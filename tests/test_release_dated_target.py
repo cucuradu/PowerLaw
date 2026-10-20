@@ -101,8 +101,13 @@ def test_discovery_requests_each_vintage_in_the_verified_english_csv_layout(monk
     header = b'\xef\xbb\xbf"",10.04.2025,06.01.2006\n"",\n'
     monkeypatch.setattr(ingestion, "bounded_fetch", lambda url, **kw: (header, url, "text/csv", 200))
     items = list(ingestion._rtd_discover("BUNDESBANK_RTD", None, None, 10))
-    assert [item["release_date"] for item in items] == ["2006-01-06", "2025-04-10"]
-    assert items[1]["url"].endswith("/BBKRT/Q.DE....PP300...2025.04.10?format=csv&lang=en")
+    prices = [i for i in items if i["calendar"] == "construction_price_release_calendar"]
+    orders = [i for i in items if i["calendar"] == "residential_order_intake_release_calendar"]
+    assert [item["release_date"] for item in prices] == ["2006-01-06", "2025-04-10"]
+    assert prices[1]["url"].endswith("/BBKRT/Q.DE....PP300...2025.04.10?format=csv&lang=en")
+    # An 8-dimension key takes the vintage date right after it (verified live 2026-10-20).
+    assert orders[1]["url"].endswith("/BBKRT/M.DE.N.I.IO1.AFC15.C.I.2025.04.10?format=csv&lang=en")
+    assert len({i["item_id"] for i in items}) == 4
     assert items[0]["availability_basis"] == "archived_release"
     assert items[0]["published_at"] == _end_of_day("2006-01-06").isoformat()
 
@@ -116,3 +121,55 @@ def test_definition_is_public_from_its_earliest_release_evidence_only(tmp_path):
     assert TARGET in {d.series_id for d in store.query_series(datetime(2006, 1, 7, tzinfo=timezone.utc))}
     # System-as-of still reflects when we actually learned it.
     assert TARGET not in {d.series_id for d in store.query_series(datetime(2006, 1, 7, tzinfo=timezone.utc), "system_as_of")}
+
+
+ORDERS = "44111-0009|DINSG=DG|BTRAG1=BTR-20UMTP|BAUAX1=BAUART11|WERT03=WERTORG|AUF102|2021=100"
+
+
+def test_order_intake_months_are_dated_by_their_bundesbank_vintage(tmp_path):
+    """Vintage 2025-09-25 ends at 2025-07 (Destatis PD25_348 of 25.09.2025); 2025-08 stays fetch-dated."""
+    settings = _settings(tmp_path)
+    store = DualLayerStore(settings.lancedb_path)
+    months = {"2025-06-01": ("2025-07-01", 80.1), "2025-07-01": ("2025-08-01", 71.3), "2025-08-01": ("2025-09-01", 75.0)}
+    obs = [Observation(series_id=ORDERS, period_start=p, period_end_exclusive=e, value=v, unit="2021=100",
+                       source_unit="2021=100", available_at=FETCHED, batch_id="orders", data_origin="live")
+           for p, (e, v) in months.items()]
+    series = [SeriesDefinition(series_id=ORDERS, source_id="DESTATIS_GENESIS", dataset_id="44111-0009",
+        provider_series_key=ORDERS, metric_name="order_intake", unit="2021=100", frequency="MONTHLY",
+        geography_id="DE", measurement_kind="ORDER_INTAKE_VOLUME_INDEX", available_at=FETCHED, batch_id="orders")]
+    stage_evidenced(store, "orders", observations=obs, series=series, origin="live", available=FETCHED,
+                    source_id="DESTATIS_GENESIS")
+    day = "2025-09-25"
+    url = f"https://api.statistiken.bundesbank.de/rest/data/BBKRT/M.DE.N.I.IO1.AFC15.C.I.{day.replace('-', '.')}?format=csv&lang=en"
+    item = {"item_id": f"rtd_orders_{day}", "upstream_id": f"AFC15@{day}", "series_key": "AFC15",
+            "calendar": "residential_order_intake_release_calendar", "release_date": day, "url": url,
+            "canonical_url": url, "publisher": "Deutsche Bundesbank", "content_type": "text/csv",
+            "availability_basis": "archived_release", "published_at": _end_of_day(day).isoformat()}
+    payload = (FIXTURES / "bbkrt_afc15_vintage_20250925_official.csv").read_bytes()
+    report = run_ingestion("BUNDESBANK_RTD", limit=10, settings=settings, store=store, discover=lambda *a: [item],
+                           fetch=lambda u, **kw: (payload, u, "text/csv", 200))
+    assert report["status"] == "committed", report["source_errors"]
+    store = DualLayerStore(settings.lancedb_path)
+
+    def visible(cutoff):
+        rows = store.query_observations(cutoff=cutoff, mode="public_as_of").to_pylist()
+        return {r["period_start"]: r["value"] for r in rows if r["series_id"] == ORDERS}
+
+    assert visible(datetime(2025, 9, 25, 12, tzinfo=timezone.utc)) == {}
+    assert visible(datetime(2025, 9, 26, tzinfo=timezone.utc)) == {"2025-06-01": 80.1, "2025-07-01": 71.3}
+
+
+def test_reingesting_vintages_adds_nothing_and_never_rewrites_committed_rows(tmp_path):
+    settings, store = _store_with_fetched_target(tmp_path)
+    store = _ingest_vintages(settings, store)
+    before = store.query_observation_revisions(datetime.now(timezone.utc), "system_as_of")
+    items = [{"item_id": f"rtd_again_{day}", "upstream_id": f"PP300@{day}", "series_key": "PP300", "release_date": day,
+              "url": f"https://example.invalid/{day}", "canonical_url": f"https://example.invalid/{day}",
+              "publisher": "Deutsche Bundesbank", "content_type": "text/csv", "availability_basis": "archived_release",
+              "published_at": _end_of_day(day).isoformat()} for day in VINTAGES]
+    payloads = {item["url"]: (FIXTURES / VINTAGES[item["release_date"]]).read_bytes() for item in items}
+    report = run_ingestion("BUNDESBANK_RTD", limit=10, settings=settings, store=store,
+                           discover=lambda *a: items, fetch=lambda url, **kw: (payloads[url], url, "text/csv", 200))
+    assert report["status"] != "failed", report
+    after = DualLayerStore(settings.lancedb_path).query_observation_revisions(datetime.now(timezone.utc), "system_as_of")
+    assert {o.revision_id for o in after} == {o.revision_id for o in before}

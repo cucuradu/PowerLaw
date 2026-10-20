@@ -1,0 +1,42 @@
+{
+  "description": "Model-layer availability of forecast predictors. 'evidence': dated by archived release vintages in the store (public as-of). 'rule': ASSUMPTION, no archived release dates exist; a period counts as public lag_days after its period end (end of that Berlin day). Rules are never written to the store; results are reported with and without rule-dated predictors.",
+  "verified_at": "2026-10-20",
+  "predictors": {
+    "orders": {
+      "series_id": "44111-0009|DINSG=DG|BTRAG1=BTR-20UMTP|BAUAX1=BAUART11|WERT03=WERTORG|AUF102|2021=100",
+      "label": "Residential order intake, main construction industry, volume index (unadjusted)",
+      "frequency": "MONTHLY", "transform": "yoy_3m_sum", "availability": "evidence",
+      "basis": "Bundesbank real-time vintages IO1/AFC15 (registry BUNDESBANK_RTD residential_order_intake_release_calendar)."
+    },
+    "permits": {
+      "series_id": "31111-0020|DINSG=DG|BAUBR1=BAUART1|BAUTK1=BTK-GEB-NEU|BAUGB1=GBD-W|WOHN01|Anzahl",
+      "label": "Building permits, new residential buildings, dwellings",
+      "frequency": "MONTHLY", "transform": "yoy_3m_sum", "availability": "rule", "lag_days": 60,
+      "basis": "Destatis permits release about 48 days after month end (August 2025: PD25_378 on 17.10.2025; June 2025: PD25_302 in August 2025). 60 days adds a margin for older, slower releases."
+    },
+    "wages": {
+      "series_id": "62221-0002|DINSG=DG|WZ08C7=WZ08-F|VST066|2020=100",
+      "label": "Negotiated monthly earnings excl. special payments, construction",
+      "frequency": "QUARTERLY", "transform": "yoy", "availability": "rule", "lag_days": 75,
+      "basis": "Destatis Fachserie 16 Reihe 4.3: quarterly results as a rule at the latest 60 calendar days after the reference period; 75 days adds a margin."
+    },
+    "material_cost": {
+      "series_id": "61261-0014|DINSG=DG|KOSAT1=KOST011|KOS022|2021=100",
+      "label": "Construction cost index for residential buildings, material",
+      "frequency": "QUARTERLY", "transform": "qoq", "availability": "rule", "lag_days": 120,
+      "basis": "No official release calendar found. At the 2026-10-19 fetch 2026-Q2 was present and 2026-Q3 absent although the Q3 price index was released 2026-10-09, so the lag is between 19 and 110 days; 120 days is the conservative bound."
+    },
+    "labour_cost": {
+      "series_id": "61261-0014|DINSG=DG|KOSAT1=KOST012|KOS022|2021=100",
+      "label": "Construction cost index for residential buildings, labour",
+      "frequency": "QUARTERLY", "transform": "qoq", "availability": "rule", "lag_days": 120,
+      "basis": "Same table and evidence as material_cost; the labour component uses the quarterly construction labour cost index."
+    },
+    "mortgage_rate": {
+      "series_id": "MIR.M.DE.B.A2C.A.R.A.2250.EUR.N",
+      "label": "German bank lending rate for house purchase, new business",
+      "frequency": "MONTHLY", "transform": "diff_12m", "availability": "rule", "lag_days": 45,
+      "basis": "ECB bank interest rate statistics release: August 2025 data on 1 October 2025 (31 days); 45 days adds a margin."
+    }
+  }
+}

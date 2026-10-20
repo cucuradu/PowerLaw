@@ -1061,7 +1061,7 @@ for s_id in ["DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "BUNDESBANK_SDMX", 
 
 
 # =====================================================================
-# Bundesbank real-time database: evidenced release dates for the target
+# Bundesbank real-time database: evidenced release dates for the target and predictors
 # =====================================================================
 _RTD_HEADERS = {"Accept": "application/vnd.sdmx.data+csv;version=1.0.0"}
 
@@ -1072,62 +1072,106 @@ def _rtd_release_end_of_day(day: str) -> datetime:
     return datetime.fromisoformat(f"{day}T23:59:59").replace(tzinfo=ZoneInfo("Europe/Berlin")).astimezone(timezone.utc)
 
 
+def _rtd_dated_series_id(registry: dict[str, Any], calendar: str) -> str:
+    """Series whose committed values a release calendar dates: the primary target or a named context series."""
+    name = registry["sources"]["BUNDESBANK_RTD"]["dated_series"][calendar]
+    if name == "primary_target":
+        return registry["primary_target"]["provider_series_key"]
+    for entry in registry["sources"].values():
+        if name in (entry.get("context_series") or {}):
+            return entry["context_series"][name]["provider_series_key"]
+    raise KeyError(f"Release calendar {calendar} dates unknown series {name}")
+
+
 def _rtd_discover(source_id: str, since: Optional[str], until: Optional[str], limit: int) -> Iterable[SourceItem]:
-    """One item per PP300 vintage, oldest first; each vintage document is dated on its release day."""
+    """One item per vintage of each release calendar, oldest first; each vintage document is dated on its release day."""
     entry = load_data_sources_registry()["sources"][source_id]
     base_url = entry["endpoints"]["sdmx_rest"].rstrip("/")
-    flow, key = entry["series_keys"]["construction_price_release_calendar"].split("/", 1)
     host = urlparse(base_url).hostname
-    # The full vintage matrix header lists every release date; only the per-vintage documents are evidence.
-    listing, *_ = bounded_fetch(f"{base_url}/{flow}/{key}?format=csv&lang=en", allowed_hosts={host},
-                                headers=_RTD_HEADERS, max_bytes=20 * 1024 * 1024)
-    header = listing.decode("utf-8-sig").splitlines()[0]
-    days = sorted(datetime.strptime(cell.strip('"'), "%d.%m.%Y").date().isoformat()
-                  for cell in header.split(",")[1:] if cell.strip('"'))
-    days = [d for d in days if (not since or d >= since[:10]) and (not until or d <= until[:10])]
-    for day in days[:limit]:
-        url = f"{base_url}/{flow}/{key}...{day.replace('-', '.')}?format=csv&lang=en"
-        yield {"item_id": f"{source_id}_{day}", "upstream_id": f"PP300@{day}", "series_key": "PP300",
-               "release_date": day, "url": url, "canonical_url": url, "headers": _RTD_HEADERS,
-               "publisher": entry.get("attribution", source_id), "content_type": "text/csv",
-               "availability_basis": "archived_release", "published_at": _rtd_release_end_of_day(day).isoformat()}
+    count = 0
+    for calendar, series_key in entry["series_keys"].items():
+        flow, key = series_key.split("/", 1)
+        indicator = key.split(".")[5]
+        # The full vintage matrix header lists every release date; only the per-vintage documents are evidence.
+        listing, *_ = bounded_fetch(f"{base_url}/{flow}/{key}?format=csv&lang=en", allowed_hosts={host},
+                                    headers=_RTD_HEADERS, max_bytes=20 * 1024 * 1024)
+        header = listing.decode("utf-8-sig").splitlines()[0]
+        days = sorted(datetime.strptime(cell.strip('"'), "%d.%m.%Y").date().isoformat()
+                      for cell in header.split(",")[1:] if cell.strip('"'))
+        days = [d for d in days if (not since or d >= since[:10]) and (not until or d <= until[:10])]
+        # Pad the key to its 8 series dimensions, then REL_YEAR.REL_MONTH.REL_DAY select one vintage.
+        padding = "." * (8 - key.count("."))
+        for day in days:
+            if count >= limit:
+                return
+            count += 1
+            url = f"{base_url}/{flow}/{key}{padding}{day.replace('-', '.')}?format=csv&lang=en"
+            yield {"item_id": f"{source_id}_{calendar}_{day}", "upstream_id": f"{indicator}@{day}",
+                   "series_key": indicator, "calendar": calendar,
+                   "release_date": day, "url": url, "canonical_url": url, "headers": _RTD_HEADERS,
+                   "publisher": entry.get("attribution", source_id), "content_type": "text/csv",
+                   "availability_basis": "archived_release", "published_at": _rtd_release_end_of_day(day).isoformat()}
 
 
-def _rtd_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
-    """Date committed target values by the first release vintage that contains each quarter.
+_RTD_STATE_CACHE: dict[tuple, tuple] = {}
 
-    Values stay the latest committed Destatis 61261-0002 values (Destatis releases all 61261 indices
-    together); revision content is identical across vintages, so the earliest staged vintage wins.
+
+def _rtd_committed_state(store: DualLayerStore, series_id: str) -> tuple[dict[str, Observation], dict[str, Any]]:
+    """Per period: the latest committed revision (value source) and the value already release-dated, if any.
+
+    Cached per store generation: committed state cannot change between the vintages of one batch.
     """
-    from src.config import primary_target_series_id
-    from src.scrapers.statistics import _quarter_bounds
-    store = item["_store"]
-    target = primary_target_series_id()
-    periods = {line.split(",", 1)[0] for line in content.decode("utf-8-sig").splitlines()
-               if re.fullmatch(r"\d{4}-Q[1-4],[-0-9.]+", line.strip())}
-    if not periods:
-        raise ValueError("Bundesbank real-time vintage contains no parseable quarterly periods")
-    latest: dict[str, Observation] = {}
-    for row in store.query_observation_revisions(datetime.now(timezone.utc), "system_as_of"):
-        if row.series_id == target and row.value is not None and not row.is_retracted:
+    key = (str(store.storage_dir), store.generation, series_id)
+    if key not in _RTD_STATE_CACHE:
+        latest: dict[str, Observation] = {}
+        dated: dict[str, Any] = {}
+        for row in store.query_observation_revisions(datetime.now(timezone.utc), "system_as_of"):
+            if row.series_id != series_id or row.value is None or row.is_retracted:
+                continue
+            if (row.vintage_id or "").startswith("release_dated_latest|"):
+                dated[row.period_start] = row.value
+                continue
             previous = latest.get(row.period_start)
             if previous is None or store._available(row) > store._available(previous):
                 latest[row.period_start] = row
+        _RTD_STATE_CACHE.clear()  # ponytail: one entry per series; a run touches at most two series
+        _RTD_STATE_CACHE[key] = (latest, dated)
+    return _RTD_STATE_CACHE[key]
+
+
+def _rtd_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
+    """Date committed values of the calendar's series by the first release vintage that contains each period.
+
+    Values stay the latest committed Destatis revision; revision content is identical across vintages,
+    so the earliest staged vintage wins.
+    """
+    from src.scrapers.statistics import _period_bounds
+    periods = {line.split(",", 1)[0] for line in content.decode("utf-8-sig").splitlines()
+               if re.fullmatch(r"\d{4}-(Q[1-4]|\d{2}),[-0-9.]+", line.strip())}
+    if not periods:
+        raise ValueError("Bundesbank real-time vintage contains no parseable periods")
+    store = item["_store"]
+    registry = load_data_sources_registry()
+    calendar = item.get("calendar", "construction_price_release_calendar")
+    series_id = _rtd_dated_series_id(registry, calendar)
+    revision_bound = registry["sources"]["BUNDESBANK_RTD"].get("revision_bounds", {}).get(calendar)
+    latest, dated = _rtd_committed_state(store, series_id)
     observations, evidence = [], []
     for period in sorted(periods):
-        start, end = _quarter_bounds("", period)
+        start, end = _period_bounds(period)
         base = latest.get(start)
-        if base is None:
-            continue
+        if base is None or dated.get(start) == base.value:
+            continue  # nothing to date, or an earlier committed vintage already dates this value
         obs = Observation(
-            series_id=target, period_start=start, period_end_exclusive=end, value=base.value,
+            series_id=series_id, period_start=start, period_end_exclusive=end, value=base.value,
             original_value_text=base.original_value_text, source_unit=base.source_unit, unit=base.unit,
             vintage_id=f"release_dated_latest|{base.unit}", provider_status=base.provider_status,
             conversion_lineage_json=json.dumps({
-                "availability_rule": "first Bundesbank real-time PP300 vintage containing the period; upper bound for periods before 2005-Q4",
-                "value_source": "latest committed Destatis 61261-0002 revision",
+                "availability_rule": f"first Bundesbank real-time {item.get('series_key', 'PP300')} vintage containing the period; upper bound for periods released before the first vintage",
+                "value_source": "latest committed Destatis revision",
                 "value_revision_id": base.revision_id,
-                "qoq_growth_revision_bound_pp": 0.35}, sort_keys=True),
+                "release_calendar": calendar,
+                "revision_bound": revision_bound}, sort_keys=True),
             available_at=document.available_at, batch_id=document.batch_id, data_origin=document.data_origin)
         observations.append(obs)
         evidence.append(EvidenceLink(assertion_version_id=obs.revision_id, assertion_kind="OBSERVATION",
