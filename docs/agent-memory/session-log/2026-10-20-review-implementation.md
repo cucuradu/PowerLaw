@@ -4,7 +4,7 @@
 Implement the expert review step by step (commit, tests, target ID, data, vintages, baselines, model).
 
 ## Outcome
-Branch `ingestion-pilot-review`, commits f4c3527..6e6eaf9. Forecasting is now possible on real data and beats every baseline.
+Branch `ingestion-pilot-review`, commits f2bd899..799781f. Forecasting is now possible on real data and beats every baseline.
 
 ## Files changed (main)
 `pytest.ini`, `.gitattributes`, `tests/conftest.py`, `src/config.py`, `src/storage/dashboard_data.py`, `src/storage/dual_layer_store.py`, `src/models/gnn_dataset.py`, `src/scrapers/statistics.py`, `src/ingestion.py`, `src/quant/forecasting.py`, `scripts/ops/backtest_target.py`, `config/data_sources.json`, `config/de_vat_schedule.json`, new tests and official fixtures under `tests/`.
