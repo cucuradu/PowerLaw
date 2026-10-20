@@ -81,6 +81,33 @@ with col_db:
 
 st.divider()
 
+# --- AUTOMATIC FORECAST UPDATES ---
+# Only registers or removes a Windows scheduled task; the update itself runs outside the dashboard.
+from scripts.ops import schedule_updates
+
+st.subheader("🔁 Automatic forecast updates")
+st.caption("Weekly: pulls recent Destatis, Bundesbank, ECB and Eurostat releases, then rebuilds the forecast "
+           "(`scripts/ops/update_forecast.cmd`, which you can also run by hand).")
+enabled = schedule_updates.is_enabled()
+c_day, c_time, c_toggle = st.columns([1, 1, 2])
+day = c_day.selectbox("Day", ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], disabled=enabled)
+time_of_day = c_time.text_input("Time (local)", value="07:00", disabled=enabled)
+wanted = c_toggle.toggle("Automatic updates on", value=enabled)
+if wanted != enabled:
+    try:
+        st.success(schedule_updates.enable(day, time_of_day) if wanted else schedule_updates.disable())
+    except Exception as e:
+        st.error(f"Could not change the schedule: {e}")
+log_file = Path(get_settings().data_dir) / "reports" / "update-log.jsonl"
+if log_file.exists():
+    last = log_file.read_text(encoding="utf-8").strip().splitlines()[-1]
+    import json
+    run = json.loads(last)
+    failed = [s["step"] for s in run["steps"] if s.get("exit_code", 1) != 0]
+    st.caption(f"Last update {run['run_at'][:16].replace('T', ' ')} UTC: " + ("all steps OK" if not failed else "failed: " + ", ".join(failed)))
+
+st.divider()
+
 # --- STORAGE HEALTH & FILE AUDIT ---
 st.subheader("📁 File System & Table Inventory")
 

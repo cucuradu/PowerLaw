@@ -6,3 +6,4 @@ tests/fixtures/** -text
 *.zip binary
 *.png binary
 *.pt binary
+*.cmd text eol=crlf
