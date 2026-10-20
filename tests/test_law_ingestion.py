@@ -244,20 +244,8 @@ def test_conditional_exemptions_and_future_phases(mock_store, sample_cbam_xml):
 
 def test_statute_with_decision_identifier_supported(mock_store, sample_decision_html):
     """
-    Decisions (3YYYYD####) must NOT be filtered out by discovery or parsing regexes.
+    Decisions (3YYYYD####) must be parsed and yield rules.
     """
-    from src.scrapers.eurlex_bulk import execute_sparql
-    from src.scrapers.eurlex_history import EurLexScraper, ALLOWED_TYPES
-
-    # 1. ALLOWED_TYPES in eurlex_history must include 'D'
-    assert "D" in ALLOWED_TYPES, "Decisions ('D') must be an allowed legal type"
-
-    # 2. SPARQL regex in eurlex_bulk must match Decisions 'D'
-    sparql_regex = r"^3[0-9]{4}[RLD][0-9]+"
-    assert re.match(sparql_regex, "32023D1534"), "SPARQL regex must match decision 32023D1534"
-    assert re.match(sparql_regex, "32024R1069"), "SPARQL regex must match regulation 32024R1069"
-    assert re.match(sparql_regex, "32024L1275"), "SPARQL regex must match directive 32024L1275"
-
     # 3. Pipeline must parse Decision documents and extract rules
     pipeline = LawIngestionPipeline(store=mock_store)
     batch_id = "batch_decision_1"

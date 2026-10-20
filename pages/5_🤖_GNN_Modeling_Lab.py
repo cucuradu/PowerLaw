@@ -152,148 +152,46 @@ with col_a2:
 
 st.divider()
 
-# --- 3. TEMPORAL GNN TRAINING & SHOCK SIMULATION LAB ---
-st.divider()
-st.subheader("3. 🧠 Live Spatio-Temporal GNN Modeling & Simulation")
-st.caption("Train a Temporal GNN directly on the topological graph and behind-the-graph tabular ledger, then simulate policy shocks.")
+# --- 3. TEMPORAL GNN (READ-ONLY) ---
+# Pages never train or mutate models or data (AGENTS.md); this shows a checkpoint trained offline, if any.
+st.subheader("3. 🧠 Temporal GNN (read-only)")
+st.caption("Paused: the GNN is not yet shown to beat the VAT-aware autoregressive baseline in the rolling-origin backtest.")
 
-tab_train, tab_shock, tab_preds = st.tabs([
-    "🏋️ Train Spatio-Temporal GNN",
-    "🔮 Counterfactual Policy Shock Simulator",
-    "🎯 Model Predictions & Node Risk Ledger"
-])
-
-# Initialize session state for trainer if needed with disk checkpoint persistence
 if "tgnn_trainer" not in st.session_state:
     trainer = TGNNTrainer(store)
-    is_loaded = trainer.load_checkpoint()
+    st.session_state.tgnn_trained = trainer.load_checkpoint()
     st.session_state.tgnn_trainer = trainer
-    st.session_state.tgnn_trained = is_loaded
-    if is_loaded and trainer.training_history:
-        st.session_state.train_results = {
-            "final_loss": trainer.training_history[-1].get("total_loss", 0.1),
-            "history": trainer.training_history
-        }
-    else:
-        st.session_state.train_results = None
+trainer = st.session_state.tgnn_trainer
 
-with tab_train:
-    c_p1, c_p2, c_p3 = st.columns(3)
-    epochs = c_p1.slider("Training Epochs:", min_value=5, max_value=80, value=25, step=5)
-    hidden_dim = c_p2.selectbox("Hidden Dimension:", options=[32, 64, 128], index=1)
-    lr = c_p3.select_slider("Learning Rate:", options=[0.001, 0.005, 0.01, 0.02, 0.05], value=0.01)
-
-    if st.button("🚀 Train Temporal GNN", type="primary", use_container_width=True):
-        with st.spinner("Training Temporal Graph Neural Network across chronological snapshots..."):
-            trainer = TGNNTrainer(store, hidden_dim=hidden_dim, lr=lr)
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-
-            def train_callback(epoch, total_epochs, record):
-                progress_bar.progress(epoch / total_epochs)
-                status_text.text(f"Epoch {epoch}/{total_epochs} — Loss: {record['total_loss']:.4f}")
-
-            res = trainer.train(epochs=epochs, callback=train_callback)
-            trainer.save_checkpoint()
-            st.session_state.tgnn_trainer = trainer
-            st.session_state.tgnn_trained = True
-            st.session_state.train_results = res
-            status_text.empty()
-            progress_bar.empty()
-            st.success(f"✅ Training completed & model locked to disk in {epochs} epochs! Final Loss: {res['final_loss']:.4f}")
-
-    if st.session_state.train_results:
-        res = st.session_state.train_results
-        hist = pd.DataFrame(res["history"])
-
-        # Loss Plot
-        fig_loss = px.line(
-            hist,
-            x="epoch",
-            y=["total_loss", "state_loss", "link_loss", "risk_loss"],
-            labels=dict(value="Loss", epoch="Epoch", variable="Component"),
-            title="Multi-Task Loss Convergence Curve",
-            color_discrete_map={
-                "total_loss": "#1E90FF",
-                "state_loss": "#2ECC71",
-                "link_loss": "#E67E22",
-                "risk_loss": "#E74C3C"
-            }
-        )
-        fig_loss.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
-        st.plotly_chart(fig_loss, use_container_width=True)
-
-with tab_shock:
-    st.markdown("Inject a regulatory or market shock into a node and observe the impulse response cascading through downstream reactions and sectors.")
-    
-    nodes_df = store.get_nodes_df()
-    law_and_action_nodes = []
-    if not nodes_df.empty:
-        law_and_action_nodes = nodes_df[nodes_df["node_type"].isin(["LAW", "ACTION"])]["id"].tolist()
-    if not law_and_action_nodes:
-        law_and_action_nodes = snapshot.get("node_ids", [])
-
-    c_s1, c_s2 = st.columns([2, 1])
-    shock_target = c_s1.selectbox("Shock Target Node (Policy / Action):", options=law_and_action_nodes, index=0 if law_and_action_nodes else None)
-    shock_mag = c_s2.slider("Shock Magnitude (Delta):", min_value=-50.0, max_value=50.0, value=25.0, step=5.0)
-
-    if st.button("🔮 Run Counterfactual Shock Simulation", use_container_width=True):
-        with st.spinner("Propagating counterfactual shock through spatio-temporal GNN..."):
-            trainer = st.session_state.tgnn_trainer
-            if not st.session_state.tgnn_trained:
-                trainer.train(epochs=15)
-                st.session_state.tgnn_trained = True
-
-            shock_df = trainer.simulate_shock(shock_target, shock_magnitude=shock_mag)
-            
-            # Chart Top 10 impacted nodes
-            top_shocks = shock_df[shock_df["node_id"] != shock_target].head(10)
-            if not top_shocks.empty:
-                fig_shock = px.bar(
-                    top_shocks,
-                    x="impulse_response",
-                    y="label",
-                    color="impulse_response",
-                    orientation="h",
-                    color_continuous_scale="RdBu_r",
-                    title=f"Impulse Response on Downstream Nodes from {shock_target} Shock ({shock_mag:+0.1f})",
-                    labels=dict(impulse_response="State Impulse (Delta)", label="Target Node")
-                )
-                fig_shock.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
-                st.plotly_chart(fig_shock, use_container_width=True)
-
-            st.dataframe(shock_df, use_container_width=True, hide_index=True)
-
-with tab_preds:
-    st.markdown("Predicted future states, volatility risk ratings, and model confidence scores for all nodes in the network:")
-    trainer = st.session_state.tgnn_trainer
-    if not st.session_state.tgnn_trained:
-        st.info("Train the model above to generate predictions, or click below for rapid inference:")
-        if st.button("⚡ Run Instant Prediction (Quick Train 10 Epochs)"):
-            trainer.train(epochs=10)
-            st.session_state.tgnn_trained = True
-            st.rerun()
-    else:
-        preds_df = trainer.predict()
-        st.dataframe(preds_df, use_container_width=True, hide_index=True)
-
-st.divider()
-
-# --- 4. CONSTRUCTION MULTI-FACTOR RISK & SENSITIVITY RANKING ---
-st.subheader("4. 🏆 Construction Multi-Factor Risk & Sensitivity Ranking")
-st.caption("Cross-sectional multi-factor scoring evaluating Sharpe-adjusted momentum, return volatility, and regulatory exposure.")
-
-from src.quant.ranking import ConstructionFactorRanker
-ranker = ConstructionFactorRanker(store)
-factor_ranks_df = ranker.compute_factor_rankings()
-if not factor_ranks_df.empty:
-    st.dataframe(factor_ranks_df, use_container_width=True, hide_index=True)
+if not st.session_state.tgnn_trained:
+    st.info("No trained checkpoint found. Training is an offline job, not a dashboard action.")
 else:
-    st.info("Insufficient history for factor ranking.")
+    tab_loss, tab_shock, tab_preds = st.tabs(["📉 Training History", "🔮 Counterfactual Shock", "🎯 Predictions"])
+    with tab_loss:
+        if trainer.training_history:
+            hist = pd.DataFrame(trainer.training_history)
+            fig_loss = px.line(hist, x="epoch", y=[c for c in ("total_loss", "state_loss", "link_loss", "risk_loss") if c in hist],
+                               labels=dict(value="Loss", epoch="Epoch", variable="Component"), title="Checkpoint loss history")
+            fig_loss.update_layout(margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig_loss, use_container_width=True)
+        else:
+            st.info("Checkpoint has no recorded training history.")
+    with tab_shock:
+        nodes_df = store.get_nodes_df()
+        candidates = nodes_df[nodes_df["node_type"].isin(["LAW", "ACTION"])]["id"].tolist() if not nodes_df.empty else []
+        candidates = candidates or snapshot.get("node_ids", [])
+        c_s1, c_s2 = st.columns([2, 1])
+        shock_target = c_s1.selectbox("Shock Target Node (Policy / Action):", options=candidates, index=0 if candidates else None)
+        shock_mag = c_s2.slider("Shock Magnitude (Delta):", min_value=-50.0, max_value=50.0, value=25.0, step=5.0)
+        if shock_target and st.button("🔮 Run Counterfactual Shock Simulation", use_container_width=True):
+            shock_df = trainer.simulate_shock(shock_target, shock_magnitude=shock_mag)
+            st.dataframe(shock_df, use_container_width=True, hide_index=True)
+    with tab_preds:
+        st.dataframe(trainer.predict(), use_container_width=True, hide_index=True)
 
-# --- 5. EXPORT TENSORS ---
+# --- 4. EXPORT TENSORS ---
 st.divider()
-st.subheader("5. Export Graph Dataset")
+st.subheader("4. Export Graph Dataset")
 edge_weights = snapshot.get("edge_weights", np.array([]))
 export_dict = {
     "as_of_date": snapshot.get("as_of_date", str(target_date or "latest")),

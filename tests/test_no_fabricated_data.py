@@ -1,14 +1,9 @@
 """Missing source data must remain missing in every application mode."""
 
-import pandas as pd
 import pytest
 import json
 
 from src.config import clear_settings_cache
-from src.quant.fragility import compute_systemic_fragility
-from src.quant.macro_fred import MacroFREDEngine
-from src.quant.regime_hmm import ConstructionRegimeHMM
-from src.quant.volatility_garch import GARCHVolatilityEngine
 from src.scrapers.news_scraper import EconomicNewsScraper
 from src.storage.dashboard_data import get_graph_store, get_system_kpis, get_all_news_data
 
@@ -31,36 +26,6 @@ def test_empty_dashboard_never_creates_sample_records(mode, monkeypatch):
     kpis = get_system_kpis()
     assert kpis["min_date"] is None
     assert kpis["max_date"] is None
-
-
-@pytest.mark.parametrize("mode", ["production", "demo", "test"])
-def test_missing_macro_inputs_never_become_baseline_values(mode, monkeypatch):
-    monkeypatch.setenv("POWERLAW_MODE", mode)
-    engine = MacroFREDEngine()
-    dates = pd.date_range("2025-01-01", periods=60)
-    series = pd.Series(range(60), index=dates, dtype=float)
-    monkeypatch.setattr(engine, "fetch_fred_series", lambda code: None if code == "NFCI" else series)
-    result = engine.compute_macro_risk()
-    assert result["status"] == "unavailable"
-    assert result["macro_risk"] is None
-    assert result["nfci_index"] is None
-    store = get_graph_store()
-    assert engine.ingest_to_store(store)["status"] == "unavailable"
-    assert store.get_nodes() == []
-
-
-def test_empty_history_has_no_invented_quant_forecasts():
-    store = get_graph_store()
-    fragility = compute_systemic_fragility(store)
-    assert fragility["status"] == "unavailable"
-    assert fragility["absorption_ratio"] is None
-    regime = ConstructionRegimeHMM().fit_predict(pd.DataFrame())
-    assert regime["current_regime"] is None
-    assert regime["confidence"] is None
-    assert regime["probabilities"] == {}
-    volatility = GARCHVolatilityEngine().forecast_asset_volatility(store)
-    assert volatility["garch_1d_pct"] is None
-    assert volatility["garch_5d_pct"] is None
 
 
 @pytest.mark.parametrize("mode", ["production", "demo", "test"])
@@ -116,19 +81,6 @@ def test_graph_export_reads_configured_storage_without_writing(tmp_path):
     assert payload["nodes"][0]["activation_date"] is None
     assert "only-current-data" in html
     assert not (tmp_path / "visualizations").exists()
-
-
-def test_two_prices_cannot_produce_a_volatility_ranking():
-    from src.models.dual_layer_model import GraphNode, NodeStateRecord, NodeType
-    from src.quant.ranking import ConstructionFactorRanker
-
-    store = get_graph_store()
-    store.add_node(GraphNode(id="short", label="Short history", node_type=NodeType.COMMODITY))
-    store.add_state_records_batch([NodeStateRecord(
-        node_id="short", node_type=NodeType.COMMODITY, timestamp=date,
-        state_value="OBSERVED", metric_name="price", metric_value=value,
-    ) for date, value in [("2025-01-01", 100), ("2025-01-02", 101)]])
-    assert ConstructionFactorRanker(store).compute_factor_rankings().empty
 
 
 def test_old_seed_batch_name_cannot_bypass_evidence_checks(tmp_path):

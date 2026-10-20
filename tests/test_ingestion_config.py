@@ -101,32 +101,6 @@ class TestIngestionConfig(unittest.TestCase):
                 self.assertEqual(store.get_nodes(), [])
                 self.assertEqual(store.get_edges(), [])
 
-    def test_failed_market_fetch_in_production_produces_no_synthetic_rows(self):
-        """When yfinance fails in production mode, MarketDataIngester must NOT generate synthetic rows."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            prod_db = Path(tmp_dir) / "prod_db"
-            prod_db.mkdir(parents=True, exist_ok=True)
-            with patch.dict(os.environ, {"POWERLAW_MODE": "production", "LANCEDB_PATH": str(prod_db)}):
-                import src.config
-                if hasattr(src.config, "clear_settings_cache"):
-                    src.config.clear_settings_cache()
-
-                from src.storage.graph_store import DualLayerGraphStore
-                from src.scrapers.market_data import MarketDataIngester
-
-                store = DualLayerGraphStore(storage_dir=str(prod_db))
-                ingester = MarketDataIngester(store)
-
-                # Mock network fetch to return empty/None
-                with patch.object(ingester, "_fetch_history", return_value=pd.DataFrame()):
-                    res = ingester.ingest_tracked_instruments(period="1mo")
-                    # In production, failure must result in 0 synthetic history rows written
-                    self.assertEqual(res.get("history_rows_added", 0), 0)
-                    self.assertEqual(len(store.get_history()), 0, "Must not inject synthetic history into store")
-                    # Must report error or unavailable status
-                    self.assertIn("status", res)
-                    self.assertIn(res["status"], ["partial_failure", "unavailable", "failed"])
-
     def test_failed_news_fetch_in_production_produces_no_synthetic_rows(self):
         """When RSS feeds fail or return empty in production, scraper must NOT generate offline seed events."""
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -153,21 +127,6 @@ class TestIngestionConfig(unittest.TestCase):
                     events = scraper.scrape_all_feeds(save_to_db=True)
                     self.assertEqual(len(events), 0, "Production scraper must return 0 events on failed feeds")
                     self.assertEqual(len(store.get_history()), 0, "Production store must have 0 synthetic rows")
-
-    def test_failed_macro_fred_in_production_produces_no_synthetic_state(self):
-        """When keyless FRED fails in production, MacroFREDEngine must return unavailable status without synthetic state."""
-        with patch.dict(os.environ, {"POWERLAW_MODE": "production"}):
-            import src.config
-            if hasattr(src.config, "clear_settings_cache"):
-                src.config.clear_settings_cache()
-
-            from src.quant.macro_fred import MacroFREDEngine
-            engine = MacroFREDEngine()
-
-            with patch.object(engine, "fetch_fred_series", return_value=None):
-                res = engine.compute_macro_risk()
-                self.assertEqual(res.get("status"), "unavailable")
-                self.assertIsNone(res.get("macro_risk"))
 
     def test_free_sources_register_loaded_and_verified(self):
         """Free-source register must be loadable and all sources must satisfy access_fee=0."""

@@ -21,12 +21,6 @@ from src.storage.dashboard_data import (
     get_all_news_data,
     get_construction_outlook
 )
-from src.quant import (
-    compute_systemic_fragility,
-    MacroFREDEngine,
-    detect_market_regime,
-    GARCHVolatilityEngine
-)
 
 load_dotenv()
 
@@ -310,48 +304,6 @@ except Exception as e:
     st.info(f"Construction outlook panel initializing: {e}")
 
 st.divider()
-
-# --- 3. QUANTITATIVE MACRO & SYSTEMIC RISK OVERLAY (Merged from ml-pipeline) ---
-st.markdown("### 🏗️ Construction Macro & Quantitative Risk Intelligence")
-st.caption("Cross-asset systemic fragility, HMM market regimes, keyless FRED credit spreads, and GARCH volatility forecasting.")
-
-@st.cache_data(ttl=600, show_spinner=False)
-def get_cached_quant_telemetry():
-    try:
-        s = get_graph_store()
-        f_data = compute_systemic_fragility(s)
-        r_data = detect_market_regime(s)
-        m_data = MacroFREDEngine().compute_macro_risk()
-        g_data = GARCHVolatilityEngine().forecast_asset_volatility(s, "COMM_REBAR_STEEL")
-        return f_data, r_data, m_data, g_data
-    except Exception as e:
-        return {}, {}, {}, {}
-
-try:
-    frag_data, regime_data, macro_data, garch_rebar = get_cached_quant_telemetry()
-
-    qc1, qc2, qc3, qc4 = st.columns(4)
-    with qc1:
-        reg_name = regime_data.get("current_regime")
-        reg_conf = regime_data.get("confidence")
-        st.metric("Market Regime (HMM)", reg_name.replace("_", " ") if reg_name else "Unavailable", f"{reg_conf * 100:.1f}% Confidence" if reg_conf is not None else None)
-    with qc2:
-        ar_val = frag_data.get("absorption_ratio")
-        ar_status = frag_data.get("status", "unavailable")
-        st.metric("Systemic Fragility (Absorption Ratio)", f"{ar_val * 100:.1f}%" if ar_val is not None else "Unavailable", f"Status: {ar_status}")
-    with qc3:
-        m_risk = macro_data.get("macro_risk")
-        yc = macro_data.get("yield_curve_spread")
-        st.metric("Macro Credit Risk (FRED)", f"{m_risk:.2f}" if m_risk is not None else "Unavailable", f"10Y-3M Curve: {yc:+.2f}%" if yc is not None else None)
-    with qc4:
-        v_1d = garch_rebar.get("garch_1d_pct")
-        v_term = garch_rebar.get("term_structure")
-        st.metric("Rebar Volatility (GARCH 1d)", f"{v_1d:.1f}%" if v_1d is not None else "Unavailable", f"Term: {v_term}" if v_term else None)
-except Exception as e:
-    st.info(f"Quant risk overlay initializing: {e}")
-
-st.divider()
-
 
 # --- 3. INTERACTIVE CONSTRUCTION PRICE & COMMODITY TELEMETRY ---
 st.markdown("### 📈 Live Construction Commodity Price Trajectories & Market Spreads")

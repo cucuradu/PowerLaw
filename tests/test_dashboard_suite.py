@@ -70,10 +70,8 @@ def test_dashboard_data_provider():
         assert "target_asset" in n
 
 
-def test_render_dashboard_main(monkeypatch):
+def test_render_dashboard_main():
     """Test dashboard.py renders cleanly without exceptions."""
-    # Exercise the demo's unavailable-provider path without FRED network retries.
-    monkeypatch.setattr("src.quant.macro_fred.MacroFREDEngine.fetch_fred_series", lambda self, code: None)
     at = AppTest.from_file(str(REPO_ROOT / "dashboard.py")).run(timeout=15)
     assert not at.exception, f"dashboard.py raised exception: {at.exception}"
     assert len(at.title) > 0 or len(at.markdown) > 0
