@@ -155,9 +155,94 @@ def _reference_date(quarter_index: int):
     return date(year, 3 * quarter + 2, 15)
 
 
+def _period_index(period_start: str, frequency: str) -> int:
+    year, month = int(period_start[:4]), int(period_start[5:7])
+    return year * 12 + month - 1 if frequency == "MONTHLY" else year * 4 + (month - 1) // 3
+
+
+def _transform(values: Dict[int, float], p: int, transform: str) -> Optional[float]:
+    """Stationary feature at period index p from levels (None when an input is missing)."""
+    try:
+        if transform == "yoy_3m_sum":  # removes the monthly seasonal pattern and smooths noise
+            return 100 * math.log(sum(values[p - k] for k in range(3)) / sum(values[p - 12 - k] for k in range(3)))
+        if transform == "yoy":
+            return 100 * math.log(values[p] / values[p - 4])
+        if transform == "qoq":
+            return 100 * math.log(values[p] / values[p - 1])
+        if transform == "diff_12m":
+            return values[p] - values[p - 12]
+    except (KeyError, ValueError, ZeroDivisionError):
+        return None
+    raise ValueError(f"Unknown transform {transform!r}")
+
+
+def _feature_at_origin(predictor: Dict[str, Any], origin, origin_quarter: int):
+    """Feature function of a pseudo-origin quarter, aligned to what was public at `origin`.
+
+    The last period released by the origin sets a lag k behind the origin's own period; training rows use the
+    same lag behind their pseudo-origin, so the model is fitted on the ragged edge it is applied on.
+    """
+    frequency, transform = predictor["frequency"], predictor["transform"]
+    visible = {_period_index(r["period_start"], frequency): float(r["value"])
+               for r in predictor["levels"] if r["available_at"] <= origin}
+    if not visible:
+        return None
+    per_quarter = 3 if frequency == "MONTHLY" else 1
+    last_of = lambda q: per_quarter * q + per_quarter - 1  # last period index of quarter q
+    k = last_of(origin_quarter) - max(visible)
+    return lambda q: _transform(visible, last_of(q) - k, transform)
+
+
+def _direct_forecast(growth: Dict[int, float], last: int, target: int, origin_quarter: int, fit_from: int,
+                     order: int, features: List[Any]) -> Optional[float]:
+    """Direct h-step OLS: growth[r+h] on growth[r..r-order+1], target-quarter dummies and features at r+d.
+
+    h = target - last and d = origin_quarter - last, so every training row has the same information
+    timing as the forecast. Requires 20 more rows than coefficients.
+    """
+    h, d = target - last, origin_quarter - last
+
+    def row(r):
+        lags = [growth.get(r - k) for k in range(order)]
+        extra = [f(r + d) for f in features]
+        if any(v is None for v in lags + extra):
+            return None
+        return [1.0] + lags + [float((r + h) % 4 == k) for k in (1, 2, 3)] + extra
+
+    x, y = [], []
+    for r in range(fit_from + order, last - h + 1):
+        values = row(r)
+        if values is not None and r + h in growth:
+            x.append(values)
+            y.append(growth[r + h])
+    current = row(last)
+    if current is None or len(y) < len(current) + 20:
+        return None
+    coef, *_ = np.linalg.lstsq(np.array(x), np.array(y), rcond=None)
+    return float(np.dot(coef, current))
+
+
+def diebold_mariano(actual, forecast_a, forecast_b, horizon: int = 1) -> Dict[str, Any]:
+    """Two-sided DM test on squared errors with Newey-West variance (horizon - 1 lags) and the
+    Harvey-Leybourne-Newbold small-sample correction; negative statistic: forecast_a is more accurate."""
+    d = (np.asarray(actual) - np.asarray(forecast_a)) ** 2 - (np.asarray(actual) - np.asarray(forecast_b)) ** 2
+    n = len(d)
+    if n < 10:
+        return {"n": n, "statistic": None, "p_value": None}
+    centred = d - d.mean()
+    variance = float(np.mean(centred ** 2)) + 2 * sum(float(np.mean(centred[k:] * centred[:-k])) for k in range(1, horizon))
+    if variance <= 0:
+        return {"n": n, "statistic": None, "p_value": None}
+    statistic = float(d.mean() / math.sqrt(variance / n))
+    statistic *= math.sqrt((n + 1 - 2 * horizon + horizon * (horizon - 1) / n) / n)
+    return {"n": n, "statistic": statistic, "p_value": math.erfc(abs(statistic) / math.sqrt(2))}
+
+
 def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *, fit_start: str = "1991-01-01",
                             alpha: float = 0.10, min_calibration: int = 20, ar_order: int = 4,
-                            vat_schedule: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+                            vat_schedule: Optional[List[Dict[str, Any]]] = None,
+                            predictors: Optional[Dict[str, Dict[str, Any]]] = None,
+                            predictor_sets: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
     """Expanding-window backtest of next-quarter growth on release-dated quarterly levels.
 
     `levels`: {period_start, value, available_at}. At each origin only levels released by then are used.
@@ -183,6 +268,13 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
     names = ("no_change", "last_growth", "seasonal_naive", "mean_4q", "ar4", "ar4_seasonal")
     if vat_schedule is not None:
         names += ("ar4_seasonal_vat",)
+    if predictor_sets:
+        if vat_schedule is None:
+            raise ValueError("Predictor models are fitted on growth excluding VAT and need vat_schedule")
+        names += ("ar4_seasonal_vat_direct",) + tuple(f"arx_vat_{name}" for name in predictor_sets)
+        predictors = {name: {**p, "levels": [{**r, "available_at": utc(r["available_at"])} for r in p["levels"]
+                                             if r.get("value") is not None]}
+                      for name, p in (predictors or {}).items()}
     rows: List[Dict[str, Any]] = []
     for origin in sorted(utc(o) for o in origins):
         denominator = origin.year * 4 + (origin.month - 1) // 3
@@ -213,6 +305,14 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
             factor = ((1 + vat_rate(vat_schedule, _reference_date(target), known_at=origin))
                       / (1 + vat_rate(vat_schedule, _reference_date(denominator), known_at=origin)))
             forecasts["ar4_seasonal_vat"] = None if ex_forecast is None else 100 * ((1 + ex_forecast / 100) * factor - 1)
+            if predictor_sets:
+                features = {name: _feature_at_origin(p, origin, denominator) for name, p in predictors.items()}
+                runs = {"ar4_seasonal_vat_direct": []}
+                runs.update({f"arx_vat_{s}": [features[n] for n in members] for s, members in predictor_sets.items()})
+                for model, feats in runs.items():
+                    ex = (None if any(f is None for f in feats) else
+                          _direct_forecast(ex_growth, last, target, denominator, fit_from, ar_order, feats))
+                    forecasts[model] = None if ex is None else 100 * ((1 + ex / 100) * factor - 1)
         known = [r for r in rows if r["label_available_at"] <= origin]
         widths = {}
         for name in names:
@@ -251,7 +351,8 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
                            "coverage": float(np.mean(hits)) if scored else None,
                            "mean_half_width": float(np.mean([r["interval_half_width"][name] for r in scored])) if scored else None}
     return {"predictions": rows, "models": models, "intervals": intervals,
-            "settings": {"fit_start": fit_start, "alpha": alpha, "min_calibration": min_calibration, "ar_order": ar_order}}
+            "settings": {"fit_start": fit_start, "alpha": alpha, "min_calibration": min_calibration, "ar_order": ar_order,
+                         "predictor_sets": predictor_sets or {}}}
 
 
 def calibrate_residual_interval(
