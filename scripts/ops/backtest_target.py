@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from src.config import get_settings, primary_target_series_id
-from src.quant.forecasting import rolling_origin_backtest
+from src.quant.forecasting import load_vat_schedule, rolling_origin_backtest
 from src.storage.dual_layer_store import DualLayerStore
 
 
@@ -38,7 +38,8 @@ def main() -> None:
     levels = [{"period_start": o.period_start, "value": o.value, "available_at": store._available(o)}
               for o in store.query_observation_revisions(now, "system_as_of")
               if o.series_id == target and o.value is not None and not o.is_retracted]
-    result = rolling_origin_backtest(levels, quarter_end_origins(args.first_origin, now), fit_start=args.fit_start)
+    result = rolling_origin_backtest(levels, quarter_end_origins(args.first_origin, now), fit_start=args.fit_start,
+                                     vat_schedule=load_vat_schedule())
     report = {"target_series_id": target, "generated_at": now.isoformat(), "store": str(get_settings().lancedb_path),
               "label": "100 * (level[Q+1] / level[Q] - 1), Q = origin quarter; release-dated latest-vintage levels",
               "revision_note": "Values are latest vintage dated by first release; PP300 QoQ revisions first->latest: mean 0.06 pp, max 0.35 pp.",

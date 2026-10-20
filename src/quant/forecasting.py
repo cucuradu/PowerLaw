@@ -96,8 +96,68 @@ def _ar_forecast(growth: Dict[int, float], last: int, target: int, fit_from: int
     return path[-1]
 
 
+def _sar_forecast(growth: Dict[int, float], last: int, target: int, fit_from: int, order: int) -> Optional[float]:
+    """AR(order) with intercept and quarter-of-year dummies, fitted by OLS and iterated to `target`."""
+    start = last
+    while start - 1 in growth and start - 1 >= fit_from:
+        start -= 1
+    quarters = list(range(start, last + 1))
+    if last not in growth or len(quarters) < order + 16:
+        return None
+
+    def row(q, lags):
+        return [1.0] + lags + [float(q % 4 == k) for k in (1, 2, 3)]
+
+    x = [row(q, [growth[q - k] for k in range(1, order + 1)]) for q in quarters[order:]]
+    y = [growth[q] for q in quarters[order:]]
+    coef, *_ = np.linalg.lstsq(np.array(x), np.array(y), rcond=None)
+    path = {q: growth[q] for q in quarters}
+    for q in range(last + 1, target + 1):
+        path[q] = float(np.dot(coef, row(q, [path[q - k] for k in range(1, order + 1)])))
+    return path[target]
+
+
+def load_vat_schedule(path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """German standard VAT schedule from config/de_vat_schedule.json (verified against Destatis incl./excl. indices)."""
+    import json
+    from pathlib import Path
+    path = path or str(Path(__file__).resolve().parents[2] / "config" / "de_vat_schedule.json")
+    return sorted(json.loads(Path(path).read_text(encoding="utf-8"))["entries"], key=lambda e: e["effective_from"])
+
+
+def vat_rate(schedule: List[Dict[str, Any]], on, known_at=None) -> float:
+    """Rate in force on date `on`, using only entries knowable at `known_at` (None: full hindsight)."""
+    from datetime import date, datetime, time, timezone
+    from zoneinfo import ZoneInfo
+    day = on.date() if isinstance(on, datetime) else on
+    rate = None
+    for entry in schedule:
+        effective = date.fromisoformat(entry["effective_from"])
+        if effective > day:
+            break
+        if known_at is not None:
+            announced = date.fromisoformat(entry["promulgated_at"] or entry["effective_from"])
+            public = datetime.combine(announced, time(23, 59, 59), ZoneInfo("Europe/Berlin")).astimezone(timezone.utc)
+            if entry["promulgated_at"] is None:  # unverified promulgation: known only once in force
+                public = datetime.combine(effective, time(0, 0), ZoneInfo("Europe/Berlin")).astimezone(timezone.utc)
+            if public > known_at:
+                continue
+        rate = entry["rate"]
+    if rate is None:
+        raise ValueError(f"No VAT rate known for {day}")
+    return rate
+
+
+def _reference_date(quarter_index: int):
+    """Destatis 61261 reference month (Feb/May/Aug/Nov), mid-month."""
+    from datetime import date
+    year, quarter = divmod(quarter_index, 4)
+    return date(year, 3 * quarter + 2, 15)
+
+
 def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *, fit_start: str = "1991-01-01",
-                            alpha: float = 0.10, min_calibration: int = 20, ar_order: int = 4) -> Dict[str, Any]:
+                            alpha: float = 0.10, min_calibration: int = 20, ar_order: int = 4,
+                            vat_schedule: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Expanding-window backtest of next-quarter growth on release-dated quarterly levels.
 
     `levels`: {period_start, value, available_at}. At each origin only levels released by then are used.
@@ -120,7 +180,9 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
         if q not in level or when < level[q][1]:
             level[q] = (float(row["value"]), when)
     fit_from = _quarter_index(fit_start)
-    names = ("no_change", "last_growth", "seasonal_naive", "mean_4q", "ar4")
+    names = ("no_change", "last_growth", "seasonal_naive", "mean_4q", "ar4", "ar4_seasonal")
+    if vat_schedule is not None:
+        names += ("ar4_seasonal_vat",)
     rows: List[Dict[str, Any]] = []
     for origin in sorted(utc(o) for o in origins):
         denominator = origin.year * 4 + (origin.month - 1) // 3
@@ -139,7 +201,18 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
             "seasonal_naive": growth.get(target - 4),
             "mean_4q": float(np.mean(recent)) if all(g is not None for g in recent) else None,
             "ar4": _ar_forecast(growth, last, target, fit_from, ar_order),
+            "ar4_seasonal": _sar_forecast(growth, last, target, fit_from, ar_order),
         }
+        if vat_schedule is not None:
+            # Model growth excluding VAT (past rates in force), then apply the rates the law said would apply
+            # in the target and origin quarters, as knowable at the origin.
+            ex_vat = {q: v / (1 + vat_rate(vat_schedule, _reference_date(q)))
+                      for q, v in visible.items() if q >= fit_from - 1}  # VAT exists only since 1968
+            ex_growth = {q: 100 * (ex_vat[q] / ex_vat[q - 1] - 1) for q in ex_vat if q - 1 in ex_vat}
+            ex_forecast = _sar_forecast(ex_growth, last, target, fit_from, ar_order)
+            factor = ((1 + vat_rate(vat_schedule, _reference_date(target), known_at=origin))
+                      / (1 + vat_rate(vat_schedule, _reference_date(denominator), known_at=origin)))
+            forecasts["ar4_seasonal_vat"] = None if ex_forecast is None else 100 * ((1 + ex_forecast / 100) * factor - 1)
         known = [r for r in rows if r["label_available_at"] <= origin]
         widths = {}
         for name in names:

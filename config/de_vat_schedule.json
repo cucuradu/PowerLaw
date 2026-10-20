@@ -1,0 +1,19 @@
+{
+  "description": "German standard VAT rate (UStG § 12 Abs. 1), which applies to construction work. The target 61261-0002 STEMW1 includes VAT.",
+  "verification": "2026-10-20: (1 + rate) / 1.19 matches the Destatis 61261-0002 incl./excl. VAT index ratio for 143 quarters 1991-2026 (max abs error 0.0038 from chain-linking before 2005-Q1 and one-decimal rounding; the 2007, 2020 and 2021 steps match exactly). Fixture: tests/fixtures/ingestion/destatis_61261_0002_incl_excl_vat_1991_official.zip.",
+  "knowledge_rule": "A rate is known at an origin once promulgated (end of the Bundesgesetzblatt publication day, Berlin); without a verified promulgation date it is known only from its effective date.",
+  "entries": [
+    {"effective_from": "1968-07-01", "rate": 0.11, "promulgated_at": null, "law": null},
+    {"effective_from": "1978-01-01", "rate": 0.12, "promulgated_at": null, "law": null},
+    {"effective_from": "1979-07-01", "rate": 0.13, "promulgated_at": null, "law": null},
+    {"effective_from": "1983-07-01", "rate": 0.14, "promulgated_at": null, "law": null},
+    {"effective_from": "1993-01-01", "rate": 0.15, "promulgated_at": null, "law": null},
+    {"effective_from": "1998-04-01", "rate": 0.16, "promulgated_at": null, "law": null},
+    {"effective_from": "2007-01-01", "rate": 0.19, "promulgated_at": "2006-06-30",
+     "law": "Haushaltsbegleitgesetz 2006 vom 29.06.2006, BGBl. I S. 1402 (Nr. 30, verkündet 30.06.2006)"},
+    {"effective_from": "2020-07-01", "rate": 0.16, "promulgated_at": "2020-06-30",
+     "law": "Zweites Corona-Steuerhilfegesetz vom 29.06.2020, BGBl. I S. 1512 (verkündet 30.06.2020), befristet bis 31.12.2020"},
+    {"effective_from": "2021-01-01", "rate": 0.19, "promulgated_at": "2020-06-30",
+     "law": "Zweites Corona-Steuerhilfegesetz vom 29.06.2020, BGBl. I S. 1512: Befristung der Senkung bis 31.12.2020"}
+  ]
+}
