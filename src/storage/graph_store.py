@@ -82,7 +82,7 @@ class DualLayerGraphStore:
         self._nodes: Dict[str, GraphNode] = {}
         self._edges: List[GraphEdge] = []
         self._history: List[NodeStateRecord] = []
-        self.load()
+        self.load(reload=False)  # the store constructor has just loaded everything
 
     @property
     def _generation(self) -> int:
@@ -115,9 +115,10 @@ class DualLayerGraphStore:
         """The canonical store owns persistence and propagates failures."""
         self.canonical_store.save()
 
-    def load(self) -> None:
+    def load(self, reload: bool = True) -> None:
         """Adapt shared records without a second persistence format or default relations."""
-        self.canonical_store.load()
+        if reload:
+            self.canonical_store.load()
         self._nodes.clear()
         self._edges.clear()
         self._history.clear()

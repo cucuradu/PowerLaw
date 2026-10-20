@@ -409,7 +409,7 @@ else:
             "maxVelocity": 50,
             "solver": "forceAtlas2Based",
             "timestep": 0.35,
-            "stabilization": {"iterations": 150}
+            "stabilization": {"iterations": 50}
           },
           "interaction": {
             "hover": true,

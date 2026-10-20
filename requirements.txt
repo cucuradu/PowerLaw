@@ -20,3 +20,6 @@ pyvis>=0.3.2
 torch>=2.0.0
 torch-geometric>=2.5.0
 scikit-learn>=1.5.0
+
+# Browser timing for the dashboard (scripts/ops/web_smoke.py); then run: python -m playwright install chromium
+playwright>=1.55.0

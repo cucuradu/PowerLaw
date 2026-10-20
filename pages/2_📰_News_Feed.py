@@ -250,7 +250,7 @@ with tab2:
             x=alt.X("published_date:T", title="Publication Date"),
             y=alt.Y("target_asset:N", title="Affected Asset"),
             color=alt.Color("direction:N", scale=alt.Scale(domain=["INCREASE", "DECREASE", "STABLE"], range=["#EF4444", "#10B981", "#6B7280"])),
-            tooltip=["published_date", "title", "receptor_signal", "delta_value", "delta_unit"]
+            tooltip=["published_date", "title", "receptor_signal:N", "delta_value", "delta_unit"]
         ).properties(height=280)
         st.altair_chart(chart_time, width="stretch")
     else:

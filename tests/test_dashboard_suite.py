@@ -5,7 +5,9 @@ Tests all pages in dashboard.py and pages/ for clean rendering and execution.
 """
 
 import os
+import ast
 from pathlib import Path
+from types import SimpleNamespace
 import pytest
 from streamlit.testing.v1 import AppTest
 from src.storage.dashboard_data import (
@@ -77,6 +79,18 @@ def test_render_dashboard_main():
     assert len(at.title) > 0 or len(at.markdown) > 0
 
 
+def test_dashboard_snapshot_is_cached():
+    """Dashboard reruns should reuse derived data until storage generation changes."""
+    tree = ast.parse((REPO_ROOT / "dashboard.py").read_text(encoding="utf-8"))
+    loader = next(
+        node for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_load_dashboard_data"
+    )
+    decorators = [ast.unparse(decorator) for decorator in loader.decorator_list]
+    assert any(name.startswith("st.cache_data") for name in decorators)
+
+
 def test_render_page_1_law_registry():
     """Test pages/1_📜_Law_Registry.py renders cleanly without exceptions."""
     at = AppTest.from_file(str(REPO_ROOT / "pages" / "1_📜_Law_Registry.py")).run(timeout=15)
@@ -110,6 +124,20 @@ def test_render_page_5_gnn_modeling_lab():
     at = AppTest.from_file(str(REPO_ROOT / "pages" / "5_🤖_GNN_Modeling_Lab.py")).run(timeout=25)
     assert not at.exception, f"pages/5_🤖_GNN_Modeling_Lab.py raised exception: {at.exception}"
     assert len(at.title) > 0
+
+
+def test_gnn_page_defers_heavy_imports():
+    """The read-only page must not import PyTorch-backed modules at startup."""
+    page = REPO_ROOT / "pages" / "5_🤖_GNN_Modeling_Lab.py"
+    tree = ast.parse(page.read_text(encoding="utf-8"))
+    top_level_imports = {
+        alias.name
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+        if node.module in {"src.gnn.graph_exporter", "src.gnn.trainer", "src.gnn.temporal_gnn"}
+    }
+    assert top_level_imports == set()
 
 
 def test_render_page_6_ingestion_console():
@@ -196,6 +224,25 @@ def test_dashboard_data_cache_isolation(tmp_path):
     assert store1.storage_dir != store2.storage_dir
 
 
+def test_production_readers_reuse_graph_store(monkeypatch, tmp_path):
+    """Production law/news reads must not construct separate canonical stores."""
+    import src.storage.dashboard_data as dd
+
+    canonical_store = object()
+    graph_store = SimpleNamespace(canonical_store=canonical_store)
+    settings = SimpleNamespace(mode="production", lancedb_path=tmp_path, data_dir=tmp_path)
+    seen = []
+
+    monkeypatch.setattr(dd, "get_settings", lambda: settings)
+    monkeypatch.setattr(dd, "get_graph_store", lambda storage_dir=None: graph_store)
+    monkeypatch.setattr(dd, "_canonical_law_rows", lambda store, cutoff: seen.append(store) or [])
+    monkeypatch.setattr(dd, "_canonical_news_rows", lambda store, cutoff: seen.append(store) or [])
+
+    assert dd.get_all_laws_data() == []
+    assert dd.get_all_news_data() == []
+    assert seen == [canonical_store, canonical_store]
+
+
 def test_news_feed_null_delta_resilience(monkeypatch):
     """Verify News Feed renders cleanly without TypeError when delta_value is None."""
     import src.storage.dashboard_data as dd
@@ -223,6 +270,33 @@ def test_news_feed_null_delta_resilience(monkeypatch):
     
     at = AppTest.from_file(str(REPO_ROOT / "pages" / "2_📰_News_Feed.py")).run()
     assert not at.exception, f"News Feed threw on null delta_value: {at.exception}"
+
+
+def test_news_feed_missing_receptor_signal_resilience(monkeypatch):
+    """Verify the timeline renders when canonical news has no legacy receptor signal."""
+    import src.storage.dashboard_data as dd
+
+    mock_news = [
+        {
+            "news_id": "TEST_NO_SIGNAL_1",
+            "title": "Official construction update",
+            "published_date": "2026-10-20",
+            "source_name": "Official source",
+            "source_url": "https://example.com/news1",
+            "summary": "A reported construction-market update.",
+            "target_asset": "CONSTRUCTION",
+            "direction": "STABLE",
+            "delta_value": None,
+            "delta_unit": None,
+            "timeframe": "IMMEDIATE",
+            "actions": [],
+            "reactions": [],
+        }
+    ]
+    monkeypatch.setattr(dd, "get_all_news_data", lambda: mock_news)
+
+    at = AppTest.from_file(str(REPO_ROOT / "pages" / "2_📰_News_Feed.py")).run()
+    assert not at.exception, f"News Feed threw without receptor_signal: {at.exception}"
 
 
 def test_law_registry_null_rule_resilience(monkeypatch):

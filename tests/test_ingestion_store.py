@@ -180,6 +180,61 @@ def test_stage_batch_and_commit_idempotency_and_invisibility(store, temp_store_d
     assert len(graph_repeat["edges"]) == 1, "Idempotent commit must not duplicate graph edges"
 
 
+def test_observation_query_indexes_evidence_by_assertion(store):
+    """A query scans the evidence collection once, not once per observation."""
+    from tests.acceptance_fixtures import stage_evidenced
+
+    class CountingDict(dict):
+        def __init__(self, values):
+            super().__init__(values)
+            self.values_calls = 0
+
+        def values(self):
+            self.values_calls += 1
+            return super().values()
+
+    available = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    series = SeriesDefinition(
+        series_id="SER_EVIDENCE_INDEX",
+        source_id="SRC_TEST",
+        dataset_id="TEST",
+        provider_series_key="INDEX",
+        metric_name="index",
+        unit="INDEX",
+        available_at=available,
+        recorded_at=available,
+        batch_id="b_evidence_index",
+        data_origin="test",
+    )
+    observations = [
+        Observation(
+            series_id=series.series_id,
+            period_start=(available + timedelta(days=day)).date().isoformat(),
+            period_end_exclusive=(available + timedelta(days=day + 1)).date().isoformat(),
+            value=float(day),
+            unit=series.unit,
+            available_at=available,
+            recorded_at=available,
+            batch_id="b_evidence_index",
+            data_origin="test",
+        )
+        for day in range(3)
+    ]
+    stage_evidenced(
+        store,
+        "b_evidence_index",
+        observations=observations,
+        series=[series],
+        availability_basis="provider_vintage",
+    )
+    evidence = CountingDict(store._canonical_evidence)
+    store._canonical_evidence = evidence
+    store._release_cache_key = None
+
+    assert store.query_observations(datetime(2025, 1, 1, tzinfo=timezone.utc)).num_rows == 3
+    assert evidence.values_calls == 2
+
+
 def test_competing_writers_rejected(store):
     """
     A second writer cannot stage or commit concurrently when another writer holds the lock.

@@ -311,7 +311,10 @@ def _sanitize_record_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     """Strip NaN values so Pydantic model defaults apply cleanly."""
     clean = {}
     for k, v in d.items():
-        if _is_nan(v):
+        # Cheap checks first: this runs for every stored row (hundreds of thousands of evidence links).
+        if v is None or (isinstance(v, float) and v != v):
+            continue
+        if not isinstance(v, (str, int, float, bool, datetime)) and _is_nan(v):
             continue
         clean[k] = v
         if k in ("metadata_json", "properties_json") and isinstance(v, str):
@@ -1481,6 +1484,43 @@ class DualLayerStore:
     # 5B. CANONICAL INGESTION & AS-OF CONTRACTS (Task 3)
     # =========================================================================
 
+    def redundant_evidence_ids(self) -> set:
+        """DIRECT observation links that repeat an earlier archived release within the same batch.
+
+        Within one batch all links share eligibility, and public availability only depends on the earliest
+        evidenced document, so dropping the later ones changes no as-of read (vintage backfills linked
+        every period to every vintage that repeats it).
+        """
+        earliest: Dict[tuple, Any] = {}
+        redundant = set()
+        for link in self._canonical_evidence.values():
+            doc = self._canonical_documents.get(link.document_version_id)
+            if (link.assertion_kind != "OBSERVATION" or link.support_type != "DIRECT" or doc is None
+                    or doc.availability_basis != "archived_release"):
+                continue
+            key = (link.assertion_version_id, link.batch_id, doc.source_id, doc.data_origin)
+            best = earliest.get(key)
+            if best is None:
+                earliest[key] = (link, doc)
+                continue
+            keep, drop = ((link, best[0]) if self._utc(doc.available_at) < self._utc(best[1].available_at)
+                          else (best[0], link))
+            redundant.add(drop.evidence_id)
+            if keep is link:
+                earliest[key] = (link, doc)
+        return redundant
+
+    def compact_redundant_evidence(self) -> int:
+        """Remove `redundant_evidence_ids()` through the normal pinned-snapshot save; returns the count."""
+        with self._canonical_mutation():
+            redundant = self.redundant_evidence_ids()
+            if redundant:
+                self._canonical_evidence = {k: v for k, v in self._canonical_evidence.items() if k not in redundant}
+                self._generation += 1  # readers holding the old snapshot reload
+                self._persist_generation()
+                self._save_canonical()
+        return len(redundant)
+
     def acquire_writer_lock(self) -> _WriterLock:
         """Acquire single-writer execution lock. Competing writers are rejected."""
         return _WriterLock(self._lock_file)
@@ -1836,12 +1876,20 @@ class DualLayerStore:
         """Use the same provenance boundary for graph, observations and public readers."""
         kind = "OBSERVATION" if isinstance(record, Observation) else "FACT"
         version = record.revision_id if kind == "OBSERVATION" else record.fact_version_id
+        index_key = (self._generation, id(self._canonical_evidence), len(self._canonical_evidence))
+        if getattr(self, "_evidence_index_key", None) != index_key:
+            evidence_by_assertion = {}
+            for link in self._canonical_evidence.values():
+                evidence_by_assertion.setdefault(
+                    (link.assertion_kind, link.assertion_version_id), []
+                ).append(link)
+            self._evidence_index_key = index_key
+            self._evidence_by_assertion = evidence_by_assertion
         result = []
-        for link in self._canonical_evidence.values():
+        for link in self._evidence_by_assertion.get((kind, version), ()):
             doc = self._canonical_documents.get(link.document_version_id)
             owner = self._canonical_batches.get(link.batch_id)
-            if (link.assertion_version_id != version or link.assertion_kind != kind
-                    or link.support_type != "DIRECT" or link.batch_id not in eligible
+            if (link.support_type != "DIRECT" or link.batch_id not in eligible
                     or doc is None or doc.batch_id not in eligible
                     or doc.data_origin != record.data_origin
                     or owner is None or owner.data_origin != record.data_origin):

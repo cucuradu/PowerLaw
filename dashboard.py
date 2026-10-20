@@ -6,6 +6,7 @@ Executive Overview of the Dual-Layer Legal & Economic System
 import os
 import json
 import logging
+from pathlib import Path
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,6 +14,8 @@ import altair as alt
 import plotly.express as px
 import networkx as nx
 from dotenv import load_dotenv
+
+from src.config import get_settings
 
 from src.storage.dashboard_data import (
     get_graph_store,
@@ -80,8 +83,9 @@ st.markdown("""
 
 
 # --- DATA INITIALIZATION ---
-@st.cache_data(ttl=60, show_spinner=False)
-def _load_dashboard_data(storage_dir: str, generation: int):
+@st.cache_data(show_spinner=False)
+def _load_dashboard_data(storage_dir: str, generation: int, forecast_mtime: float):
+    # Keyed on the store generation and the forecast file, so it only recomputes when either changes.
     graph_store = get_graph_store(storage_dir)
     forecast = load_latest_forecast()  # written offline by scripts.ops.backtest_target; never computed here
     return (
@@ -95,8 +99,10 @@ def _load_dashboard_data(storage_dir: str, generation: int):
 
 try:
     store = get_graph_store()
+    forecast_file = Path(get_settings().data_dir) / "reports" / "forecast-latest.json"
     kpis, outlook, history_df, forecast = _load_dashboard_data(
-        str(store.storage_dir), store._generation
+        str(store.storage_dir), store._generation,
+        forecast_file.stat().st_mtime if forecast_file.exists() else 0.0,
     )
 except Exception as e:
     st.error(f"Error loading system telemetry: {e}")

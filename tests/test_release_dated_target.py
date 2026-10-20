@@ -203,3 +203,29 @@ def test_one_producer_price_release_dates_every_material_index(tmp_path):
     rows = DualLayerStore(settings.lancedb_path).query_observations(
         cutoff=datetime(2025, 9, 20, tzinfo=timezone.utc), mode="public_as_of").to_pylist()
     assert {(r["series_id"], r["period_start"]) for r in rows} == {(METALS, "2025-08-01"), (WOOD, "2025-08-01")}
+
+
+def test_compacting_repeated_vintage_links_changes_no_as_of_read(tmp_path, monkeypatch):
+    """Older backfills linked every period to every vintage repeating it; only the earliest link matters."""
+    import src.ingestion as ingestion
+
+    class NoDedup(dict):  # reproduce the pre-fix behaviour: every vintage links every period
+        def setdefault(self, key, default=None):
+            return set()
+
+    monkeypatch.setattr(ingestion, "_RTD_EMITTED", NoDedup())
+    settings, store = _store_with_fetched_target(tmp_path)
+    store = _ingest_vintages(settings, store)
+    cutoffs = [datetime(2006, 1, 5, tzinfo=timezone.utc), datetime(2006, 1, 7, tzinfo=timezone.utc),
+               datetime(2025, 4, 11, tzinfo=timezone.utc), datetime.now(timezone.utc)]
+    before = [_visible(store, c) for c in cutoffs]
+    before_system = [{(o.period_start, o.revision_id) for o in store.query_observation_revisions(c, "system_as_of")}
+                     for c in cutoffs]
+    redundant = store.redundant_evidence_ids()
+    assert redundant  # 2005-Q3/Q4 are in both vintages
+    assert store.compact_redundant_evidence() == len(redundant)
+    reopened = DualLayerStore(settings.lancedb_path)
+    assert not reopened.redundant_evidence_ids()
+    assert [_visible(reopened, c) for c in cutoffs] == before
+    assert [{(o.period_start, o.revision_id) for o in reopened.query_observation_revisions(c, "system_as_of")}
+            for c in cutoffs] == before_system
