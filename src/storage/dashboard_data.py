@@ -1000,3 +1000,109 @@ MODEL_NAMES = {
 
 def model_name(model_id: str) -> str:
     return MODEL_NAMES.get(model_id, model_id)
+
+
+def _law_names() -> Dict[str, str]:
+    from src.scrapers.eurlex import TARGET_LAWS
+    return {f"law_{law['celex_id']}": law["title"].split(" - ")[0] for law in TARGET_LAWS}
+
+
+def _price_changes(store: Any, cutoff: datetime, series_ids: set) -> Dict[str, Dict[str, Any]]:
+    """Latest level and change on a year earlier for each series, as public at the cutoff."""
+    rows = store.query_observations(cutoff=cutoff, mode="public_as_of").to_pylist()
+    levels: Dict[str, Dict[str, float]] = {}
+    for row in rows:
+        if row["series_id"] in series_ids and row["value"] is not None:
+            levels.setdefault(row["series_id"], {})[row["period_start"][:7]] = row["value"]
+    changes = {}
+    for series_id, by_month in levels.items():
+        latest = max(by_month)
+        year_ago = f"{int(latest[:4]) - 1}{latest[4:]}"
+        if year_ago in by_month and by_month[year_ago]:
+            changes[series_id] = {"period": latest, "yoy_pct": 100 * (by_month[latest] / by_month[year_ago] - 1)}
+    return changes
+
+
+PRICE_METRICS = {"producer_price", "output_price", "material_cost", "labour_cost", "wages"}
+
+
+def get_sector_network(store: Any, cutoff: Optional[datetime] = None, year: Optional[int] = None,
+                       top: int = 12) -> Dict[str, Any]:
+    """Construction's neighbourhood as public at the cutoff, built only from accepted, evidenced facts.
+
+    Suppliers and buyers come from one input-output year (Eurostat), materials from the product classification,
+    price changes from the linked series, and laws from extracted or quoted legal provisions.
+    """
+    cutoff = cutoff or datetime.now(timezone.utc)
+    facts = store.query_facts(cutoff=cutoff, mode="public_as_of", include_expired=True)
+    entities = store._canonical_entities
+    names = {**{k: v["name"] for k, v in series_names().items()}, **_law_names()}
+    payload = lambda f: json.loads(f.payload_json or "{}")
+    flows = [f for f in facts if f.predicate == "FLOWS_TO"]
+    years = sorted({payload(f)["episode"] for f in flows})
+    if not years:
+        return {"year": None, "years": [], "nodes": [], "edges": []}
+    year = year if year in years else years[-1]
+    flows = [f for f in flows if payload(f)["episode"] == year]
+    nodes: Dict[str, Dict[str, Any]] = {}
+    edges: List[Dict[str, Any]] = []
+
+    def add(entity_id: str, group: str, **extra) -> None:
+        entity = entities.get(entity_id)
+        label = names.get(entity_id) or (entity.canonical_label if entity else entity_id)
+        nodes.setdefault(entity_id, {"id": entity_id, "label": label, "group": group, **extra})
+
+    add("sec_F", "construction")
+    kind = lambda eid: getattr(entities.get(eid), "entity_subtype", None)
+    inputs = sorted((f for f in flows if f.object_id == "sec_F"), key=lambda f: -payload(f)["value_mio_eur"])
+    uses = sorted((f for f in flows if f.subject_id == "sec_F" and f.object_id != "sec_F"), key=lambda f: -payload(f)["value_mio_eur"])
+    members = [f for f in facts if f.predicate == "BELONGS_TO" and str(f.subject_id).startswith("commodity_")]
+    material_sectors = {f.object_id for f in members}
+    products = [f for f in inputs if kind(f.subject_id) is None]
+    chosen = products[:top] + [f for f in products[top:] if f.subject_id in material_sectors]
+    chosen += [f for f in inputs if kind(f.subject_id) == "PRIMARY_INPUT"]
+    for f in chosen:
+        p = payload(f)
+        group = "own sector" if f.subject_id == "sec_F" else ("cost" if kind(f.subject_id) == "PRIMARY_INPUT" else "supplier")
+        if f.subject_id != "sec_F":
+            add(f.subject_id, group)
+        edges.append({"source": f.subject_id, "target": "sec_F", "kind": "supplies" if group != "cost" else "cost",
+                      "value_mio_eur": p["value_mio_eur"], "share": p.get("share"), "import_share": p.get("import_share")})
+    for f in uses[:top]:
+        p = payload(f)
+        add(f.object_id, "buyer" if kind(f.object_id) is None else "final demand")
+        edges.append({"source": "sec_F", "target": f.object_id, "kind": "buys", "value_mio_eur": p["value_mio_eur"], "share": p.get("share")})
+    for f in members:
+        if f.object_id in nodes:
+            add(f.subject_id, "material")
+            edges.append({"source": f.subject_id, "target": f.object_id, "kind": "part of"})
+    measures = [f for f in facts if f.predicate == "MEASURES" and f.object_id in nodes]
+    changes = _price_changes(store, cutoff, {f.subject_id for f in measures})
+    for f in measures:
+        if f.subject_id in changes and payload(f).get("metric") in PRICE_METRICS:
+            node = nodes[f.object_id]
+            node.setdefault("prices", []).append({"series": names.get(f.subject_id, f.subject_id), **changes[f.subject_id]})
+    # Laws: directly (German laws) or through their extracted rules (EU laws: law MANDATES rule REGULATES node).
+    rule_law = {f.object_id: f.subject_id for f in facts if f.predicate == "MANDATES"}
+    rules: Dict[Tuple[str, str], List[str]] = {}
+    for f in facts:
+        if f.predicate == "REGULATES" and f.object_id in nodes:
+            law = rule_law.get(f.subject_id, f.subject_id)
+            if str(law).startswith("law_"):
+                summary = payload(next((m for m in facts if m.predicate == "MANDATES" and m.object_id == f.subject_id), f)).get("summary")
+                rules.setdefault((law, f.object_id), []).append(summary or payload(f).get("norm") or "")
+    for (law, target), summaries in rules.items():
+        add(law, "law", jurisdiction=getattr(entities.get(law), "jurisdiction", None))
+        edges.append({"source": law, "target": target, "kind": "regulates", "rules": len(summaries),
+                      "examples": [s for s in summaries if s][:3]})
+    for f in facts:
+        if f.predicate == "IMPLEMENTS" and f.subject_id in nodes:
+            add(f.object_id, "law", jurisdiction="EU")
+            edges.append({"source": f.subject_id, "target": f.object_id, "kind": "implements"})
+    return {"year": year, "years": years, "nodes": list(nodes.values()), "edges": edges}
+
+
+def load_projections(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
+    """Projections written offline by scripts.ops.project_series (never computed by the dashboard)."""
+    path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "projections-latest.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None

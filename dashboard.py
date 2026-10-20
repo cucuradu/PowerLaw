@@ -26,6 +26,7 @@ from src.storage.dashboard_data import (
     get_target_history,
     get_price_events,
     get_forecast_surprises,
+    load_projections,
     model_name,
 )
 
@@ -368,6 +369,30 @@ except Exception as e:
     st.info(f"Construction outlook panel initializing: {e}")
 
 st.divider()
+
+# --- 2b. NEXT-QUARTER OUTLOOK FOR MATERIALS, ENERGY AND COSTS ---
+projections = load_projections()
+if projections and projections["projections"]:
+    st.markdown("### 🧱 Building materials, energy and costs: next quarter")
+    st.caption("Change of next quarter's average price over the latest complete quarter. Each forecast was tested on "
+               "2018 onward with only data public at the time; where it was not more accurate than assuming no change, "
+               "the table says so, and \"flat\" is the better guess.")
+    rows = []
+    for p in sorted(projections["projections"], key=lambda p: -(p["growth_pct"] or 0)):
+        test, interval = p["test"], p["interval_growth_pct"]
+        better = test["mae"] < test["mae_no_change"]
+        rows.append({"Series": p["name"], "Quarter": p["target_period_start"][:7],
+                     "Forecast %": round(p["growth_pct"], 2) if p["growth_pct"] is not None else None,
+                     "Likely range %": f"{interval[0]:+.1f} to {interval[1]:+.1f}" if interval else "",
+                     "Typical miss (pts)": round(test["mae"], 2), "No-change miss": round(test["mae_no_change"], 2),
+                     "Better than no change?": "yes" if better else "no"})
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True,
+                 column_config={"Forecast %": st.column_config.NumberColumn(format="%+.2f")})
+    beat = sum(r["Better than no change?"] == "yes" for r in rows)
+    st.caption(f"{beat} of {len(rows)} forecasts beat \"no change\" in the test. Ranges held about "
+               f"{np.mean([p['test']['coverage'] for p in projections['projections'] if p['test']['coverage'] is not None]):.0%} "
+               "of the time (target 90%). Generated " + projections["generated_at"][:10] + " by scripts.ops.project_series.")
+    st.divider()
 
 # --- 3. INTERACTIVE CONSTRUCTION PRICE & COMMODITY TELEMETRY ---
 st.markdown("### 📈 Live Construction Commodity Price Trajectories & Market Spreads")

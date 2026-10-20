@@ -16,7 +16,7 @@ import streamlit.components.v1 as components
 from pyvis.network import Network
 from pathlib import Path
 
-from src.storage.dashboard_data import event_labels, get_forecast_drivers, get_graph_store, series_names
+from src.storage.dashboard_data import event_labels, get_forecast_drivers, get_graph_store, get_sector_network, series_names
 from src.models.dual_layer_model import (
     GraphNode,
     GraphEdge,
@@ -34,8 +34,95 @@ st.set_page_config(
 
 # Header
 st.title("🕸️ Graph Explorer")
-view = st.radio("View", ["Forecast drivers", "Stored records"], horizontal=True,
-                help="Forecast drivers: what feeds the price forecast. Stored records: everything in the database.")
+view = st.radio("View", ["Sector network", "Forecast drivers", "Stored records"], horizontal=True,
+                help="Sector network: who supplies and buys construction, materials, prices and laws. "
+                     "Forecast drivers: what feeds the price forecast. Stored records: everything in the database.")
+
+GROUP_STYLE = {  # colour, size
+    "construction": ("#2563EB", 46), "own sector": ("#2563EB", 20), "supplier": ("#10B981", 22), "cost": ("#14B8A6", 20),
+    "buyer": ("#F59E0B", 20), "final demand": ("#FBBF24", 22), "material": ("#8B5CF6", 10), "law": ("#EF4444", 16),
+}
+
+
+@st.cache_data(show_spinner=False)
+def _sector_network(storage_dir: str, generation: int, year, top: int):
+    return get_sector_network(get_graph_store(storage_dir).canonical_store, year=year, top=top)
+
+
+def _pct(value) -> str:
+    return "" if value is None else f"{100 * value:.1f}%"
+
+
+def render_sector_network(height: int = 700) -> None:
+    store = get_graph_store()
+    first = _sector_network(str(store.storage_dir), store._generation, None, 12)
+    if not first["years"]:
+        st.info("No input-output data yet. Run: python -m scripts.ops.ingest --source EUROSTAT_NAIO --limit 10")
+        return
+    left, right = st.columns(2)
+    year = left.select_slider("Input-output year", options=first["years"], value=first["year"],
+                              help="Eurostat publishes these tables about three years after the year they describe.")
+    top = right.slider("Suppliers and buyers shown", 5, 30, 12)
+    data = _sector_network(str(store.storage_dir), store._generation, year, top)
+    st.markdown(
+        f"German construction in **{data['year']}**: **green** product groups it buys (line width = share of its output "
+        "value), **teal** labour, profit, depreciation and taxes, **orange** who buys its work, **purple** building "
+        "materials with their latest price change, **red** laws that regulate any of them (EU laws through rules "
+        "extracted from the text, German laws through quoted sections). Every link is backed by a stored source.")
+    net = Network(height=f"{height}px", width="100%", bgcolor="#0B0F19", font_color="#F3F4F6", directed=True)
+    for node in data["nodes"]:
+        colour, size = GROUP_STYLE.get(node["group"], ("#94A3B8", 12))
+        if node["group"] == "law" and node.get("jurisdiction") == "DE":
+            colour = "#F97316"
+        lines = [node["label"], node["group"]]
+        lines += [f"{p['series']}: {p['yoy_pct']:+.1f}% vs a year earlier ({p['period']})" for p in node.get("prices", [])]
+        net.add_node(node["id"], label=node["label"][:38], title="\n".join(lines), color=colour, size=size, shape="dot")
+    for edge in data["edges"]:
+        share = edge.get("share") or 0
+        if edge["kind"] in ("supplies", "cost", "buys"):
+            title = (f"{edge['value_mio_eur']:,.0f} million EUR ({_pct(share)} of "
+                     f"{'construction output' if edge['kind'] != 'buys' else 'all uses of construction'})")
+            if edge.get("import_share") is not None:
+                title += f"; {_pct(edge['import_share'])} imported"
+            net.add_edge(edge["source"], edge["target"], title=title, width=1 + 40 * share,
+                         color=GROUP_STYLE["supplier" if edge["kind"] != "buys" else "buyer"][0])
+        elif edge["kind"] == "regulates":
+            examples = "\n".join(f"- {e[:160]}" for e in edge.get("examples", []))
+            net.add_edge(edge["source"], edge["target"], title=f"{edge['rules']} provisions\n{examples}", color="#EF4444",
+                         width=1, dashes=True)
+        else:
+            net.add_edge(edge["source"], edge["target"], title=edge["kind"], color="#64748B", width=1)
+    net.set_options('{"physics": {"solver": "forceAtlas2Based", "forceAtlas2Based": {"gravitationalConstant": -90, '
+                    '"springLength": 120}, "stabilization": {"iterations": 120}}, '
+                    '"edges": {"arrows": {"to": {"enabled": true, "scaleFactor": 0.5}}, "smooth": false}, '
+                    '"interaction": {"hover": true, "navigationButtons": true}}')
+    components.html(net.generate_html(), height=height + 10, scrolling=False)
+
+    nodes = {n["id"]: n for n in data["nodes"]}
+    supply = [e for e in data["edges"] if e["kind"] in ("supplies", "cost")]
+    st.markdown("**What construction spends its money on**")
+    st.dataframe(pd.DataFrame([{
+        "Input": nodes.get(e["source"], {"label": "Construction (subcontracting)"})["label"] if e["source"] != "sec_F" else "Construction (subcontracting)",
+        "Million EUR": round(e["value_mio_eur"]), "Share of output": _pct(e.get("share")),
+        "Imported": _pct(e.get("import_share")),
+        "Latest price change": "; ".join(f"{p['yoy_pct']:+.1f}%" for p in nodes.get(e["source"], {}).get("prices", [])[:1])}
+        for e in sorted(supply, key=lambda e: -e["value_mio_eur"])]), width="stretch", hide_index=True)
+    materials = [n for n in data["nodes"] if n["group"] == "material" and n.get("prices")]
+    if materials:
+        st.markdown("**Building materials: price change on a year earlier**")
+        st.dataframe(pd.DataFrame([{"Material": n["label"], "Change": round(n["prices"][0]["yoy_pct"], 1),
+                                    "Month": n["prices"][0]["period"]}
+                                   for n in sorted(materials, key=lambda n: -n["prices"][0]["yoy_pct"])]),
+                     width="stretch", hide_index=True,
+                     column_config={"Change": st.column_config.NumberColumn("Change (%)", format="%+.1f")})
+    laws = [e for e in data["edges"] if e["kind"] == "regulates"]
+    if laws:
+        st.markdown("**Laws and what they regulate**")
+        st.dataframe(pd.DataFrame([{"Law": nodes[e["source"]]["label"], "Regulates": nodes[e["target"]]["label"],
+                                    "Provisions": e["rules"], "Example": (e.get("examples") or [""])[0]}
+                                   for e in sorted(laws, key=lambda e: -e["rules"])]), width="stretch", hide_index=True)
+    st.caption("Sources: Eurostat input-output table naio_10_cp1700, Destatis producer prices 61241, EUR-Lex, "
+               "gesetze-im-internet.de. Links show how the sector is connected; they are not a forecast of cause and effect.")
 
 
 def render_forecast_drivers(height: int = 620) -> None:
@@ -79,6 +166,9 @@ def render_forecast_drivers(height: int = 620) -> None:
                  column_config={"Source": st.column_config.LinkColumn("Source", display_text="open")})
 
 
+if view == "Sector network":
+    render_sector_network()
+    st.stop()
 if view == "Forecast drivers":
     render_forecast_drivers()
     st.stop()

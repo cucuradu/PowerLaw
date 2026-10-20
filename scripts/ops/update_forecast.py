@@ -12,7 +12,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 # (source, days back): 400 days covers a revised year; 45 days re-reads vintages that came out before Destatis did.
 SOURCES = [("DESTATIS_GENESIS", 400), ("BUNDESBANK_RTD", 45), ("ECB_SDMX", 400), ("BUNDESBANK_SDMX", 400),
-           ("EUROSTAT_STS", 400)]
+           ("EUROSTAT_STS", 400), ("EUROSTAT_NAIO", 0), ("GESETZE_IM_INTERNET", 0)]  # last two ignore the window
 
 
 def run(*args: str) -> dict:
@@ -30,8 +30,8 @@ def main() -> None:
                  "--until", today.isoformat(), "--limit", "500") for source, days in SOURCES]
     # Only Destatis is required: without fresh Bundesbank vintages new values are dated by fetch time (later, never earlier).
     target_ok = steps[0]["exit_code"] == 0
-    steps.append(run("scripts.ops.backtest_target") if target_ok else
-                 {"step": "scripts.ops.backtest_target", "skipped": "Destatis update failed"})
+    for script in ("scripts.ops.backtest_target", "scripts.ops.project_series"):
+        steps.append(run(script) if target_ok else {"step": script, "skipped": "Destatis update failed"})
     log = Path(get_settings().data_dir) / "reports" / "update-log.jsonl"
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("a", encoding="utf-8") as handle:
