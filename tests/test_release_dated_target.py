@@ -107,7 +107,7 @@ def test_discovery_requests_each_vintage_in_the_verified_english_csv_layout(monk
     assert prices[1]["url"].endswith("/BBKRT/Q.DE....PP300...2025.04.10?format=csv&lang=en")
     # An 8-dimension key takes the vintage date right after it (verified live 2026-10-20).
     assert orders[1]["url"].endswith("/BBKRT/M.DE.N.I.IO1.AFC15.C.I.2025.04.10?format=csv&lang=en")
-    assert len({i["item_id"] for i in items}) == 4
+    assert len({i["item_id"] for i in items}) == 6  # 3 calendars x 2 vintages
     assert items[0]["availability_basis"] == "archived_release"
     assert items[0]["published_at"] == _end_of_day("2006-01-06").isoformat()
 
@@ -173,3 +173,33 @@ def test_reingesting_vintages_adds_nothing_and_never_rewrites_committed_rows(tmp
     assert report["status"] != "failed", report
     after = DualLayerStore(settings.lancedb_path).query_observation_revisions(datetime.now(timezone.utc), "system_as_of")
     assert {o.revision_id for o in after} == {o.revision_id for o in before}
+
+
+METALS = "61241-0004|DINSG=DG|GP19M2=GP19-24|PRE001|2021=100"
+WOOD = "61241-0004|DINSG=DG|GP19M2=GP19-16|PRE001|2021=100"
+
+
+def test_one_producer_price_release_dates_every_material_index(tmp_path):
+    """Destatis publishes all 61241 indices in one release; PP100 vintage 2025-09-19 ends at 2025-08 (PD25_343)."""
+    settings = _settings(tmp_path)
+    store = DualLayerStore(settings.lancedb_path)
+    obs = [Observation(series_id=sid, period_start=p, period_end_exclusive=e, value=v, unit="2021=100",
+                       source_unit="2021=100", available_at=FETCHED, batch_id="ppi", data_origin="live")
+           for sid in (METALS, WOOD) for p, e, v in (("2025-08-01", "2025-09-01", 112.5), ("2025-09-01", "2025-10-01", 112.0))]
+    series = [SeriesDefinition(series_id=sid, source_id="DESTATIS_GENESIS", dataset_id="61241-0004", provider_series_key=sid,
+        metric_name="producer_price_index", unit="2021=100", frequency="MONTHLY", geography_id="DE",
+        measurement_kind="MATERIAL_PPI_CONTEXT", available_at=FETCHED, batch_id="ppi") for sid in (METALS, WOOD)]
+    stage_evidenced(store, "ppi", observations=obs, series=series, origin="live", available=FETCHED, source_id="DESTATIS_GENESIS")
+    day = "2025-09-19"
+    url = f"https://api.statistiken.bundesbank.de/rest/data/BBKRT/M.DE.N.P.PP1.PP100.R.I.{day.replace('-', '.')}?format=csv&lang=en"
+    item = {"item_id": f"rtd_ppi_{day}", "upstream_id": f"PP100@{day}", "series_key": "PP100",
+            "calendar": "industrial_producer_price_release_calendar", "release_date": day, "url": url,
+            "canonical_url": url, "publisher": "Deutsche Bundesbank", "content_type": "text/csv",
+            "availability_basis": "archived_release", "published_at": _end_of_day(day).isoformat()}
+    payload = (FIXTURES / "bbkrt_pp100_vintage_20250919_official.csv").read_bytes()
+    report = run_ingestion("BUNDESBANK_RTD", limit=10, settings=settings, store=store, discover=lambda *a: [item],
+                           fetch=lambda u, **kw: (payload, u, "text/csv", 200))
+    assert report["status"] == "committed", report["source_errors"]
+    rows = DualLayerStore(settings.lancedb_path).query_observations(
+        cutoff=datetime(2025, 9, 20, tzinfo=timezone.utc), mode="public_as_of").to_pylist()
+    assert {(r["series_id"], r["period_start"]) for r in rows} == {(METALS, "2025-08-01"), (WOOD, "2025-08-01")}

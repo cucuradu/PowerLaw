@@ -52,9 +52,7 @@ def test_only_verified_sources_and_requests_are_active():
         "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
         "BUNDESBANK_SDMX", "BUNDESBANK_RTD", "EURLEX_CELLAR"}
     assert list(sources["DESTATIS_GENESIS"]["series_keys"].values()) == [
-        "61261-0002", "61261-0014", "44111-0009", "31111-0020", "62221-0002"]
-    # 61241 answers "no data cube" for every request; suspended rather than failing every Destatis batch.
-    assert sources["DESTATIS_GENESIS"]["suspended_series_keys"]["material_ppi_context"]["table_id"] == "61241-0004"
+        "61261-0002", "61261-0014", "61241-0004", "44111-0009", "31111-0020", "62221-0002"]
     assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q"]
     assert list(sources["ECB_SDMX"]["series_keys"].values()) == ["MIR.M.DE.B.A2C.A.R.A.2250.EUR.N"]
     news = list(_news_discover("OFFICIAL_NEWS", None, None, 10))

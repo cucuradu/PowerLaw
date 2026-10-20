@@ -17,7 +17,9 @@ def test_target_request_filters_to_the_registered_cell():
 
 def test_context_requests_filter_and_clamp_each_table():
     requests = _requests()
-    assert "61241-0004" not in requests  # suspended: provider has no data cube
+    ppi = requests["61241-0004"]  # re-enabled 2026-10-20 after the 2026-10-19 provider outage
+    assert (ppi["classifyingvariable1"], ppi["classifyingkey1"], ppi["startyear"]) == (
+        "GP19M2", "GP19-16,GP19-22,GP19-23,GP19-24,GP19-25", "1976")
     permits = requests["31111-0020"]
     filters = {permits[f"classifyingvariable{i}"]: permits[f"classifyingkey{i}"] for i in range(1, 4)}
     assert filters == {"BAUBR1": "BAUART1", "BAUGB1": "GBD-W", "BAUTK1": "BTK-GEB-NEU"}

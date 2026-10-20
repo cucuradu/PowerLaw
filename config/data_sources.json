@@ -171,6 +171,7 @@
       "series_keys": {
         "primary_construction_target": "61261-0002",
         "residential_construction_cost": "61261-0014",
+        "material_ppi_context": "61241-0004",
         "residential_order_intake": "44111-0009",
         "residential_building_permits": "31111-0020",
         "construction_negotiated_earnings": "62221-0002"
@@ -368,14 +369,7 @@
         "31111-0020": 2003,
         "62221-0002": 1995
       },
-      "table_first_year_evidence": "Official GENESIS metadata Time.From (tests/fixtures/ingestion/destatis_*_metadata_official.json).",
-      "suspended_series_keys": {
-        "material_ppi_context": {
-          "table_id": "61241-0004",
-          "since": "2026-10-19",
-          "reason": "Every 61241 table (0002, 0004, 0006) answers GENESIS status 7000 'kein Datenquader gefunden' for all year ranges and filters; re-check before re-enabling."
-        }
-      }
+      "table_first_year_evidence": "Official GENESIS metadata Time.From (tests/fixtures/ingestion/destatis_*_metadata_official.json)."
     },
     "EUROSTAT_STS": {
       "name": "Eurostat Short-Term Business Statistics (STS)",
@@ -595,17 +589,20 @@
       "allowable_delay_days": 20,
       "series_keys": {
         "construction_price_release_calendar": "BBKRT/Q.DE....PP300",
-        "residential_order_intake_release_calendar": "BBKRT/M.DE.N.I.IO1.AFC15.C.I"
+        "residential_order_intake_release_calendar": "BBKRT/M.DE.N.I.IO1.AFC15.C.I",
+        "industrial_producer_price_release_calendar": "BBKRT/M.DE.N.P.PP1.PP100.R.I"
       },
       "dated_series": {
         "construction_price_release_calendar": "primary_target",
-        "residential_order_intake_release_calendar": "residential_order_intake_volume"
+        "residential_order_intake_release_calendar": "residential_order_intake_volume",
+        "industrial_producer_price_release_calendar": ["wood_products", "rubber_and_plastic_products", "nonmetallic_mineral_products", "basic_metals", "fabricated_metal_products"]
       },
       "revision_bounds": {
         "construction_price_release_calendar": {"qoq_growth_pp_mean": 0.06, "qoq_growth_pp_max": 0.35},
         "residential_order_intake_release_calendar": {"yoy_3m_sum_growth_pp_mean_abs": 0.17, "yoy_3m_sum_growth_pp_p90_abs": 0.38, "yoy_3m_sum_growth_pp_max_abs": 1.35}
       },
       "series_notes": {
+        "industrial_producer_price_release_calendar": "Producer prices of industrial products (PP1/PP100), unadjusted: 254 monthly vintages 2005-11-18..2026-10-20, verified 2026-10-20. Only its release dates are used: Destatis publishes the total and all 61241 product indices in one release (August 2025: PD25_343 on 19.09.2025 covers metals and wood; vintage 19.09.2025 ends at 2025-08; vintage 18.09.2026 ends at 2026-08).",
         "residential_order_intake_release_calendar": "Orders received, main construction industry, residential construction, constant prices, unadjusted index (IO1/AFC15, PRICEUNIT C, CALCBASIS I): 251 monthly vintages 2005-11-22..2026-09-25, verified 2026-10-20. Latest vintage equals Destatis 44111-0009 (residential order intake volume index) on all 427 months; vintage 2025-09-25 ends at 2025-07, matching Destatis press release PD25_348 of 25.09.2025. Measured YoY 3-month-sum growth revision first->latest vintage: mean abs 0.17 pp, p90 0.38 pp, max 1.35 pp.",
         "construction_price_release_calendar": "PP300 construction price index vintages, one per Destatis release (84 vintages 2006-01-06..2026-10-09, verified 2026-10-20; 2025-04-10 matches Destatis press release PD25_137). PP300 is not the target series (differs by up to 1.7 index points); only its release dates are used to date target availability. Measured QoQ growth revision first->latest vintage: mean 0.06 pp, max 0.35 pp."
       }

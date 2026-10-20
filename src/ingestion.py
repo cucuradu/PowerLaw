@@ -1072,15 +1072,20 @@ def _rtd_release_end_of_day(day: str) -> datetime:
     return datetime.fromisoformat(f"{day}T23:59:59").replace(tzinfo=ZoneInfo("Europe/Berlin")).astimezone(timezone.utc)
 
 
-def _rtd_dated_series_id(registry: dict[str, Any], calendar: str) -> str:
-    """Series whose committed values a release calendar dates: the primary target or a named context series."""
-    name = registry["sources"]["BUNDESBANK_RTD"]["dated_series"][calendar]
-    if name == "primary_target":
-        return registry["primary_target"]["provider_series_key"]
-    for entry in registry["sources"].values():
-        if name in (entry.get("context_series") or {}):
-            return entry["context_series"][name]["provider_series_key"]
-    raise KeyError(f"Release calendar {calendar} dates unknown series {name}")
+def _rtd_dated_series_ids(registry: dict[str, Any], calendar: str) -> tuple[str, ...]:
+    """Series whose committed values a release calendar dates: the primary target and/or named context series."""
+    names = registry["sources"]["BUNDESBANK_RTD"]["dated_series"][calendar]
+    ids = []
+    for name in [names] if isinstance(names, str) else names:
+        if name == "primary_target":
+            ids.append(registry["primary_target"]["provider_series_key"])
+            continue
+        match = next((entry["context_series"][name]["provider_series_key"] for entry in registry["sources"].values()
+                      if name in (entry.get("context_series") or {})), None)
+        if match is None:
+            raise KeyError(f"Release calendar {calendar} dates unknown series {name}")
+        ids.append(match)
+    return tuple(ids)
 
 
 def _rtd_discover(source_id: str, since: Optional[str], until: Optional[str], limit: int) -> Iterable[SourceItem]:
@@ -1114,27 +1119,29 @@ def _rtd_discover(source_id: str, since: Optional[str], until: Optional[str], li
 
 
 _RTD_STATE_CACHE: dict[tuple, tuple] = {}
+_RTD_EMITTED: dict[str, set] = {}  # ponytail: grows by one small set per batch per process; fine for CLI runs
 
 
-def _rtd_committed_state(store: DualLayerStore, series_id: str) -> tuple[dict[str, Observation], dict[str, Any]]:
-    """Per period: the latest committed revision (value source) and the value already release-dated, if any.
+def _rtd_committed_state(store: DualLayerStore, series_ids: tuple[str, ...]) -> tuple[dict[tuple, Observation], dict[tuple, Any]]:
+    """Per (series, period): the latest committed revision (value source) and the value already release-dated.
 
     Cached per store generation: committed state cannot change between the vintages of one batch.
     """
-    key = (str(store.storage_dir), store.generation, series_id)
+    key = (str(store.storage_dir), store.generation, series_ids)
     if key not in _RTD_STATE_CACHE:
-        latest: dict[str, Observation] = {}
-        dated: dict[str, Any] = {}
+        latest: dict[tuple, Observation] = {}
+        dated: dict[tuple, Any] = {}
         for row in store.query_observation_revisions(datetime.now(timezone.utc), "system_as_of"):
-            if row.series_id != series_id or row.value is None or row.is_retracted:
+            if row.series_id not in series_ids or row.value is None or row.is_retracted:
                 continue
+            cell = (row.series_id, row.period_start)
             if (row.vintage_id or "").startswith("release_dated_latest|"):
-                dated[row.period_start] = row.value
+                dated[cell] = row.value
                 continue
-            previous = latest.get(row.period_start)
+            previous = latest.get(cell)
             if previous is None or store._available(row) > store._available(previous):
-                latest[row.period_start] = row
-        _RTD_STATE_CACHE.clear()  # ponytail: one entry per series; a run touches at most two series
+                latest[cell] = row
+        _RTD_STATE_CACHE.clear()  # ponytail: one entry per calendar; discovery yields calendars one after another
         _RTD_STATE_CACHE[key] = (latest, dated)
     return _RTD_STATE_CACHE[key]
 
@@ -1153,15 +1160,19 @@ def _rtd_parse(item: SourceItem, content: bytes, document: SourceDocument) -> di
     store = item["_store"]
     registry = load_data_sources_registry()
     calendar = item.get("calendar", "construction_price_release_calendar")
-    series_id = _rtd_dated_series_id(registry, calendar)
+    series_ids = _rtd_dated_series_ids(registry, calendar)
     revision_bound = registry["sources"]["BUNDESBANK_RTD"].get("revision_bounds", {}).get(calendar)
-    latest, dated = _rtd_committed_state(store, series_id)
+    latest, dated = _rtd_committed_state(store, series_ids)
+    emitted = _RTD_EMITTED.setdefault(document.batch_id, set())
     observations, evidence = [], []
-    for period in sorted(periods):
+    for series_id, period in ((s, p) for s in series_ids for p in sorted(periods)):
         start, end = _period_bounds(period)
-        base = latest.get(start)
-        if base is None or dated.get(start) == base.value:
+        base = latest.get((series_id, start))
+        if base is None or dated.get((series_id, start)) == base.value:
             continue  # nothing to date, or an earlier committed vintage already dates this value
+        if (series_id, start, base.value) in emitted:
+            continue  # an earlier vintage of this batch already dates it (vintages arrive oldest first)
+        emitted.add((series_id, start, base.value))
         obs = Observation(
             series_id=series_id, period_start=start, period_end_exclusive=end, value=base.value,
             original_value_text=base.original_value_text, source_unit=base.source_unit, unit=base.unit,
@@ -1176,7 +1187,8 @@ def _rtd_parse(item: SourceItem, content: bytes, document: SourceDocument) -> di
         observations.append(obs)
         evidence.append(EvidenceLink(assertion_version_id=obs.revision_id, assertion_kind="OBSERVATION",
                                      document_version_id=document.version_id, selector_type="SDMX_DIMENSION",
-                                     selector_json=json.dumps({"period": period, "vintage": item.get("release_date")}),
+                                     selector_json=json.dumps({"period": period, "vintage": item.get("release_date"),
+                                                               "dated_series_id": series_id}),
                                      support_type="DIRECT", batch_id=document.batch_id))
     return {"status": "accepted" if observations else "out_of_scope", "facts": [], "observations": observations,
             "evidence_links": evidence, "entities": [], "series": [], "accepted_count": len(observations),
