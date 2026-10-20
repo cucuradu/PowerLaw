@@ -50,3 +50,10 @@
 - **Events:** `config/price_events.json` lists dated, sourced events. The dashboard shows them as timing only (never as causes); the model's largest misses are listed with events from the six months before.
 - **Graph:** the Graph Explorer defaults to a "Forecast drivers" view built from config; the stored-records view uses plain names and hides retired series. The GNN stays paused.
 - **Bundesbank:** after ~1,500 requests on 2026-10-20 the API answered with a bot challenge (303 to `/.enodia/challenge`). Never work around it. Weekly updates fetch only the last 45 days of vintages; `scripts.ops.redate_from_archive` re-dates from archived vintages without network.
+
+## Sector network and laws (2026-10-20)
+
+- **Relations are facts with evidence:** supplier/buyer links come from the Eurostat input-output table (FLOWS_TO, one fact per year), series-to-node links from `config/series_names.json` (MEASURES/BELONGS_TO, claim_kind `catalog_mapping`), German law links only when a configured quote is found in the official text, EU law links from Gemini-extracted rules that pass the deterministic grounding check. Everything else stays needs_review and is not shown in the network.
+- **One naming source:** sector and commodity entities are built only through `src/utils/taxonomy.py` from `config/sectors.json`; entities are immutable, so never rename an existing code. Law entities are reused if already stored.
+- **Paid extraction:** run manually with `python -m scripts.ops.extract_laws` (per-run budget unchanged, USD 1; total ceiling EUR 100); segment answers are cached so interrupted laws resume. The weekly update does not call Gemini.
+- **Projections:** model chosen on origins before 2018, scored on 2018+; the dashboard states per series whether it beat "no change".

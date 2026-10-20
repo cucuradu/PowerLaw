@@ -1,6 +1,6 @@
 # Current Work
 
-Last reviewed: 2026-10-20, after the forecast-drivers view, price events, builder survey and energy inputs (branch `ingestion-pilot-review`).
+Last reviewed: 2026-10-20, after the sector network, detailed material prices, EU/German law extraction and series projections (branch `ingestion-pilot-review`).
 
 ## State (verified this session)
 
@@ -14,6 +14,8 @@ Last reviewed: 2026-10-20, after the forecast-drivers view, price events, builde
 - Dashboard: shows the 2026-Q4 forecast from `reports/forecast-latest.json` (now 143.0, +0.90%, 90% interval -0.2% to +2.0%), a price-change chart with dated events, and the model's biggest past misses with its track record; the release date shown is the evidenced Destatis date.
 - Cleanup done: dead modules deleted (market data, EUR-Lex bulk/history, debug scripts, legacy quant suite); GNN Lab is read-only; legacy data moved to `data/_quarantine-2026-10-20/` (see its README); plan tasks marked live-/fixture-verified.
 
+- Sector network (2026-10-20): Eurostat input-output links (2010-2022), 30 detailed material prices (61241-0006, archive-dated), MEASURES/BELONGS_TO links, 9 EU laws (Gemini) and 7 German laws (quoted links). Graph Explorer opens on "Sector network"; home page shows next-quarter projections for 35 price series (`scripts.ops.project_series`, also run by the weekly update).
+
 ## Active priorities
 
 1. Done 2026-10-20: redundant evidence compacted (409,007 links removed, 89 as-of cutoffs verified; state backup in `data/pilot-germany/backups/`). Dashboard home now 2.9 s cold, 0.2 s warm; other pages under 1 s.
@@ -26,4 +28,4 @@ Last reviewed: 2026-10-20, after the forecast-drivers view, price events, builde
 - SMARD disabled: 365 rows committed before the Berlin-date fix are dated one day early; retract before re-enabling.
 - Labels/features are release-dated latest-vintage values, not first-release values (PP300 QoQ revisions max 0.35 pp; AFC15 YoY revisions mean abs 0.17 pp).
 - Automatic updates: `python -m scripts.ops.schedule_updates on|off|status` or the toggle on the Ingestion Console; off by default. Runs `scripts/ops/update_forecast.cmd` weekly (tested by hand 2026-10-20: all steps OK). Log: `data/pilot-germany/reports/update-log.jsonl`.
-- GNN and LLM legal/news extraction stay paused until an ablation beats the VAT-aware model.
+- GNN stays paused until an ablation beats the main model. EU legal extraction is manual (`scripts.ops.extract_laws`); many rules are needs_review.
