@@ -1,0 +1,24 @@
+{
+  "description": "Major dated events that plausibly moved German residential construction prices. Used to annotate the price chart and the model's largest past forecast errors. Lining up in time is not proof of cause.",
+  "verified_at": "2026-10-20",
+  "events": [
+    {"date": "2006-06-30", "kind": "Tax", "title": "VAT rise from 16% to 19% enacted (in force 1 Jan 2007)",
+     "source": "https://www.buzer.de/gesetz/7246/index.htm"},
+    {"date": "2020-03-22", "kind": "Pandemic", "title": "Covid-19: nationwide contact restrictions",
+     "source": "https://www.bundesregierung.de/resource/blob/992798/1733226/d1abd72b7073991584d48db842f4b0f3/2020-03-22-streaming-merkel-bundeslaender-gebaerdensprache-ausschriftung-data.pdf"},
+    {"date": "2020-06-30", "kind": "Tax", "title": "Temporary VAT cut to 16% enacted (1 Jul to 31 Dec 2020)",
+     "source": "https://www.steuerschroeder.de/blog/?p=58513"},
+    {"date": "2020-11-01", "kind": "Regulation", "title": "Buildings Energy Act (GEG) comes into force",
+     "source": "https://www.aknw.de/fileadmin/user_upload/News-PDFs/2020/11-2020/20201207_Erlass-Vollzug_GEG.pdf"},
+    {"date": "2021-05-01", "precision": "month", "kind": "Materials", "title": "Timber and steel prices surge (May 2021: solid timber +83%, reinforcing steel +44% y/y)",
+     "source": "https://www.destatis.de/EN/Press/2021/07/PE21_N044_61.html"},
+    {"date": "2022-01-24", "kind": "Subsidy", "title": "KfW energy-efficient new-build subsidy (EH55) stopped",
+     "source": "https://www.datev-magazin.de/nachrichten-steuern-recht/wirtschaft/foerderung-fuer-energieeffiziente-gebaeude-der-kfw-vorlaeufig-gestoppt-72799"},
+    {"date": "2022-02-24", "kind": "Energy", "title": "Russia invades Ukraine; energy prices surge (producer prices +45.8% y/y by Aug 2022)",
+     "source": "https://www.destatis.de/DE/Presse/Pressemitteilungen/2022/09/PD22_397_61241.html"},
+    {"date": "2022-07-21", "kind": "Interest rates", "title": "ECB raises rates for the first time since 2011",
+     "source": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp220721~53e5bdd317.en.html"},
+    {"date": "2024-06-06", "kind": "Interest rates", "title": "ECB makes its first rate cut after the hikes",
+     "source": "https://www.ecb.europa.eu/press/pr/date/2024/html/ecb.mp240606~2148ecdb3c.en.html"}
+  ]
+}

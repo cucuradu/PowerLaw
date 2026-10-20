@@ -23,6 +23,10 @@ from src.storage.dashboard_data import (
     get_construction_outlook,
     load_latest_forecast,
     prediction_record_from_forecast,
+    get_target_history,
+    get_price_events,
+    get_forecast_surprises,
+    model_name,
 )
 
 load_dotenv()
@@ -94,13 +98,15 @@ def _load_dashboard_data(storage_dir: str, generation: int, forecast_mtime: floa
                                  prediction_record=prediction_record_from_forecast(forecast)),
         graph_store.get_history_df(),
         forecast,
+        get_target_history(graph_store.canonical_store),
+        get_forecast_surprises(forecast),
     )
 
 
 try:
     store = get_graph_store()
     forecast_file = Path(get_settings().data_dir) / "reports" / "forecast-latest.json"
-    kpis, outlook, history_df, forecast = _load_dashboard_data(
+    kpis, outlook, history_df, forecast, target_history, surprises = _load_dashboard_data(
         str(store.storage_dir), store._generation,
         forecast_file.stat().st_mtime if forecast_file.exists() else 0.0,
     )
@@ -228,7 +234,7 @@ try:
             st.metric(
                 label=f"Forecast PPI ({t_period})",
                 value=f"{pt_fc:.2f}",
-                delta=f"{outlook['point_growth_pct']:+.2f}% q/q · {outlook.get('model_info')}",
+                delta=f"{outlook['point_growth_pct']:+.2f}% vs previous quarter",
                 delta_color="normal"
             )
         else:
@@ -269,7 +275,7 @@ try:
     # Measured track record of the same forecast setup (rolling origin, data public at each origin)
     if forecast and forecast.get("track_record"):
         record = forecast["track_record"]
-        rows = [{"Model": name, "Origins": m["n"], "MAE (pp q/q)": round(m["mae"], 3),
+        rows = [{"Model": model_name(name), "Origins": m["n"], "MAE (pp q/q)": round(m["mae"], 3),
                  "RMSE (pp q/q)": round(m["rmse"], 3),
                  "90% interval coverage": None if m["interval"]["coverage"] is None else f"{m['interval']['coverage']:.0%}",
                  "Mean half-width (pp)": None if m["interval"]["mean_half_width"] is None else round(m["interval"]["mean_half_width"], 2)}
@@ -279,9 +285,32 @@ try:
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
         refs = {k: v for k, v in (forecast.get("reference_forecasts_growth_pct") or {}).items() if v is not None}
         if refs:
-            st.caption("Reference forecasts for the same quarter: " + ", ".join(f"{k} {v:+.2f}%" for k, v in refs.items()))
+            st.caption("Other models for the same quarter: " + "; ".join(f"{model_name(k)} {v:+.2f}%" for k, v in refs.items()))
         for note in forecast.get("limitations", []):
             st.caption(f"• {note}")
+
+    # Price changes over time, with dated events (timing only, not proof of cause)
+    if target_history:
+        st.markdown("**Quarterly price change and major events**")
+        growth = pd.DataFrame([h for h in target_history if h["growth_pct"] is not None])
+        growth["quarter"] = pd.to_datetime(growth["period_start"])
+        events = pd.DataFrame(get_price_events())
+        events["when"] = pd.to_datetime(events["date"])
+        bars = alt.Chart(growth).mark_bar(color="#3B82F6").encode(
+            x=alt.X("quarter:T", title=None),
+            y=alt.Y("growth_pct:Q", title="Change vs previous quarter (%)"),
+            tooltip=[alt.Tooltip("period_start:N", title="Quarter starting"), alt.Tooltip("value:Q", title="Index", format=".1f"),
+                     alt.Tooltip("growth_pct:Q", title="Change %", format="+.2f")])
+        rules = alt.Chart(events).mark_rule(color="#F59E0B", strokeDash=[4, 3]).encode(
+            x="when:T", tooltip=[alt.Tooltip("date:N", title="Date"), alt.Tooltip("title:N", title="Event")])
+        st.altair_chart((bars + rules).properties(height=260), width="stretch")
+        st.caption("Orange lines are dated events (hover for details). Lining up in time is not proof that the event caused the move.")
+    if surprises:
+        st.markdown("**Biggest past forecast misses and what happened in the six months before**")
+        st.dataframe(pd.DataFrame([{"Quarter": r["quarter"], "Actual change %": round(r["actual_pct"], 2),
+                                    "Forecast %": round(r["forecast_pct"], 2), "Miss (points)": round(r["miss_pp"], 2),
+                                    "Events": "; ".join(r["events"]) or "none on the list"} for r in surprises]),
+                     width="stretch", hide_index=True)
 
     # 2. Tabs for Context, Gaps & Evidence
     out_tab1, out_tab2, out_tab3, out_tab4 = st.tabs([

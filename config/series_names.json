@@ -1,0 +1,85 @@
+{
+  "description": "Plain English names for stored series, used by the dashboard. status: active (collected), retired (no longer collected), disabled (collection paused).",
+  "series": {
+    "61261-0002|DINSG=DG|STEMW1=STEMW1|BAUAR1=BPNBK|BAUAR4=BAULEISTBW|PRE002|2021=100": {
+      "name": "Construction prices, new homes (forecast target)",
+      "status": "active"
+    },
+    "61261-0014|DINSG=DG|KOSAT1=KOST011|KOS022|2021=100": {
+      "name": "Building cost: materials",
+      "status": "active"
+    },
+    "61261-0014|DINSG=DG|KOSAT1=KOST012|KOS022|2021=100": {
+      "name": "Building cost: labour",
+      "status": "active"
+    },
+    "44111-0009|DINSG=DG|BTRAG1=BTR-20UMTP|BAUAX1=BAUART11|WERT03=WERTORG|AUF102|2021=100": {
+      "name": "New orders, housing construction",
+      "status": "active"
+    },
+    "31111-0020|DINSG=DG|BAUBR1=BAUART1|BAUTK1=BTK-GEB-NEU|BAUGB1=GBD-W|WOHN01|Anzahl": {
+      "name": "Building permits: new homes",
+      "status": "active"
+    },
+    "31111-0020|DINSG=DG|BAUBR1=BAUART1|BAUTK1=BTK-GEB-NEU|BAUGB1=GBD-W|VKB001|Tsd. EUR": {
+      "name": "Building permits: planned cost",
+      "status": "active"
+    },
+    "62221-0002|DINSG=DG|WZ08C7=WZ08-F|VST066|2020=100": {
+      "name": "Construction wages (agreed)",
+      "status": "active"
+    },
+    "61241-0004|DINSG=DG|GP19M2=GP19-16|PRE001|2021=100": {
+      "name": "Material prices: wood",
+      "status": "active"
+    },
+    "61241-0004|DINSG=DG|GP19M2=GP19-22|PRE001|2021=100": {
+      "name": "Material prices: rubber and plastics",
+      "status": "active"
+    },
+    "61241-0004|DINSG=DG|GP19M2=GP19-23|PRE001|2021=100": {
+      "name": "Material prices: glass, ceramics, stone",
+      "status": "active"
+    },
+    "61241-0004|DINSG=DG|GP19M2=GP19-24|PRE001|2021=100": {
+      "name": "Material prices: metals",
+      "status": "active"
+    },
+    "61241-0004|DINSG=DG|GP19M2=GP19-25|PRE001|2021=100": {
+      "name": "Material prices: metal products",
+      "status": "active"
+    },
+    "MIR.M.DE.B.A2C.A.R.A.2250.EUR.N": {
+      "name": "Mortgage rate, new loans",
+      "status": "active"
+    },
+    "BBSIS.M.I.ZAR.GD.EUR.S122.B.A100.R01XX.R.A.A._Z._Z.A": {
+      "name": "Covered bond (Pfandbrief) yield",
+      "status": "active"
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=DE|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Construction prices, new homes (Eurostat copy)",
+      "status": "active"
+    },
+    "EXR.D.USD.EUR.SP00.A": {
+      "name": "Euro to dollar exchange rate",
+      "status": "retired"
+    },
+    "SMARD|MARKET_DATA_DAY_AHEAD_DE_LU": {
+      "name": "Wholesale electricity price",
+      "status": "disabled"
+    },
+    "61241-0004|DINSG=DG|GP19M2=GP19-35|PRE001|2021=100": {
+      "name": "Energy prices (producer)",
+      "status": "active"
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=DE|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Builders' price expectations (survey)",
+      "status": "active"
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=DE|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Builders short of materials (survey)",
+      "status": "active"
+    }
+  }
+}

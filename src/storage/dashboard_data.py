@@ -894,3 +894,109 @@ def get_construction_outlook(
         "evidence": evidence,
         "limitations": limitations,
     }
+
+
+# ============================================================================
+# FORECAST DRIVERS, EVENTS AND SURPRISES (read-only views over config and reports)
+# ============================================================================
+
+def _config_json(name: str) -> Dict[str, Any]:
+    from src.config import REPO_ROOT
+    return json.loads((REPO_ROOT / "config" / name).read_text(encoding="utf-8"))
+
+
+def series_names() -> Dict[str, Dict[str, str]]:
+    """series_id -> {"name", "status"} (active / retired / disabled)."""
+    return _config_json("series_names.json")["series"]
+
+
+def get_price_events() -> List[Dict[str, Any]]:
+    """Dated events from config/price_events.json, oldest first."""
+    return sorted(_config_json("price_events.json")["events"], key=lambda e: e["date"])
+
+
+def event_labels(store: Any) -> Dict[str, str]:
+    """Readable labels for extracted news events ("European Commission invests 3,400 EUR million in ...")."""
+    labels = {}
+    for fact in getattr(store, "_canonical_facts", {}).values():
+        try:
+            action = json.loads(fact.payload_json or "{}").get("action") or {}
+        except ValueError:
+            continue
+        if action and str(fact.subject_id).startswith("EVENT_"):
+            amount = f" {action['magnitude']:,.0f} {str(action.get('unit', '')).replace('_', ' ').lower()}" if action.get("magnitude") else ""
+            labels[fact.subject_id] = f"{action.get('actor', '?')} {action.get('description', '')}{amount} ({action.get('target', '')})"
+    return labels
+
+
+def get_target_history(store: Any, cutoff: Optional[datetime] = None, since: str = "2000-01-01") -> List[Dict[str, Any]]:
+    """Quarterly target levels as public at the cutoff, with quarter-on-quarter growth in percent."""
+    from src.config import primary_target_series_id
+    target = primary_target_series_id()
+    rows = store.query_observations(cutoff=cutoff or datetime.now(timezone.utc), mode="public_as_of").to_pylist()
+    levels = sorted((r["period_start"], r["value"]) for r in rows if r["series_id"] == target and r["value"] is not None)
+    history, previous = [], None
+    for period, value in levels:
+        if period >= since:
+            history.append({"period_start": period, "value": value,
+                            "growth_pct": None if previous is None else 100 * (value / previous - 1)})
+        previous = value
+    return history
+
+
+def get_forecast_surprises(forecast: Optional[Dict[str, Any]], n: int = 8) -> List[Dict[str, Any]]:
+    """The model's largest past misses (next-release backtest) with events from the 6 months before the quarter end."""
+    if not forecast or not forecast.get("backtest_report"):
+        return []
+    try:
+        report = json.loads(Path(forecast["backtest_report"]).read_text(encoding="utf-8"))["next_release"]
+    except (OSError, ValueError, KeyError):
+        return []
+    model, events = forecast["model"], get_price_events()
+    rows = []
+    for row in report["predictions"]:
+        predicted = row["forecasts"].get(model)
+        if predicted is None:
+            continue
+        start = datetime.fromisoformat(row["target_period_start"]).date()
+        end = (pd.Timestamp(start) + pd.offsets.QuarterEnd(0)).date()
+        nearby = [e for e in events if (pd.Timestamp(end) - pd.Timedelta(days=183)).date().isoformat() <= e["date"] <= end.isoformat()]
+        rows.append({"quarter": f"{start.year}-Q{(start.month - 1) // 3 + 1}", "actual_pct": row["actual"],
+                     "forecast_pct": predicted, "miss_pp": row["actual"] - predicted,
+                     "events": [f"{e['date']}: {e['title']}" for e in nearby]})
+    return sorted(rows, key=lambda r: -abs(r["miss_pp"]))[:n]
+
+
+def get_forecast_drivers() -> Dict[str, Any]:
+    """What feeds the forecast and how: from the predictor config and the forecast record."""
+    names = series_names()
+    predictors = _config_json("predictor_release_lags.json")["predictors"]
+    inputs = []
+    for key, spec in predictors.items():
+        used = bool(spec.get("in_forecast"))
+        members = spec.get("series_ids") or [spec["series_id"]]
+        why = ("Release dates from the Bundesbank archive" if spec["availability"] == "evidence" else
+               "Monthly survey, published at the end of each month" if spec.get("group") == "survey" else
+               "Release dates assumed")
+        inputs.append({"key": key, "name": spec["label"] if len(members) > 1 else names.get(members[0], {}).get("name", spec["label"]),
+                       "status": "used" if used else "tested, not used",
+                       "why": why + ("" if used else "; did not improve the backtest"),
+                       "components": [names.get(s, {}).get("name", s) for s in members] if len(members) > 1 else []})
+    tested = {s for spec in predictors.values() for s in (spec.get("series_ids") or [spec["series_id"]])}
+    from src.config import primary_target_series_id
+    other = [v["name"] for k, v in names.items() if v["status"] == "active" and k not in tested and k != primary_target_series_id()]
+    return {"target": names.get(primary_target_series_id(), {}).get("name", "Forecast target"),
+            "inputs": inputs, "stored_not_tested": other, "events": get_price_events()}
+
+
+MODEL_NAMES = {
+    "arx_vat_selected": "Main model: VAT, season, orders, material and energy prices, builders' price expectations",
+    "arx_vat_evidence": "VAT, season, orders, material and energy prices",
+    "ar4_seasonal_vat": "VAT and season only",
+    "mean_4q": "Average of the last 4 quarters",
+    "no_change": "No change",
+}
+
+
+def model_name(model_id: str) -> str:
+    return MODEL_NAMES.get(model_id, model_id)

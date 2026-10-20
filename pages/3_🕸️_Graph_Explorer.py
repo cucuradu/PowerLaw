@@ -16,7 +16,7 @@ import streamlit.components.v1 as components
 from pyvis.network import Network
 from pathlib import Path
 
-from src.storage.dashboard_data import get_graph_store
+from src.storage.dashboard_data import event_labels, get_forecast_drivers, get_graph_store, series_names
 from src.models.dual_layer_model import (
     GraphNode,
     GraphEdge,
@@ -33,18 +33,72 @@ st.set_page_config(
 )
 
 # Header
-st.title("🕸️ Dual-Layer Graph Explorer & Scale-Free Topology")
-st.markdown("""
-Interactive causal graph visualizing statutory authority (**Laws**), compliance requirements (**Actions**), 
-market shocks (**Reactions**), and industrial receivers (**Sectors & Commodities**).
-""")
+st.title("🕸️ Graph Explorer")
+view = st.radio("View", ["Forecast drivers", "Stored records"], horizontal=True,
+                help="Forecast drivers: what feeds the price forecast. Stored records: everything in the database.")
+
+
+def render_forecast_drivers(height: int = 620) -> None:
+    """The forecast target, its inputs (used or only tested), VAT and dated events. Links are not proof of cause."""
+    drivers = get_forecast_drivers()
+    st.markdown("What feeds the construction price forecast. **Green** inputs are used; **grey** ones were tested and "
+                "left out because they made the forecast worse. **Orange** events happened around big price moves; "
+                "that shows timing, not proof of cause.")
+    net = Network(height=f"{height}px", width="100%", bgcolor="#0B0F19", font_color="#F3F4F6", directed=True)
+    net.add_node("target", label=drivers["target"], color="#2563EB", size=42, shape="dot",
+                 title="Destatis price index for building new homes (2021 = 100), forecast one quarter ahead")
+    net.add_node("vat", label="VAT rate (law)", color="#10B981", size=24, shape="dot",
+                 title="Known in advance once the law is published; the largest single driver of past jumps")
+    net.add_edge("vat", "target", label="used", color="#10B981", width=2.5)
+    for item in drivers["inputs"]:
+        used = item["status"] == "used"
+        colour = "#10B981" if used else "#64748B"
+        net.add_node(item["key"], label=item["name"] if not item["components"] else "Material prices",
+                     color=colour, size=24 if used else 16, shape="dot", title=item["why"])
+        net.add_edge(item["key"], "target", label=item["status"], color=colour, width=2.5 if used else 1, dashes=not used)
+        for i, component in enumerate(item["components"]):
+            node = f"{item['key']}_{i}"
+            net.add_node(node, label=component.replace("Material prices: ", ""), color=colour, size=10, shape="dot")
+            net.add_edge(node, item["key"], color=colour, width=1)
+    for i, event in enumerate(drivers["events"]):
+        node = f"event_{i}"
+        net.add_node(node, label=f"{event['date'][:7]} {event['kind']}", color="#F59E0B", size=14, shape="dot",
+                     title=f"{event['date']}: {event['title']}")
+        net.add_edge(node, "target", label="same time", color="#B45309", width=1, dashes=True)
+    net.set_options('{"physics": {"solver": "forceAtlas2Based", "forceAtlas2Based": {"gravitationalConstant": -80, '
+                    '"springLength": 140}, "stabilization": {"iterations": 80}}, '
+                    '"edges": {"font": {"size": 9, "color": "#94A3B8", "strokeWidth": 0}, "arrows": {"to": {"enabled": true}}}, '
+                    '"interaction": {"hover": true, "navigationButtons": true}}')
+    components.html(net.generate_html(), height=height + 10, scrolling=False)
+    if drivers["stored_not_tested"]:
+        st.caption("Also stored but not tested as forecast inputs: " + ", ".join(drivers["stored_not_tested"]) + ".")
+    st.markdown("**Events**")
+    st.dataframe(pd.DataFrame([{"Date": e["date"], "Kind": e["kind"], "What happened": e["title"], "Source": e["source"]}
+                               for e in drivers["events"]]),
+                 width="stretch", hide_index=True,
+                 column_config={"Source": st.column_config.LinkColumn("Source", display_text="open")})
+
+
+if view == "Forecast drivers":
+    render_forecast_drivers()
+    st.stop()
+
+st.markdown("Everything stored in the database: laws, extracted news events and measured data series. "
+            "Retired series are hidden.")
 
 # Load store
 try:
     store = get_graph_store()
     G = store.to_networkx()
-    raw_nodes = store.get_nodes()
-    raw_edges = store.get_edges()
+    names = series_names()
+    readable = {**{k: v["name"] for k, v in names.items()}, **event_labels(store.canonical_store)}
+    hidden = {k for k, v in names.items() if v["status"] != "active"}
+    G.remove_nodes_from([n for n in hidden if n in G])
+    for node_id, label in readable.items():
+        if node_id in G:
+            G.nodes[node_id]["label"] = label
+    raw_nodes = [n.model_copy(update={"label": readable.get(n.id, n.label)}) for n in store.get_nodes() if n.id not in hidden]
+    raw_edges = [e for e in store.get_edges() if e.source_id not in hidden and e.target_id not in hidden]
 except Exception as e:
     st.error(f"Failed to load graph data: {e}")
     st.stop()
