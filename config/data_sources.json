@@ -174,7 +174,8 @@
         "material_ppi_context": "61241-0004",
         "residential_order_intake": "44111-0009",
         "residential_building_permits": "31111-0020",
-        "construction_negotiated_earnings": "62221-0002"
+        "construction_negotiated_earnings": "62221-0002",
+        "material_detail_ppi": "61241-0006"
       },
       "context_series": {
         "wood_products": {
@@ -374,6 +375,486 @@
           "fixture_sha256": "87a9551d45292136f8dd10fd6a6bf118147e653e4d133efbd81e2751b726e877",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS response 2026-10-19 for 2025 with the classifying filters below; series key produced by the production parser."
+        },
+        "material_cement": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-235112|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-235112"
+          },
+          "provider_label": "Portlandzement, Tonerdezement und anderer Zement",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_ready_mixed_concrete": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-236310|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-236310"
+          },
+          "provider_label": "Frischbeton (Transportbeton)",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_concrete_blocks": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-236111|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-236111"
+          },
+          "provider_label": "Baublöcke und Mauersteine, Dachsteine, aus Beton",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_precast_concrete": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-236112|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-236112"
+          },
+          "provider_label": "Vorgefertigte Bauelemente aus Beton, Kalksandstein",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_clay_bricks": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-233211|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-233211"
+          },
+          "provider_label": "Mauer-, Hourdis, Deckenziegel, aus keram. Stoffen",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_clay_roof_tiles": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-233212|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-233212"
+          },
+          "provider_label": "Dachziegel aus keram. Stoffen, Schornsteinteile",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_plasterboard": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-236210|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-236210"
+          },
+          "provider_label": "Platten,Tafeln,Dielen, Fliesen u.ä. Waren aus Gips",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_lime": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-235210|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-235210"
+          },
+          "provider_label": "Gelöschter, ungelöschter sowie hydraulischer Kalk",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_insulating_glass": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-231213|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-231213"
+          },
+          "provider_label": "Mehrschicht. Isolierverglasungen, Spiegel aus Glas",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_bitumen_products": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-239912|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-239912"
+          },
+          "provider_label": "Waren aus Bitumen oder ähnlichen Stoffen",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_sand": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-081211|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-081211"
+          },
+          "provider_label": "Natürliche Sande",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_gravel": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-081212|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-081212"
+          },
+          "provider_label": "Feldsteine, Kies, gebrochene Natursteine",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_sawn_softwood": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-161011|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-161011"
+          },
+          "provider_label": "Nadelholz,gesägt,gesäumt,gemess,geschält,Dicke>6mm",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_osb_panels": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-162113|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-162113"
+          },
+          "provider_label": "Oriented strand board-Platten (OSB) aus Holz",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_wooden_windows_doors": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-162311|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-162311"
+          },
+          "provider_label": "Fenster,-türen,Rahmen,Verkleidungen,Türen,-rahmen",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_prefabricated_timber_buildings": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-162320|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-162320"
+          },
+          "provider_label": "Vorgefertigte Gebäude aus Holz",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_steel_bars": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-241062|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-241062"
+          },
+          "provider_label": "Stabstahl a.n.leg.Stahl,nur geschmied./warmgewalzt",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_steel_sections": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-241071|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-241071"
+          },
+          "provider_label": "Offene Profile, aus n.legiertem Stahl, warmgewalzt",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_metal_windows_doors": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-251210|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-251210"
+          },
+          "provider_label": "Tore,Türen,Fenster,deren Rahmen a.Eisen,Stahl,Alu.",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_radiators": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-252111|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-252111"
+          },
+          "provider_label": "Heizkörper f. Zentralheiz.,n. elektr.beheizt,Teile",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_heating_boilers": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-252112|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-252112"
+          },
+          "provider_label": "Zentralheizungskessel für die Warmwassererzeugung",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_plastic_windows_doors": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-222314|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-222314"
+          },
+          "provider_label": "Türen, Fenster, deren Rahmen, Verkleid., Schwellen",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_plastic_pipes": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-222121|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-222121"
+          },
+          "provider_label": "Kunstdärme,Rohre,Schläuche,n.biegsam,aus Kunststo.",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_foam_insulation_boards": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-222141|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-222141"
+          },
+          "provider_label": "Andere Tafeln, Platten, Folien, aus Zellkunststoff",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_electric_cables": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-273213|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-273213"
+          },
+          "provider_label": "Andere elektrische Leiter, Spannung <=1000V",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_heat_pumps": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-282513|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-282513"
+          },
+          "provider_label": "Kühl-,Tiefkühl-,Gefriermöb. z.Kälteerzeug.,Wärmep.",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_paints": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-203011|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-203011"
+          },
+          "provider_label": "Anstrichfarben,Lacke auf der Grundl. v. Polymeren",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_diesel": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-192026|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-192026"
+          },
+          "provider_label": "Gasöl",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_electricity": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-351113|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-351113"
+          },
+          "provider_label": "Elektrischer Strom bei Abgabe an gewerbl. Anlagen",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_natural_gas": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-352222|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-352222"
+          },
+          "provider_label": "Erdgas, bei Abgabe an Handel und Gewerbe",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         }
       },
       "series_keys_note": "Table IDs are discovery roots. Use provider_dimension_codes/provider_series_key and context_series to select exact series.",
@@ -383,7 +864,8 @@
         "61261-0014": 2000,
         "44111-0009": 1991,
         "31111-0020": 2003,
-        "62221-0002": 1995
+        "62221-0002": 1995,
+        "61241-0006": 1991
       },
       "table_first_year_evidence": "Official GENESIS metadata Time.From (tests/fixtures/ingestion/destatis_*_metadata_official.json)."
     },
@@ -417,7 +899,12 @@
         "construction_price_expectations": {
           "table_id": "ei_bsbu_m_r2",
           "provider_series_key": "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=DE|indic=BS-CPE-BAL|s_adj=NSA",
-          "dimensions": {"freq": "M", "geo": "DE", "indic": "BS-CPE-BAL", "s_adj": "NSA"},
+          "dimensions": {
+            "freq": "M",
+            "geo": "DE",
+            "indic": "BS-CPE-BAL",
+            "s_adj": "NSA"
+          },
           "provider_label": "Price expectations over the next 3 months - construction (balance)",
           "measurement_kind": "SURVEY_PRICE_EXPECTATIONS",
           "frequency": "MONTHLY",
@@ -428,13 +915,70 @@
         "construction_material_shortage": {
           "table_id": "ei_bsbu_m_r2",
           "provider_series_key": "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=DE|indic=BS-FLBA5-PC|s_adj=NSA",
-          "dimensions": {"freq": "M", "geo": "DE", "indic": "BS-FLBA5-PC", "s_adj": "NSA"},
+          "dimensions": {
+            "freq": "M",
+            "geo": "DE",
+            "indic": "BS-FLBA5-PC",
+            "s_adj": "NSA"
+          },
           "provider_label": "Factors limiting building activity - shortage of material and/or equipment (% of firms)",
           "measurement_kind": "SURVEY_MATERIAL_SHORTAGE",
           "frequency": "MONTHLY",
           "fixture_path": "tests/fixtures/ingestion/eurostat_ei_bsbu_m_r2_de_2025_official.json",
           "fixture_sha256": "0c6de5a6e1d0aa0b9e8d7c063e08de306acc30bbd16410b75fab1b17275d92c9",
           "verified_scope": "Same survey; 1991-01..2026-09 checked live 2026-10-20."
+        }
+      }
+    },
+    "EUROSTAT_NAIO": {
+      "name": "Eurostat input-output tables (ESA 2010, product by product)",
+      "category": "OFFICIAL_STATISTICS",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "trial": false,
+      "training_allowed": true,
+      "commercial_use_allowed": true,
+      "ai_training_restricted": false,
+      "rights_checked": true,
+      "rights": "European Union open data policy / reuse under Commission Decision 2011/833/EU",
+      "terms_url": "https://ec.europa.eu/eurostat/about-us/policies/copyright",
+      "terms_checked_at": "2026-10-18",
+      "attribution": "Eurostat",
+      "auth_method": "NONE",
+      "source_owner": "European Commission (Eurostat)",
+      "enabled": true,
+      "endpoints": {
+        "api_v2": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data"
+      },
+      "release_cadence": "ANNUAL",
+      "allowable_delay_days": 400,
+      "tables": {
+        "construction_inputs": {
+          "dataset": "naio_10_cp1700",
+          "role": "inputs",
+          "sector": "F",
+          "dimensions": {
+            "geo": "DE",
+            "unit": "MIO_EUR",
+            "prd_use": "CPA_F",
+            "stk_flow": [
+              "TOTAL",
+              "IMP"
+            ]
+          },
+          "verified_scope": "Germany, what construction uses from each product group and primary input, 2010-2022, checked live 2026-10-20."
+        },
+        "construction_uses": {
+          "dataset": "naio_10_cp1700",
+          "role": "uses",
+          "sector": "F",
+          "dimensions": {
+            "geo": "DE",
+            "unit": "MIO_EUR",
+            "prd_ava": "CPA_F",
+            "stk_flow": "TOTAL"
+          },
+          "verified_scope": "Germany, who uses construction output (industries and final demand), 2010-2022, checked live 2026-10-20."
         }
       }
     },
@@ -636,16 +1180,179 @@
       "dated_series": {
         "construction_price_release_calendar": "primary_target",
         "residential_order_intake_release_calendar": "residential_order_intake_volume",
-        "industrial_producer_price_release_calendar": ["wood_products", "rubber_and_plastic_products", "nonmetallic_mineral_products", "basic_metals", "fabricated_metal_products", "energy_supply"]
+        "industrial_producer_price_release_calendar": [
+          "wood_products",
+          "rubber_and_plastic_products",
+          "nonmetallic_mineral_products",
+          "basic_metals",
+          "fabricated_metal_products",
+          "energy_supply",
+          "material_cement",
+          "material_ready_mixed_concrete",
+          "material_concrete_blocks",
+          "material_precast_concrete",
+          "material_clay_bricks",
+          "material_clay_roof_tiles",
+          "material_plasterboard",
+          "material_lime",
+          "material_insulating_glass",
+          "material_bitumen_products",
+          "material_sand",
+          "material_gravel",
+          "material_sawn_softwood",
+          "material_osb_panels",
+          "material_wooden_windows_doors",
+          "material_prefabricated_timber_buildings",
+          "material_steel_bars",
+          "material_steel_sections",
+          "material_metal_windows_doors",
+          "material_radiators",
+          "material_heating_boilers",
+          "material_plastic_windows_doors",
+          "material_plastic_pipes",
+          "material_foam_insulation_boards",
+          "material_electric_cables",
+          "material_heat_pumps",
+          "material_paints",
+          "material_diesel",
+          "material_electricity",
+          "material_natural_gas"
+        ]
       },
       "revision_bounds": {
-        "construction_price_release_calendar": {"qoq_growth_pp_mean": 0.06, "qoq_growth_pp_max": 0.35},
-        "residential_order_intake_release_calendar": {"yoy_3m_sum_growth_pp_mean_abs": 0.17, "yoy_3m_sum_growth_pp_p90_abs": 0.38, "yoy_3m_sum_growth_pp_max_abs": 1.35}
+        "construction_price_release_calendar": {
+          "qoq_growth_pp_mean": 0.06,
+          "qoq_growth_pp_max": 0.35
+        },
+        "residential_order_intake_release_calendar": {
+          "yoy_3m_sum_growth_pp_mean_abs": 0.17,
+          "yoy_3m_sum_growth_pp_p90_abs": 0.38,
+          "yoy_3m_sum_growth_pp_max_abs": 1.35
+        }
       },
       "series_notes": {
         "industrial_producer_price_release_calendar": "Producer prices of industrial products (PP1/PP100), unadjusted: 254 monthly vintages 2005-11-18..2026-10-20, verified 2026-10-20. Only its release dates are used: Destatis publishes the total and all 61241 product indices in one release (August 2025: PD25_343 on 19.09.2025 covers metals and wood; vintage 19.09.2025 ends at 2025-08; vintage 18.09.2026 ends at 2026-08).",
         "residential_order_intake_release_calendar": "Orders received, main construction industry, residential construction, constant prices, unadjusted index (IO1/AFC15, PRICEUNIT C, CALCBASIS I): 251 monthly vintages 2005-11-22..2026-09-25, verified 2026-10-20. Latest vintage equals Destatis 44111-0009 (residential order intake volume index) on all 427 months; vintage 2025-09-25 ends at 2025-07, matching Destatis press release PD25_348 of 25.09.2025. Measured YoY 3-month-sum growth revision first->latest vintage: mean abs 0.17 pp, p90 0.38 pp, max 1.35 pp.",
         "construction_price_release_calendar": "PP300 construction price index vintages, one per Destatis release (84 vintages 2006-01-06..2026-10-09, verified 2026-10-20; 2025-04-10 matches Destatis press release PD25_137). PP300 is not the target series (differs by up to 1.7 index points); only its release dates are used to date target availability. Measured QoQ growth revision first->latest vintage: mean 0.06 pp, max 0.35 pp."
+      }
+    },
+    "GESETZE_IM_INTERNET": {
+      "name": "Federal law texts (gesetze-im-internet.de)",
+      "category": "OFFICIAL_LEGAL_TEXT",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "trial": false,
+      "training_allowed": true,
+      "commercial_use_allowed": true,
+      "ai_training_restricted": false,
+      "rights_checked": true,
+      "rights": "Official works (amtliche Werke) are not protected by copyright, section 5 UrhG; consolidated text provided by the Federal Ministry of Justice and juris.",
+      "terms_url": "https://www.gesetze-im-internet.de/hinweise.html",
+      "terms_checked_at": "2026-10-20",
+      "attribution": "Bundesministerium der Justiz / juris GmbH, gesetze-im-internet.de",
+      "auth_method": "NONE",
+      "release_cadence": "ON_AMENDMENT",
+      "allowable_delay_days": 30,
+      "source_owner": "Bundesministerium der Justiz",
+      "enabled": true,
+      "endpoints": {
+        "law_xml": "https://www.gesetze-im-internet.de"
+      },
+      "laws": {
+        "GEG": {
+          "path": "geg",
+          "name": "Buildings Energy Act (GEG)",
+          "links": [
+            {
+              "sector": "F",
+              "norm": "§ 2",
+              "quote": "Dieses Gesetz ist anzuwenden auf"
+            },
+            {
+              "commodity": "heat_pumps",
+              "norm": "§ 42",
+              "quote": "eine elektrisch angetriebene Wärmepumpe"
+            },
+            {
+              "commodity": "heating_boilers",
+              "norm": "§ 42",
+              "quote": "eine Heizungsanlage, die mit Gas, Heizöl oder Flüssiggas beschickt wird"
+            }
+          ]
+        },
+        "BauGB": {
+          "path": "bbaug",
+          "name": "Federal Building Code (BauGB)",
+          "links": [
+            {
+              "sector": "F",
+              "norm": "§ 1",
+              "quote": "Aufgabe der Bauleitplanung ist es, die bauliche und sonstige Nutzung der Grundstücke"
+            }
+          ]
+        },
+        "BauNVO": {
+          "path": "baunvo",
+          "name": "Land Use Ordinance (BauNVO)",
+          "links": [
+            {
+              "sector": "F",
+              "norm": "§ 1",
+              "quote": "die für die Bebauung vorgesehenen Flächen"
+            }
+          ]
+        },
+        "UStG": {
+          "path": "ustg_1980",
+          "name": "VAT Act (UStG)",
+          "links": [
+            {
+              "sector": "F",
+              "norm": "§ 12",
+              "quote": "Die Steuer beträgt für jeden steuerpflichtigen Umsatz 19 Prozent der Bemessungsgrundlage"
+            }
+          ]
+        },
+        "BEHG": {
+          "path": "behg",
+          "name": "Fuel Emissions Trading Act (BEHG, national CO2 price)",
+          "links": [
+            {
+              "commodity": "diesel",
+              "norm": "Anlage 1",
+              "quote": "Waren der Positionen 2701, 2702 und 2704 bis 2715 der Kombinierten Nomenklatur",
+              "basis": "Gas oil (CN 2710) lies within positions 2704-2715"
+            },
+            {
+              "commodity": "natural_gas",
+              "norm": "Anlage 1",
+              "quote": "Waren der Positionen 2701, 2702 und 2704 bis 2715 der Kombinierten Nomenklatur",
+              "basis": "Natural gas (CN 2711) lies within positions 2704-2715"
+            }
+          ]
+        },
+        "HOAI": {
+          "path": "hoai_2013",
+          "name": "Fee Structure for Architects and Engineers (HOAI)",
+          "links": [
+            {
+              "sector": "M71",
+              "norm": "§ 1",
+              "quote": "Diese Verordnung gilt für Honorare für Ingenieur- und Architektenleistungen"
+            }
+          ]
+        },
+        "AEntG": {
+          "path": "aentg_2009",
+          "name": "Posted Workers Act (AEntG, construction minimum wages)",
+          "links": [
+            {
+              "sector": "D1",
+              "norm": "§ 4",
+              "quote": "des Bauhauptgewerbes oder des Baunebengewerbes"
+            }
+          ]
+        }
       }
     }
   }

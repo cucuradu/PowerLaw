@@ -55,9 +55,9 @@ def _stage_real_genesis_response(tmp_path):
                                 document_version_id=document.version_id, batch_id=batch_id)
     store = DualLayerStore(storage_dir=str(tmp_path / "store"))
     batch = BatchManifest(batch_id=batch_id, source_id="DESTATIS_GENESIS", data_origin="live")
-    store.stage_batch(batch, [document], [], parsed["observations"] + [pending],
+    store.stage_batch(batch, [document], parsed["facts"], parsed["observations"] + [pending],
                       evidence_links=parsed["evidence_links"] + [pending_link],
-                      entities=[], series=parsed["series"])
+                      entities=parsed["entities"], series=parsed["series"])
     store.commit_batch(batch_id)
     return store, latest
 

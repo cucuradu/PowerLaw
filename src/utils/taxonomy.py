@@ -111,3 +111,58 @@ def suggest_variable_mapping(hallucinated_var: str) -> str:
         if key in lower_var:
             return suggestion
     return "numeric_threshold"  # Fallback
+
+
+# ---------------------------------------------------------------------------
+# Sector and commodity entities shared by every source (config/sectors.json).
+# Entities are immutable, so all adapters must build them here to agree on labels.
+# ---------------------------------------------------------------------------
+import json
+from functools import lru_cache
+from pathlib import Path
+
+_SECTORS_PATH = Path(__file__).resolve().parents[2] / "config" / "sectors.json"
+
+
+@lru_cache(maxsize=1)
+def sector_config() -> dict:
+    return json.loads(_SECTORS_PATH.read_text(encoding="utf-8"))
+
+
+_SECTIONS = [("A", 1, 3), ("B", 5, 9), ("C", 10, 33), ("D", 35, 35), ("E", 36, 39), ("F", 41, 43), ("G", 45, 47),
+             ("H", 49, 53), ("I", 55, 56), ("J", 58, 63), ("K", 64, 66), ("L", 68, 68), ("M", 69, 75), ("N", 77, 82),
+             ("O", 84, 84), ("P", 85, 85), ("Q", 86, 88), ("R", 90, 93), ("S", 94, 96), ("T", 97, 98), ("U", 99, 99)]
+
+
+def io_sector_code(code: str) -> str:
+    """Map a NACE/CPA code (C2351, D35, F41) to the input-output node that contains it (C23, D, F)."""
+    import re
+    code = code.upper().replace(".", "").removeprefix("CPA_")
+    sectors = sector_config()["sectors"]
+    match = re.fullmatch(r"([A-U])?(\d{2})\d*", code)
+    if code in sectors or not match:
+        return code
+    division = int(match.group(2))
+    letter = next((s for s, lo, hi in _SECTIONS if lo <= division <= hi), match.group(1))
+    for key in sorted(sectors, key=len):
+        span = re.fullmatch(rf"{letter}(\d\d)(?:[-_](\d\d))?[A-Z]?", key)
+        if span and int(span.group(1)) <= division <= int(span.group(2) or span.group(1)):
+            return key
+    return letter if letter in sectors else code
+
+
+def sector_entity(code: str, *, batch_id: str, data_origin: str):
+    from src.schemas.ingestion import Entity
+    code = io_sector_code(code)
+    info = sector_config()["sectors"].get(code, {})
+    return Entity(entity_id=f"sec_{code}", entity_type="SECTOR", entity_subtype=info.get("kind"),
+                  canonical_label=info.get("label", f"NACE {code}"), batch_id=batch_id, data_origin=data_origin)
+
+
+def commodity_entity(name: str, *, batch_id: str, data_origin: str):
+    from src.schemas.ingestion import Entity
+    slug = name.strip().lower().replace(" ", "_")
+    info = sector_config()["commodities"].get(slug, {})
+    return Entity(entity_id=f"commodity_{slug}", entity_type="COMMODITY",
+                  canonical_label=info.get("label", slug.replace("_", " ").capitalize()),
+                  batch_id=batch_id, data_origin=data_origin)

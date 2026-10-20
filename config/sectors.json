@@ -1,0 +1,365 @@
+{
+ "description": "Shared names for sector and commodity entities. Sector codes and labels are Eurostat input-output codes (CPA 2.1 products, ESA 2010 primary inputs and final demand) from naio_10_cp1700. Entities are immutable, so never rename an existing code; add new ones instead.",
+ "source": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/naio_10_cp1700",
+ "sectors": {
+  "A01": {
+   "label": "Products of agriculture, hunting and related services"
+  },
+  "A02": {
+   "label": "Products of forestry, logging and related services"
+  },
+  "A03": {
+   "label": "Fish and other fishing products; aquaculture products; support services to fishing"
+  },
+  "B": {
+   "label": "Mining and quarrying"
+  },
+  "C10-12": {
+   "label": "Food, beverages and tobacco products"
+  },
+  "C13-15": {
+   "label": "Textiles, wearing apparel, leather and related products"
+  },
+  "C16": {
+   "label": "Wood and of products of wood and cork, except furniture; articles of straw and plaiting materials"
+  },
+  "C17": {
+   "label": "Paper and paper products"
+  },
+  "C18": {
+   "label": "Printing and recording services"
+  },
+  "C19": {
+   "label": "Coke and refined petroleum products"
+  },
+  "C20": {
+   "label": "Chemicals and chemical products"
+  },
+  "C21": {
+   "label": "Basic pharmaceutical products and pharmaceutical preparations"
+  },
+  "C22": {
+   "label": "Rubber and plastic products"
+  },
+  "C23": {
+   "label": "Other non-metallic mineral products"
+  },
+  "C24": {
+   "label": "Basic metals"
+  },
+  "C25": {
+   "label": "Fabricated metal products, except machinery and equipment"
+  },
+  "C26": {
+   "label": "Computer, electronic and optical products"
+  },
+  "C27": {
+   "label": "Electrical equipment"
+  },
+  "C28": {
+   "label": "Machinery and equipment n.e.c."
+  },
+  "C29": {
+   "label": "Motor vehicles, trailers and semi-trailers"
+  },
+  "C30": {
+   "label": "Other transport equipment"
+  },
+  "C31_32": {
+   "label": "Furniture and other manufactured goods"
+  },
+  "C33": {
+   "label": "Repair and installation services of machinery and equipment"
+  },
+  "D": {
+   "label": "Electricity, gas, steam and air conditioning"
+  },
+  "E36": {
+   "label": "Natural water; water treatment and supply services"
+  },
+  "E37-39": {
+   "label": "Sewerage services; sewage sludge; waste collection, treatment and disposal services; materials recovery services; remediation services and other waste management services"
+  },
+  "F": {
+   "label": "Constructions and construction works"
+  },
+  "G45": {
+   "label": "Wholesale and retail trade and repair services of motor vehicles and motorcycles"
+  },
+  "G46": {
+   "label": "Wholesale trade services, except of motor vehicles and motorcycles"
+  },
+  "G47": {
+   "label": "Retail trade services, except of motor vehicles and motorcycles"
+  },
+  "H49": {
+   "label": "Land transport services and transport services via pipelines"
+  },
+  "H50": {
+   "label": "Water transport services"
+  },
+  "H51": {
+   "label": "Air transport services"
+  },
+  "H52": {
+   "label": "Warehousing and support services for transportation"
+  },
+  "H53": {
+   "label": "Postal and courier services"
+  },
+  "I": {
+   "label": "Accommodation and food services"
+  },
+  "J58": {
+   "label": "Publishing services"
+  },
+  "J59_60": {
+   "label": "Motion picture, video and television programme production services, sound recording and music publishing; programming and broadcasting services"
+  },
+  "J61": {
+   "label": "Telecommunications services"
+  },
+  "J62_63": {
+   "label": "Computer programming, consultancy and related services; Information services"
+  },
+  "K64": {
+   "label": "Financial services, except insurance and pension funding"
+  },
+  "K65": {
+   "label": "Insurance, reinsurance and pension funding services, except compulsory social security"
+  },
+  "K66": {
+   "label": "Services auxiliary to financial services and insurance services"
+  },
+  "L68A": {
+   "label": "Imputed rents of owner-occupied dwellings"
+  },
+  "L68B": {
+   "label": "Real estate services excluding imputed rents"
+  },
+  "M69_70": {
+   "label": "Legal and accounting services; services of head offices; management consultancy services"
+  },
+  "M71": {
+   "label": "Architectural and engineering services; technical testing and analysis services"
+  },
+  "M72": {
+   "label": "Scientific research and development services"
+  },
+  "M73": {
+   "label": "Advertising and market research services"
+  },
+  "M74_75": {
+   "label": "Other professional, scientific and technical services and veterinary services"
+  },
+  "N77": {
+   "label": "Rental and leasing services"
+  },
+  "N78": {
+   "label": "Employment services"
+  },
+  "N79": {
+   "label": "Travel agency, tour operator and other reservation services and related services"
+  },
+  "N80-82": {
+   "label": "Security and investigation services; services to buildings and landscape; office administrative, office support and other business support services"
+  },
+  "O": {
+   "label": "Public administration and defence services; compulsory social security services"
+  },
+  "P": {
+   "label": "Education services"
+  },
+  "Q86": {
+   "label": "Human health services"
+  },
+  "Q87_88": {
+   "label": "Residential care services; social work services without accommodation"
+  },
+  "R90-92": {
+   "label": "Creative, arts, entertainment, library, archive, museum, other cultural services; gambling and betting services"
+  },
+  "R93": {
+   "label": "Sporting services and amusement and recreation services"
+  },
+  "S94": {
+   "label": "Services furnished by membership organisations"
+  },
+  "S95": {
+   "label": "Repair services of computers and personal and household goods"
+  },
+  "S96": {
+   "label": "Other personal services"
+  },
+  "D1": {
+   "label": "Compensation of employees",
+   "kind": "PRIMARY_INPUT"
+  },
+  "B2A3N": {
+   "label": "Operating surplus and mixed income, net",
+   "kind": "PRIMARY_INPUT"
+  },
+  "D29X39": {
+   "label": "Other taxes less other subsidies on production",
+   "kind": "PRIMARY_INPUT"
+  },
+  "P51G": {
+   "label": "Gross fixed capital formation",
+   "kind": "FINAL_DEMAND"
+  },
+  "P3": {
+   "label": "Final consumption expediture",
+   "kind": "FINAL_DEMAND"
+  },
+  "P6": {
+   "label": "Exports of goods and services",
+   "kind": "FINAL_DEMAND"
+  },
+  "P51C": {
+   "label": "Consumption of fixed capital",
+   "kind": "PRIMARY_INPUT"
+  },
+  "D21X31": {
+   "label": "Taxes less subsidies on products",
+   "kind": "PRIMARY_INPUT"
+  }
+ },
+ "commodities": {
+  "cement": {
+   "label": "Cement",
+   "sector": "C23"
+  },
+  "ready_mixed_concrete": {
+   "label": "Ready-mixed concrete",
+   "sector": "C23"
+  },
+  "concrete_blocks": {
+   "label": "Concrete blocks and roof tiles",
+   "sector": "C23"
+  },
+  "precast_concrete": {
+   "label": "Precast concrete elements",
+   "sector": "C23"
+  },
+  "clay_bricks": {
+   "label": "Clay bricks",
+   "sector": "C23"
+  },
+  "clay_roof_tiles": {
+   "label": "Clay roof tiles",
+   "sector": "C23"
+  },
+  "plasterboard": {
+   "label": "Plaster boards and panels",
+   "sector": "C23"
+  },
+  "lime": {
+   "label": "Lime",
+   "sector": "C23"
+  },
+  "insulating_glass": {
+   "label": "Insulating glass units",
+   "sector": "C23"
+  },
+  "bitumen_products": {
+   "label": "Bitumen roofing and sealing products",
+   "sector": "C23"
+  },
+  "sand": {
+   "label": "Natural sand",
+   "sector": "B"
+  },
+  "gravel": {
+   "label": "Gravel and crushed stone",
+   "sector": "B"
+  },
+  "sawn_softwood": {
+   "label": "Sawn softwood",
+   "sector": "C16"
+  },
+  "osb_panels": {
+   "label": "OSB panels",
+   "sector": "C16"
+  },
+  "wooden_windows_doors": {
+   "label": "Wooden windows and doors",
+   "sector": "C16"
+  },
+  "prefabricated_timber_buildings": {
+   "label": "Prefabricated timber buildings",
+   "sector": "C16"
+  },
+  "steel_bars": {
+   "label": "Hot-rolled steel bars (incl. rebar)",
+   "sector": "C24"
+  },
+  "steel_sections": {
+   "label": "Steel sections and beams",
+   "sector": "C24"
+  },
+  "steel": {
+   "label": "Steel",
+   "sector": "C24"
+  },
+  "aluminium": {
+   "label": "Aluminium",
+   "sector": "C24"
+  },
+  "metal_windows_doors": {
+   "label": "Metal doors and windows",
+   "sector": "C25"
+  },
+  "radiators": {
+   "label": "Central heating radiators",
+   "sector": "C25"
+  },
+  "heating_boilers": {
+   "label": "Central heating boilers",
+   "sector": "C25"
+  },
+  "plastic_windows_doors": {
+   "label": "Plastic doors and windows",
+   "sector": "C22"
+  },
+  "plastic_pipes": {
+   "label": "Plastic pipes",
+   "sector": "C22"
+  },
+  "foam_insulation_boards": {
+   "label": "Foam plastic boards (insulation)",
+   "sector": "C22"
+  },
+  "electric_cables": {
+   "label": "Electric cables up to 1000 V",
+   "sector": "C27"
+  },
+  "heat_pumps": {
+   "label": "Refrigeration equipment and heat pumps",
+   "sector": "C28"
+  },
+  "paints": {
+   "label": "Paints and varnishes",
+   "sector": "C20"
+  },
+  "diesel": {
+   "label": "Gas oil (diesel)",
+   "sector": "C19"
+  },
+  "electricity": {
+   "label": "Electricity",
+   "sector": "D"
+  },
+  "natural_gas": {
+   "label": "Natural gas",
+   "sector": "D"
+  },
+  "hydrogen": {
+   "label": "Hydrogen",
+   "sector": "C20"
+  },
+  "fertilisers": {
+   "label": "Fertilisers",
+   "sector": "C20"
+  }
+ }
+}

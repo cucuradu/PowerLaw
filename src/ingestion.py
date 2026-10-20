@@ -9,6 +9,8 @@ import socket
 import time
 import uuid
 import re
+import zipfile
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from itertools import islice
 from datetime import datetime, timedelta, timezone
@@ -438,7 +440,8 @@ def run_ingestion(source_id: str, *, limit: int, since: str | None = None, until
                 budget_token = set_ingestion_budget_context(ledger, auth_run_id, float(getattr(settings, "extraction_budget_usd", 0.0)), input_price_usd_per_1k=getattr(settings, "extraction_input_price_usd_per_1k", None), output_price_usd_per_1k=getattr(settings, "extraction_output_price_usd_per_1k", None), embedding_price_usd_per_1k=getattr(settings, "extraction_embedding_price_usd_per_1k", None), total_budget_usd=getattr(settings, "extraction_total_budget_usd", None))
                 try:
                     parser_item = item
-                    if source_id in ("EURLEX_CELLAR", "BUNDESBANK_RTD"):
+                    if source_id in ("EURLEX_CELLAR", "BUNDESBANK_RTD", "EUROSTAT_NAIO", "DESTATIS_GENESIS", "EUROSTAT_STS",
+                                     "ECB_SDMX", "BUNDESBANK_SDMX", "GESETZE_IM_INTERNET"):
                         parser_item = dict(item, _store=canonical_store)
                     elif source_id == "OFFICIAL_NEWS":
                         committed_batches = {key for key, value in canonical_store._canonical_batches.items() if value.status == "committed"}
@@ -926,6 +929,43 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
         count += 1
 
 
+def _series_links(series_ids: list[str], document: SourceDocument, store: Optional[DualLayerStore]):
+    """MEASURES (series -> sector/commodity) and BELONGS_TO (commodity -> sector) from config/series_names.json."""
+    from pathlib import Path
+    from src.utils.taxonomy import commodity_entity, sector_config, sector_entity
+    catalog = json.loads((Path(__file__).resolve().parents[1] / "config" / "series_names.json").read_text(encoding="utf-8"))["series"]
+    common = {"available_at": document.available_at, "source_id": document.source_id, "claim_kind": "catalog_mapping",
+              "batch_id": document.batch_id, "data_origin": document.data_origin}
+    entity = {"batch_id": document.batch_id, "data_origin": document.data_origin}
+    facts: dict[str, tuple[Fact, str]] = {}
+    entities = {}
+    for series_id in series_ids:
+        target = (catalog.get(series_id) or {}).get("measures")
+        if not target:
+            continue
+        if "commodity" in target:
+            commodity = commodity_entity(target["commodity"], **entity)
+            sector = sector_entity(sector_config()["commodities"][target["commodity"]]["sector"], **entity)
+            entities.update({commodity.entity_id: commodity, sector.entity_id: sector})
+            member = Fact(subject_id=commodity.entity_id, predicate="BELONGS_TO", object_id=sector.entity_id,
+                          payload_json=json.dumps({"basis": "product classification (CPA 2.1 / GP2019)"}), **common)
+            facts.setdefault(member.fact_version_id, (member, series_id))
+            measured = commodity.entity_id
+        else:
+            sector = sector_entity(target["sector"], **entity)
+            entities[sector.entity_id] = sector
+            measured = sector.entity_id
+        link = Fact(subject_id=series_id, predicate="MEASURES", object_id=measured,
+                    payload_json=json.dumps({"metric": target.get("metric", "level"), "subject_type": "ECONOMIC_INDEX"}), **common)
+        facts.setdefault(link.fact_version_id, (link, series_id))
+    kept = _new_facts_only(store, [fact for fact, _ in facts.values()])
+    evidence = [EvidenceLink(assertion_version_id=fact.fact_version_id, assertion_kind="FACT", document_version_id=document.version_id,
+                             selector_type="SDMX_DIMENSION", selector_json=json.dumps({"series_id": facts[fact.fact_version_id][1]}),
+                             support_type="DIRECT", available_at=document.available_at, batch_id=document.batch_id)
+                for fact in kept]
+    return kept, list(entities.values()), evidence
+
+
 def _make_stats_parser(source_id: str) -> Parser:
     def _parser(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
         from src.scrapers.statistics import normalize_series_response
@@ -1048,15 +1088,17 @@ def _make_stats_parser(source_id: str) -> Parser:
                     available_at=document.available_at,
                     batch_id=document.batch_id,
                 )
+        link_facts, link_entities, link_evidence = _series_links(list(series_defs), document, item.get("_store"))
+        evidence.extend(link_evidence)
         accepted = len([o for o in observations if o.quality_state == "accepted"])
         review = len([o for o in observations if o.quality_state == "needs_review"])
         status = "accepted" if accepted > 0 else ("needs_review" if review > 0 else "out_of_scope")
         return {
             "status": status,
-            "facts": [],
+            "facts": link_facts,
             "observations": observations,
             "evidence_links": evidence,
-            "entities": [],
+            "entities": link_entities,
             "series": list(series_defs.values()),
             "accepted_count": accepted,
             "review_count": review,
@@ -1067,6 +1109,167 @@ def _make_stats_parser(source_id: str) -> Parser:
 
 for s_id in ["DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "BUNDESBANK_SDMX", "SMARD_DE"]:
     register_source(s_id, _stats_discover, _make_stats_parser(s_id))
+
+
+def _new_facts_only(store: Optional[DualLayerStore], facts: list[Fact]) -> list[Fact]:
+    """Drop facts already committed with the same content; a refetch must not mint new versions."""
+    if store is None:
+        return facts
+    from src.schemas.ingestion import _canonical_json
+    committed = {key for key, batch in store._canonical_batches.items() if batch.status == "committed"}
+    latest: dict[str, Fact] = {}
+    for fact in store._canonical_facts.values():
+        if fact.batch_id in committed and (fact.fact_id not in latest or fact.recorded_at > latest[fact.fact_id].recorded_at):
+            latest[fact.fact_id] = fact
+    kept = []
+    for fact in facts:
+        prev = latest.get(fact.fact_id)
+        if prev is None:
+            kept.append(fact)
+        elif prev.is_retracted or _canonical_json(prev.payload_json or "{}") != _canonical_json(fact.payload_json or "{}"):
+            kept.append(fact.model_copy(update={"supersedes_version_id": prev.fact_version_id}))
+    return kept
+
+
+# =====================================================================
+# Eurostat input-output table: what construction buys from each product group, and who buys construction
+# =====================================================================
+def _jsonstat_cells(data: dict) -> list[tuple[dict[str, str], float]]:
+    ids, sizes = data["id"], data["size"]
+    codes = {dim: {pos: code for code, pos in data["dimension"][dim]["category"]["index"].items()} for dim in ids}
+    strides = [1] * len(ids)
+    for i in range(len(ids) - 2, -1, -1):
+        strides[i] = strides[i + 1] * sizes[i + 1]
+    return [({dim: codes[dim][(int(pos) // strides[i]) % sizes[i]] for i, dim in enumerate(ids)}, float(value))
+            for pos, value in data.get("value", {}).items() if value is not None]
+
+
+def _naio_discover(source_id: str, since: Optional[str], until: Optional[str], limit: int) -> Iterable[SourceItem]:
+    # Annual tables are small, so every request covers all published years and ignores the window.
+    registry = load_data_sources_registry()["sources"][source_id]
+    base = registry["endpoints"]["api_v2"].rstrip("/")
+    for name, table in islice(registry["tables"].items(), limit):
+        query = urlencode(table["dimensions"], doseq=True)
+        yield {"item_id": f"{source_id}_{name}", "upstream_id": table["dataset"], "table": name,
+               "url": f"{base}/{table['dataset']}?format=JSON&lang=EN&{query}",
+               "canonical_url": f"{base}/{table['dataset']}?{query}",
+               "publisher": registry.get("attribution", source_id), "content_type": "application/json"}
+
+
+def _naio_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
+    from src.utils.taxonomy import sector_config, sector_entity
+    table = load_data_sources_registry()["sources"][document.source_id]["tables"][item["table"]]
+    data = json.loads(content)
+    labels = {dim: data["dimension"][dim]["category"]["label"] for dim in data["id"]}
+    cells = {(c["stk_flow"], c["prd_ava"], c["prd_use"], c["time"]): v for c, v in _jsonstat_cells(data)}
+    if not cells:
+        raise FetchError("input-output response has no values")
+    construction = table["sector"]
+    inputs = table["role"] == "inputs"
+    other_dim = "prd_ava" if inputs else "prd_use"
+    known = sector_config()["sectors"]
+    total_code = "P1" if inputs else "TU"  # inputs as a share of output (cost shares), uses as a share of total use
+    pairs: list[tuple[Fact, dict]] = []
+    entities = {construction: sector_entity(construction, batch_id=document.batch_id, data_origin=document.data_origin)}
+    for (flow, ava, use, year), value in sorted(cells.items()):
+        other = ava if inputs else use
+        code = other.removeprefix("CPA_")
+        # Subcontracting (construction buying construction) is kept once, on the inputs side.
+        if flow != "TOTAL" or value <= 0 or code not in known or (code == construction and not inputs):
+            continue
+        key = (ava, use, year)
+        total = cells.get(("TOTAL", *((total_code, use) if inputs else (ava, total_code)), year))
+        imported = cells.get(("IMP", *key))
+        payload = {"episode": int(year), "dataset": item["upstream_id"], "value_mio_eur": value,
+                   "share": round(value / total, 5) if total else None, "share_of": total_code,
+                   "flow": "input" if inputs else "use", "subject_type": "SECTOR", "object_type": "SECTOR"}
+        if imported is not None:
+            payload.update(imported_mio_eur=imported, import_share=round(imported / value, 5))
+        entities.setdefault(code, sector_entity(code, batch_id=document.batch_id, data_origin=document.data_origin))
+        subject, obj = (f"sec_{code}", f"sec_{construction}") if inputs else (f"sec_{construction}", f"sec_{code}")
+        fact = Fact(subject_id=subject, predicate="FLOWS_TO", object_id=obj, payload_json=json.dumps(payload, sort_keys=True),
+                    valid_from=datetime(int(year), 1, 1, tzinfo=timezone.utc), valid_to=datetime(int(year) + 1, 1, 1, tzinfo=timezone.utc),
+                    available_at=document.available_at, source_id=document.source_id, claim_kind="source_claim",
+                    batch_id=document.batch_id, data_origin=document.data_origin)
+        quote = f"{labels['prd_ava'].get(ava, ava)} -> {labels['prd_use'].get(use, use)}, {year}: {value:g} million EUR"
+        pairs.append((fact, {"dataset": item["upstream_id"], "stk_flow": flow, "prd_ava": ava, "prd_use": use, "time": year, "quote": quote}))
+    facts = _new_facts_only(item.get("_store"), [fact for fact, _ in pairs])
+    selectors = {fact.fact_id: selector for fact, selector in pairs}
+    evidence = [EvidenceLink(assertion_version_id=fact.fact_version_id, assertion_kind="FACT", document_version_id=document.version_id,
+                             selector_type="TABLE_CELL", selector_json=json.dumps({k: v for k, v in selectors[fact.fact_id].items() if k != "quote"}),
+                             quoted_text=selectors[fact.fact_id]["quote"], support_type="DIRECT", available_at=document.available_at,
+                             batch_id=document.batch_id) for fact in facts]
+    return {"status": "accepted", "facts": facts, "observations": [], "evidence_links": evidence,
+            "entities": list(entities.values()), "series": [], "accepted_count": len(facts), "review_count": 0, "rejected_count": 0}
+
+
+register_source("EUROSTAT_NAIO", _naio_discover, _naio_parse)
+
+
+# =====================================================================
+# German federal laws: configured links, each verified against a quote in the official text
+# =====================================================================
+def _gii_discover(source_id: str, since: Optional[str], until: Optional[str], limit: int) -> Iterable[SourceItem]:
+    # Only the current consolidated text is published, so the window does not apply.
+    registry = load_data_sources_registry()["sources"][source_id]
+    base = registry["endpoints"]["law_xml"].rstrip("/")
+    for key, law in islice(registry["laws"].items(), limit):
+        url = f"{base}/{law['path']}/xml.zip"
+        yield {"item_id": f"{source_id}_{key}", "upstream_id": key, "url": url, "canonical_url": url,
+               "publisher": registry.get("attribution", source_id), "content_type": "application/zip"}
+
+
+def _gii_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
+    from src.scrapers.german_laws import implemented_eu_acts, parse_gii_xml
+    from src.utils.taxonomy import commodity_entity, sector_entity
+    config = load_data_sources_registry()["sources"][document.source_id]["laws"][item["upstream_id"]]
+    try:
+        law = parse_gii_xml(content)
+    except (ET.ParseError, ValueError, KeyError, zipfile.BadZipFile) as exc:
+        raise FetchError(f"law XML could not be parsed: {_safe_error(exc)}") from exc
+    store = item.get("_store")
+    known = getattr(store, "_canonical_entities", {})
+    origin = {"batch_id": document.batch_id, "data_origin": document.data_origin}
+    law_id = f"law_de_{config['path']}"
+    entities = {law_id: Entity(entity_id=law_id, entity_type="LAW", entity_subtype="DE_FEDERAL_LAW", canonical_label=config["name"],
+                               jurisdiction="DE", metadata_json=json.dumps({"abbreviation": item["upstream_id"]}), **origin),
+                "geo_DE": known.get("geo_DE") or Entity(entity_id="geo_DE", entity_type="GEOGRAPHY", canonical_label="DE", jurisdiction="DE", **origin)}
+    entities["geo_DE"] = entities["geo_DE"].model_copy(update=origin)
+    signed = datetime.fromisoformat(law["signed"]).replace(tzinfo=timezone.utc) if law["signed"] else None
+    common = {"available_at": document.available_at, "source_id": document.source_id, "event_at": signed, **origin}
+    norms = {n["norm"]: n for n in law["norms"]}
+    pairs: list[tuple[Fact, dict]] = []
+    for link in config["links"]:
+        norm = next((n for label, n in norms.items() if label == link["norm"] or label.startswith((link["norm"] + " ", link["norm"] + "("))), None)
+        found = norm is not None and link["quote"] in norm["text"]
+        target = (commodity_entity(link["commodity"], **origin) if "commodity" in link else sector_entity(link["sector"], **origin))
+        entities[target.entity_id] = target
+        payload = {"norm": link["norm"], "status": law["status"], **({"basis": link["basis"]} if "basis" in link else {})}
+        fact = Fact(subject_id=law_id, predicate="REGULATES", object_id=target.entity_id, payload_json=json.dumps(payload, sort_keys=True),
+                    quality_state="accepted" if found else "needs_review", **common)
+        pairs.append((fact, {"selector": {"norm": link["norm"], "doknr": law["doknr"]}, "quote": link["quote"], "found": found}))
+    pairs.append((Fact(subject_id=law_id, predicate="APPLIES_IN", object_id="geo_DE", **common),
+                  {"selector": {"doknr": law["doknr"]}, "quote": law["title"][:500], "found": True}))
+    preamble = " ".join(n["text"] for n in law["norms"][:2])
+    for celex in implemented_eu_acts(preamble):
+        eu_id = f"law_{celex}"
+        entities[eu_id] = (known.get(eu_id) or Entity(entity_id=eu_id, entity_type="LAW", canonical_label=f"EU Law {celex}", **origin)).model_copy(update=origin)
+        pairs.append((Fact(subject_id=law_id, predicate="IMPLEMENTS", object_id=eu_id, payload_json=json.dumps({"celex": celex}), **common),
+                      {"selector": {"norm": "preamble", "doknr": law["doknr"]}, "quote": preamble[:500], "found": True}))
+    facts = _new_facts_only(store, [fact for fact, _ in pairs])
+    support = {fact.fact_version_id: meta for fact, meta in pairs}
+    evidence = [EvidenceLink(assertion_version_id=f.fact_version_id, assertion_kind="FACT", document_version_id=document.version_id,
+                             selector_type="ARTICLE_PARAGRAPH", selector_json=json.dumps(support[f.fact_version_id]["selector"]),
+                             quoted_text=support[f.fact_version_id]["quote"],
+                             support_type="DIRECT" if support[f.fact_version_id]["found"] else "UNVERIFIED",
+                             available_at=document.available_at, batch_id=document.batch_id) for f in facts]
+    accepted = sum(f.quality_state == "accepted" for f in facts)
+    return {"status": "accepted" if accepted else "needs_review", "facts": facts, "observations": [], "evidence_links": evidence,
+            "entities": list(entities.values()), "series": [], "accepted_count": accepted,
+            "review_count": len(facts) - accepted, "rejected_count": 0}
+
+
+register_source("GESETZE_IM_INTERNET", _gii_discover, _gii_parse)
 
 
 # =====================================================================

@@ -21,6 +21,8 @@ from tqdm import tqdm
 # Add project root to path
 # sys.path.append(str(Path(__file__).parent.parent.parent)) # Removed for standalone repo
 
+from src.utils.taxonomy import commodity_entity, io_sector_code, sector_config, sector_entity
+
 from src.utils.api_wrapper import get_embedding, get_completion_with_json, upload_to_gemini, get_completion_multimodal
 from src.utils.minio_client import EvidenceArchive, upload_law_pdf
 import xml.etree.ElementTree as ET
@@ -36,6 +38,49 @@ from src.storage.dual_layer_store import DualLayerStore
 from src.ingestion import archive_document
 from src.prompts.rule_extraction import RULES_EXTRACTION_SYSTEM_PROMPT
 from src.prompts.rule_validation import RULE_REVIEW_PROMPT, validate_rule_python
+
+
+def _valid_rules(response: str, law_id: str) -> GNNRuleList:
+    """Keep schema-valid rules; one malformed rule must not discard the rest of a law."""
+    try:
+        raw = json.loads(response)
+    except json.JSONDecodeError:
+        raw = json.loads(repair_json(response))
+    rules, dropped = [], 0
+    for item in raw.get("rules", []) if isinstance(raw, dict) else []:
+        try:
+            rules.append(GNNRule.model_validate(item))
+        except ValueError:  # pydantic ValidationError is a ValueError
+            dropped += 1
+    if dropped and not rules:
+        raise ValueError(f"Gemini returned {dropped} rules for {law_id} and none is schema-valid")
+    if dropped:
+        log(f"⚠️ Dropped {dropped} schema-invalid rules for {law_id}")
+    return GNNRuleList(rules=rules)
+
+
+def _graph_vocabulary() -> str:
+    """Codes and names of the graph's sector and commodity nodes, so extracted rules attach to them."""
+    config = sector_config()
+    sectors = "; ".join(f"{code} = {info['label']}" for code, info in config["sectors"].items() if not info.get("kind"))
+    commodities = ", ".join(name.upper() for name in config["commodities"])
+    return ("# GRAPH VOCABULARY\nWhen a rule concerns one of these product groups, use its code in industrial_sectors "
+            f"(construction is F): {sectors}.\nWhen a rule concerns one of these goods, use this name in affected_commodities: "
+            f"{commodities}. Other goods keep their exact UPPERCASE name.\nAllowed action_type/operator pairs: "
+            "CONSTRAINT with MAX_LIMIT, MIN_LIMIT, SET_VALUE or EQUAL; MANDATE or PROCEDURAL with REQUIRES or APPLIES; "
+            "PROHIBITION with PROHIBITS or MAX_LIMIT; ADJUSTMENT with ADD_ABSOLUTE, ADD_PERCENTAGE or SUB_ABSOLUTE; "
+            "FIXING with SET_VALUE or EQUAL.")
+
+
+# Words that ground a sector code claimed for a provision (English EUR-Lex text).
+SECTOR_WORDS = {
+    "F": ["construction", "building", "dwelling", "renovation"], "C23": ["cement", "concrete", "mineral", "glass", "brick", "lime"],
+    "C24": ["steel", "iron", "aluminium", "metal"], "C25": ["metal", "steel"], "C16": ["wood", "timber"],
+    "C22": ["plastic", "insulation"], "C20": ["chemical", "hydrogen", "fertiliser", "paint"], "C19": ["fuel", "oil", "petroleum"],
+    "D": ["electricity", "power", "energy", "gas", "heat"], "B": ["quarr", "mining", "aggregate", "sand"],
+    "C27": ["electrical", "cable"], "C28": ["heat pump", "boiler", "machinery"], "L68B": ["real estate", "rent"],
+    "K64": ["financ", "credit", "loan", "mortgage"],
+}
 
 # Date Conversion Helper
 import datetime
@@ -669,6 +714,14 @@ class LawIngestionPipeline:
             return rules + fallback_rules
         return rules
 
+    def _law_entity(self, celex: str, document: SourceDocument, label: str) -> Entity:
+        """Law entities are immutable: reuse the stored one (e.g. created earlier as an amendment target)."""
+        stored = getattr(self.store, "_canonical_entities", {}).get(f"law_{celex}")
+        if stored is not None:
+            return stored.model_copy(update={"batch_id": document.batch_id})
+        return Entity(entity_id=f"law_{celex}", entity_type="LAW", canonical_label=label, jurisdiction="EU",
+                      batch_id=document.batch_id, data_origin=document.data_origin)
+
     def process_document(self, document: SourceDocument, content: bytes) -> List[Fact]:
         """
         Canonical Task 5 legal ingestion interface.
@@ -724,14 +777,7 @@ class LawIngestionPipeline:
         evidence_links: List[EvidenceLink] = []
 
         law_entity_id = f"law_{celex_id}"
-        entities.append(Entity(
-            entity_id=law_entity_id,
-            entity_type="LAW",
-            canonical_label=document.upstream_id or f"EU Law {celex_id}",
-            jurisdiction="EU",
-            batch_id=document.batch_id,
-            data_origin=document.data_origin,
-        ))
+        entities.append(self._law_entity(celex_id, document, document.upstream_id or f"EU Law {celex_id}"))
 
         art_counts: Dict[str, int] = {}
         for rule in rules:
@@ -809,8 +855,7 @@ class LawIngestionPipeline:
                 for sec in rule.scope.industrial_sectors:
                     sec_u = sec.upper()
                     if sec_u not in prov_text:
-                        sec_names = {"C24": ["steel", "metal"], "C23": ["cement", "concrete", "mineral"], "D35": ["electricity", "power", "energy"]}
-                        if not any(name in pt_lower for name in sec_names.get(sec_u, [])):
+                        if not any(name in pt_lower for name in SECTOR_WORDS.get(io_sector_code(sec_u), [])):
                             unsupported_content = True
                 for comm in rule.scope.affected_commodities:
                     comm_l = comm.lower()
@@ -858,14 +903,9 @@ class LawIngestionPipeline:
 
             # 2. LEGAL_RULE -> REGULATES -> SECTOR
             for sector in rule.scope.industrial_sectors:
-                sec_id = f"sec_{sector.upper()}"
-                entities.append(Entity(
-                    entity_id=sec_id,
-                    entity_type="SECTOR",
-                    canonical_label=f"NACE {sector}",
-                    batch_id=document.batch_id,
-                    data_origin=document.data_origin,
-                ))
+                sector_node = sector_entity(sector, batch_id=document.batch_id, data_origin=document.data_origin)
+                sec_id = sector_node.entity_id
+                entities.append(sector_node)
                 f_reg = Fact(
                     subject_id=rule_id,
                     predicate="REGULATES",
@@ -894,14 +934,9 @@ class LawIngestionPipeline:
 
             # 3. LEGAL_RULE -> REGULATES -> COMMODITY
             for comm in rule.scope.affected_commodities:
-                comm_id = f"commodity_{comm.lower()}"
-                entities.append(Entity(
-                    entity_id=comm_id,
-                    entity_type="COMMODITY",
-                    canonical_label=comm,
-                    batch_id=document.batch_id,
-                    data_origin=document.data_origin,
-                ))
+                commodity = commodity_entity(comm, batch_id=document.batch_id, data_origin=document.data_origin)
+                comm_id = commodity.entity_id
+                entities.append(commodity)
                 f_comm = Fact(
                     subject_id=rule_id,
                     predicate="REGULATES",
@@ -934,7 +969,8 @@ class LawIngestionPipeline:
                 entities.append(Entity(
                     entity_id=geo_id,
                     entity_type="GEOGRAPHY",
-                    canonical_label=reg,
+                    canonical_label=reg.upper(),
+                    jurisdiction=reg.upper(),
                     batch_id=document.batch_id,
                     data_origin=document.data_origin,
                 ))
@@ -969,14 +1005,7 @@ class LawIngestionPipeline:
             if amends_match:
                 amended_celex = amends_match.group(1)
                 amended_law_id = f"law_{amended_celex}"
-                entities.append(Entity(
-                    entity_id=amended_law_id,
-                    entity_type="LAW",
-                    canonical_label=f"EU Law {amended_celex}",
-                    jurisdiction="EU",
-                    batch_id=document.batch_id,
-                    data_origin=document.data_origin,
-                ))
+                entities.append(self._law_entity(amended_celex, document, f"EU Law {amended_celex}"))
                 f_amend = Fact(
                     subject_id=law_entity_id,
                     predicate="AMENDS",
@@ -1088,7 +1117,8 @@ class LawIngestionPipeline:
                     ))
                     seen_entity_ids.add(ep_id)
 
-        self.last_evidence_links = evidence_links
+        kept = {f.fact_version_id for f in facts}  # rejected facts were dropped above; drop their evidence too
+        self.last_evidence_links = [link for link in evidence_links if link.assertion_version_id in kept]
         self.last_entities = deduped_entities
         return facts
 
@@ -1146,55 +1176,58 @@ class LawIngestionPipeline:
 
     def extract_rules_from_full_text(self, full_text: str, law_id: str) -> List[GNNRule]:
         """
-        Two-Stage Extraction Pipeline:
-        1. FLASH: Fast extraction of draft rules (cheap, ~$0.002)
-        2. PRO: Review and fix logical errors in JSON (smart, ~$0.003)
-        3. PYTHON: Deterministic fixes (free)
-
-        Total cost: ~$0.005 per law (vs $0.04 for Pro-only = 87% savings)
+        Per article-aligned segment (<= 15k characters): a draft extraction, then a deeper-thinking review of that
+        draft against the same segment; deterministic fixes follow. Every call is budget-reserved by the API wrapper.
         """
-        # Context Limit Check (bounded chunks, default 250k chars)
-        segment_size = 250000
-        segments = [full_text[i:i + segment_size] for i in range(0, len(full_text), segment_size)] or [full_text]
-        draft_rules = GNNRuleList(rules=[])
-        for segment in segments:
-            extraction_prompt = f"{RULES_EXTRACTION_SYSTEM_PROMPT}\n\n# SOURCE TEXT (ID: {law_id})\n'''{segment}'''\n\nEXTRACT ALL RELEVANT ECONOMIC RULES FROM THIS SEGMENT:"
-            draft_response = get_completion_with_json(prompt=extraction_prompt, use_pro=False, response_schema=GNNRuleList)
+        # Article-aligned segments keep each answer well under the output cap and each review grounded in its own text.
+        segment_size = 15000
+        segments, current = [], ""
+        blocks = (b[i:i + segment_size] for b in full_text.split("\n\n") for i in range(0, max(len(b), 1), segment_size))
+        for block in blocks:
+            if current and len(current) + len(block) > segment_size:
+                segments.append(current)
+                current = ""
+            current = f"{current}\n\n{block}" if current else block
+        segments = [s for s in segments + [current] if s.strip()]
+        rules_to_process = []
+        from src.utils.api_wrapper import LLM_FLASH_MODEL
+        # Paid segment results are cached next to the store, so a law interrupted by the per-run budget resumes
+        # instead of paying twice (and test stores never share answers with the pilot store).
+        storage_dir = getattr(self.store, "storage_dir", None) or get_configured_db_path()
+        cache = Path(storage_dir).parent / "cache" / "rule_extraction"
+        while segments:
+            segment = segments.pop(0)
+            extraction_prompt = (f"{RULES_EXTRACTION_SYSTEM_PROMPT}\n\n{_graph_vocabulary()}\n\n# SOURCE TEXT (ID: {law_id})\n"
+                                 f"'''{segment}'''\n\nEXTRACT ALL RELEVANT ECONOMIC RULES FROM THIS SEGMENT:")
+            cached = cache / f"{hashlib.sha256((LLM_FLASH_MODEL + extraction_prompt).encode()).hexdigest()}.json"
+            if cached.exists():
+                rules_to_process.extend(_valid_rules(cached.read_text(encoding="utf-8"), law_id).rules)
+                continue
             try:
-                parsed_draft = GNNRuleList.model_validate_json(draft_response)
-            except Exception:
-                parsed_draft = GNNRuleList.model_validate(json.loads(repair_json(draft_response)))
-            draft_rules.rules.extend(parsed_draft.rules)
-
-        # If no rules found, skip Pro review
-        if not draft_rules.rules:
-            log(f"ℹ️ Flash found 0 rules for {law_id}, skipping Pro review")
+                draft_response = get_completion_with_json(prompt=extraction_prompt, use_pro=False, response_schema=GNNRuleList,
+                                                          max_output_tokens=16384)
+                draft = _valid_rules(draft_response, law_id)
+                cache.mkdir(parents=True, exist_ok=True)
+                if not draft.rules:
+                    cached.write_text(draft.model_dump_json(), encoding="utf-8")
+                    continue
+                log(f"📝 Flash draft: {len(draft.rules)} rules for {law_id}")
+                review_prompt = RULE_REVIEW_PROMPT.format(source_text=segment, rules_json=draft.model_dump_json(indent=2))
+                reviewed_response = get_completion_with_json(prompt=review_prompt, use_pro=True, response_schema=GNNRuleList,
+                                                             max_output_tokens=16384)
+            except ValueError as exc:
+                if "truncated" not in str(exc) or len(segment) < 3000:
+                    raise
+                half = segment.rfind("\n", 0, len(segment) // 2) + 1 or len(segment) // 2
+                segments[:0] = [segment[:half], segment[half:]]
+                log(f"✂️ Answer truncated; splitting a {len(segment)}-character segment of {law_id}")
+                continue
+            reviewed = _valid_rules(reviewed_response, law_id)
+            cached.write_text(reviewed.model_dump_json(), encoding="utf-8")
+            log(f"✅ Reviewed: {len(reviewed.rules)} rules for {law_id}")
+            rules_to_process.extend(reviewed.rules)
+        if not rules_to_process:
             return []
-
-        log(f"📝 Flash draft: {len(draft_rules.rules)} rules for {law_id}")
-
-        # ============ STEP 2: PRO REVIEW ============
-        review_prompt = RULE_REVIEW_PROMPT.format(
-            source_text=full_text,
-            rules_json=draft_rules.model_dump_json(indent=2)
-        )
-
-        reviewed_response = get_completion_with_json(
-            prompt=review_prompt,
-            use_pro=True,  # PRO for reasoning
-            response_schema=GNNRuleList
-        )
-
-        # Parse reviewed rules
-        try:
-            reviewed_rules = GNNRuleList.model_validate_json(reviewed_response)
-        except Exception:
-            parsed = json.loads(repair_json(reviewed_response))
-            reviewed_rules = GNNRuleList.model_validate(parsed)
-
-        log(f"✅ Pro reviewed: {len(reviewed_rules.rules)} rules for {law_id}")
-        rules_to_process = reviewed_rules.rules
-
 
         # ============ STEP 3: PYTHON POST-PROCESSING ============
         final_rules = []
