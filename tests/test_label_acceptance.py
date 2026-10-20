@@ -82,5 +82,7 @@ def test_future_label_cannot_supply_a_lag_predictor():
             "target_period_start": f"{year}-{quarter*3-2:02d}-01", "y": np.array([[value]]),
             "y_mask": np.array([[True]]), "first_release_available_at": utc(2025)})
     result = evaluate_baselines({"samples": list(reversed(samples))})
-    assert result["baselines"]["autoregressive_lag1"]["mae"] == 30
-    assert result["baselines"]["seasonal_lag4"]["mae"] == 30
+    # Every lagged label is released after all origins: no lag forecast exists (none is invented as 0).
+    assert result["baselines"]["autoregressive_lag1"]["sample_count"] == 0
+    assert result["baselines"]["autoregressive_lag1"]["mae"] is None
+    assert result["baselines"]["seasonal_lag4"]["sample_count"] == 0

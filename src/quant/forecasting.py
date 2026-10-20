@@ -13,12 +13,22 @@ from typing import Dict, List, Optional, Tuple, Any, Union
 import numpy as np
 
 
+def _metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, Any]:
+    if len(y_true) == 0:
+        return {"mae": None, "rmse": None, "directional_accuracy": None, "sample_count": 0}
+    err = y_true - y_pred
+    # Sign agreement; an exact zero only matches an exact zero.
+    return {"mae": round(float(np.mean(np.abs(err))), 4), "rmse": round(float(np.sqrt(np.mean(err ** 2))), 4),
+            "directional_accuracy": round(float(np.mean(np.sign(y_true) == np.sign(y_pred))), 4),
+            "sample_count": int(len(y_true))}
+
+
 def evaluate_baselines(dataset: Dict[str, Any]) -> Dict[str, Any]:
+    """No-change, seasonal and lag-1 baselines on a forecast dataset.
+
+    A lag baseline only predicts when its lagged label was released by the origin; otherwise the
+    sample is skipped for that baseline (it never silently falls back to the no-change forecast).
     """
-    Evaluates no-change, seasonal, and small tabular baselines on a forecast dataset.
-    Returns metrics (MAE, RMSE, Directional Accuracy, sample counts).
-    """
-    samples = dataset.get("samples", [])
     from datetime import datetime, timezone
 
     def instant(value):
@@ -27,68 +37,148 @@ def evaluate_baselines(dataset: Dict[str, Any]) -> Dict[str, Any]:
         value = datetime.fromisoformat(value.replace("Z", "+00:00")) if isinstance(value, str) else value
         return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
-    valid_samples = sorted([s for s in samples if s.get("y_mask") is not None and s["y_mask"][0, 0]],
-                           key=lambda s: instant(s.get("origin")) or datetime.min.replace(tzinfo=timezone.utc))
+    samples = dataset.get("samples", [])
+    valid = sorted([s for s in samples if s.get("y_mask") is not None and s["y_mask"][0, 0]],
+                   key=lambda s: instant(s.get("origin")) or datetime.min.replace(tzinfo=timezone.utc))
+    if not valid:
+        return {"status": "no_valid_labels", "sample_count": len(samples), "valid_count": 0, "baselines": {}}
 
-    if not valid_samples:
-        return {
-            "status": "no_valid_labels",
-            "sample_count": len(samples),
-            "valid_count": 0,
-            "baselines": {}
-        }
-
-    actuals = np.array([float(s["y"][0, 0]) for s in valid_samples], dtype=np.float64)
-    N = len(actuals)
-
-    # 1. No-Change Baseline: predicts 0.0% next-quarter percentage growth
-    preds_no_change = np.zeros(N, dtype=np.float64)
-
-    # 2. Seasonal Baseline: predicts growth from 4 quarters ago if available
-    preds_seasonal = np.zeros(N, dtype=np.float64)
-    # Each lag is a matching calendar quarter whose outcome was actually released at origin.
-    preds_lag1 = np.zeros(N, dtype=np.float64)
-    for i, sample in enumerate(valid_samples):
-        origin = instant(sample.get("origin"))
-        target = sample.get("target_period_start")
-        if origin is None or not target:
-            continue
-        quarter = int(target[:4]) * 4 + (int(target[5:7]) - 1) // 3
-        for lag, predictions in ((1, preds_lag1), (4, preds_seasonal)):
-            for previous in valid_samples[:i]:
-                period = previous.get("target_period_start")
+    actual = np.array([float(s["y"][0, 0]) for s in valid])
+    lagged = {1: [], 4: []}
+    for i, sample in enumerate(valid):
+        origin, target = instant(sample.get("origin")), sample.get("target_period_start")
+        for lag in lagged:
+            value = None
+            for previous in valid[:i]:
                 released = instant(previous.get("first_release_available_at"))
-                if (not period or released is None or released > origin
-                        or previous.get("target_series_id") != sample.get("target_series_id")):
-                    continue
-                previous_quarter = int(period[:4]) * 4 + (int(period[5:7]) - 1) // 3
-                if quarter - previous_quarter == lag:
-                    predictions[i] = float(previous["y"][0, 0])
+                if (origin is not None and target and previous.get("target_period_start") and released is not None
+                        and released <= origin and previous.get("target_series_id") == sample.get("target_series_id")
+                        and _quarter_index(target) - _quarter_index(previous["target_period_start"]) == lag):
+                    value = float(previous["y"][0, 0])
+            lagged[lag].append(value)
 
-    def _calc_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, Any]:
-        err = y_true - y_pred
-        mae = float(np.mean(np.abs(err)))
-        rmse = float(np.sqrt(np.mean(err ** 2)))
-        # Directional accuracy: sign match (zero counts as matching positive or non-negative)
-        correct_dir = np.sum(np.sign(y_true) == np.sign(y_pred))
-        dir_acc = float(correct_dir / len(y_true))
-        return {
-            "mae": round(mae, 4),
-            "rmse": round(rmse, 4),
-            "directional_accuracy": round(dir_acc, 4),
-            "sample_count": len(y_true),
-        }
+    def scored(predictions):
+        keep = [i for i, p in enumerate(predictions) if p is not None]
+        return _metrics(actual[keep], np.array([predictions[i] for i in keep], dtype=np.float64))
 
-    return {
-        "status": "success",
-        "sample_count": len(samples),
-        "valid_count": N,
-        "baselines": {
-            "no_change": _calc_metrics(actuals, preds_no_change),
-            "seasonal_lag4": _calc_metrics(actuals, preds_seasonal),
-            "autoregressive_lag1": _calc_metrics(actuals, preds_lag1),
+    return {"status": "success", "sample_count": len(samples), "valid_count": len(valid), "baselines": {
+        "no_change": _metrics(actual, np.zeros(len(actual))),
+        "seasonal_lag4": scored(lagged[4]),
+        "autoregressive_lag1": scored(lagged[1]),
+    }}
+
+
+def _quarter_index(period_start: str) -> int:
+    return int(period_start[:4]) * 4 + (int(period_start[5:7]) - 1) // 3
+
+
+def _quarter_start(index: int) -> str:
+    year, quarter = divmod(index, 4)
+    return f"{year:04d}-{3 * quarter + 1:02d}-01"
+
+
+def _ar_forecast(growth: Dict[int, float], last: int, target: int, fit_from: int, order: int) -> Optional[float]:
+    """OLS AR(order) with intercept on the contiguous growth history ending at `last`, iterated to `target`."""
+    history = []
+    q = last
+    while q in growth and q >= fit_from:
+        history.append(growth[q])
+        q -= 1
+    history = history[::-1]
+    if len(history) < order + 12:
+        return None
+    y = np.array(history[order:])
+    x = np.column_stack([np.ones(len(y))] + [np.array(history[order - k:len(history) - k]) for k in range(1, order + 1)])
+    coef, *_ = np.linalg.lstsq(x, y, rcond=None)
+    path = list(history[-order:])
+    for _ in range(target - last):
+        path.append(float(coef[0] + sum(coef[k] * path[-k] for k in range(1, order + 1))))
+    return path[-1]
+
+
+def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *, fit_start: str = "1991-01-01",
+                            alpha: float = 0.10, min_calibration: int = 20, ar_order: int = 4) -> Dict[str, Any]:
+    """Expanding-window backtest of next-quarter growth on release-dated quarterly levels.
+
+    `levels`: {period_start, value, available_at}. At each origin only levels released by then are used.
+    Label: growth of the quarter after the origin's quarter over the origin's quarter (both unknown at
+    the origin). Intervals: split-conformal on absolute residuals of earlier origins whose labels were
+    already released, once at least `min_calibration` exist. Model metrics use the common sample where
+    every model has a forecast, so they are comparable.
+    """
+    from datetime import datetime, timezone
+
+    def utc(value):
+        value = datetime.fromisoformat(value.replace("Z", "+00:00")) if isinstance(value, str) else value
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+    level = {}
+    for row in levels:
+        if row.get("value") is None:
+            continue
+        q, when = _quarter_index(row["period_start"]), utc(row["available_at"])
+        if q not in level or when < level[q][1]:
+            level[q] = (float(row["value"]), when)
+    fit_from = _quarter_index(fit_start)
+    names = ("no_change", "last_growth", "seasonal_naive", "mean_4q", "ar4")
+    rows: List[Dict[str, Any]] = []
+    for origin in sorted(utc(o) for o in origins):
+        denominator = origin.year * 4 + (origin.month - 1) // 3
+        target = denominator + 1
+        if target not in level or denominator not in level:
+            continue
+        visible = {q: v for q, (v, when) in level.items() if when <= origin}
+        if not visible:
+            continue
+        last = max(visible)
+        growth = {q: 100 * (visible[q] / visible[q - 1] - 1) for q in visible if q - 1 in visible}
+        recent = [growth.get(q) for q in range(last - 3, last + 1)]
+        forecasts = {
+            "no_change": 0.0,
+            "last_growth": growth.get(last),
+            "seasonal_naive": growth.get(target - 4),
+            "mean_4q": float(np.mean(recent)) if all(g is not None for g in recent) else None,
+            "ar4": _ar_forecast(growth, last, target, fit_from, ar_order),
         }
-    }
+        known = [r for r in rows if r["label_available_at"] <= origin]
+        widths = {}
+        for name in names:
+            residuals = [abs(r["actual"] - r["forecasts"][name]) for r in known if r["forecasts"][name] is not None]
+            widths[name] = (calibrate_residual_interval(residuals, alpha)["interval_half_width"]
+                            if len(residuals) >= min_calibration and forecasts[name] is not None else None)
+        rows.append({"origin": origin, "target_period_start": _quarter_start(target),
+                     "denominator_period_start": _quarter_start(denominator),
+                     "last_observed_period_start": _quarter_start(last),
+                     "actual": 100 * (level[target][0] / level[denominator][0] - 1),
+                     "label_available_at": max(level[target][1], level[denominator][1]),
+                     "last_growth": growth.get(last), "forecasts": forecasts,
+                     "calibration_count": len(known), "interval_half_width": widths})
+
+    common = [r for r in rows if all(r["forecasts"][n] is not None for n in names)]
+    models = {}
+    for name in names:
+        actual = np.array([r["actual"] for r in common])
+        predicted = np.array([r["forecasts"][name] for r in common])
+        err = actual - predicted
+        moved = [r for r in common if r["last_growth"] is not None and r["actual"] != r["last_growth"]]
+        models[name] = {
+            "n": len(common),
+            "mae": float(np.mean(np.abs(err))) if common else None,
+            "rmse": float(np.sqrt(np.mean(err ** 2))) if common else None,
+            # Did the forecast call the direction of change in growth (acceleration vs deceleration)?
+            "acceleration_hit_rate": float(np.mean([np.sign(r["forecasts"][name] - r["last_growth"])
+                                                    == np.sign(r["actual"] - r["last_growth"]) for r in moved]))
+                                     if moved else None,
+        }
+    intervals = {}
+    for name in names:
+        scored = [r for r in rows if r["interval_half_width"][name] is not None]
+        hits = [abs(r["actual"] - r["forecasts"][name]) <= r["interval_half_width"][name] for r in scored]
+        intervals[name] = {"n": len(scored), "nominal": 1 - alpha,
+                           "coverage": float(np.mean(hits)) if scored else None,
+                           "mean_half_width": float(np.mean([r["interval_half_width"][name] for r in scored])) if scored else None}
+    return {"predictions": rows, "models": models, "intervals": intervals,
+            "settings": {"fit_start": fit_start, "alpha": alpha, "min_calibration": min_calibration, "ar_order": ar_order}}
 
 
 def calibrate_residual_interval(
