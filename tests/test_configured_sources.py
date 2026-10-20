@@ -50,7 +50,7 @@ def test_only_verified_sources_and_requests_are_active():
     sources = load_data_sources_registry()["sources"]
     assert {key for key, value in sources.items() if value["enabled"]} == {
         "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
-        "BUNDESBANK_SDMX", "EURLEX_CELLAR"}
+        "BUNDESBANK_SDMX", "BUNDESBANK_RTD", "EURLEX_CELLAR"}
     assert list(sources["DESTATIS_GENESIS"]["series_keys"].values()) == [
         "61261-0002", "61261-0014", "44111-0009", "31111-0020", "62221-0002"]
     # 61241 answers "no data cube" for every request; suspended rather than failing every Destatis batch.

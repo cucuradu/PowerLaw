@@ -1730,6 +1730,35 @@ class DualLayerStore:
                 if batch.status == "committed" and
                 (mode == "public_as_of" or (batch.committed_at is not None and self._utc(batch.committed_at) <= cutoff))}
 
+    def _definition_available(self, definition, mode):
+        """Public availability of a series definition: no later than its earliest release-evidenced observation.
+
+        A measurement released on day T proves its definition was public on T. Only archived-release or
+        provider-vintage documents count, so fetch-dated data never moves a definition. System-as-of keeps
+        the registration time, i.e. when this system learned it.
+        """
+        registered = self._available(definition)
+        if mode != "public_as_of":
+            return registered
+        key = (self._generation, len(self._canonical_evidence))
+        if getattr(self, "_release_cache_key", None) != key:
+            self._ensure_observations_loaded()
+            committed = {k for k, b in self._canonical_batches.items() if b.status == "committed"}
+            earliest = {}
+            for link in self._canonical_evidence.values():
+                obs = self._canonical_observations.get(link.assertion_version_id)
+                doc = self._canonical_documents.get(link.document_version_id)
+                if (obs is None or doc is None or link.support_type != "DIRECT"
+                        or doc.availability_basis not in ("archived_release", "provider_vintage")
+                        or link.batch_id not in committed or doc.batch_id not in committed or obs.batch_id not in committed):
+                    continue
+                when = max(self._available(obs), self._available(link), self._available(doc))
+                if obs.series_id not in earliest or when < earliest[obs.series_id]:
+                    earliest[obs.series_id] = when
+            self._release_cache_key, self._release_earliest = key, earliest
+        released = self._release_earliest.get(definition.series_id)
+        return min(registered, released) if released is not None else registered
+
     def _available(self, record):
         if getattr(record, "available_at", None):
             return self._utc(record.available_at)
@@ -1852,7 +1881,7 @@ class DualLayerStore:
         eligible = self._eligible_batches(cutoff, mode)
         return [definition.model_copy(deep=True) for definition in self._canonical_series.values()
                 if (definition.batch_id is None or definition.batch_id in eligible)
-                and self._available(definition) <= cutoff
+                and self._definition_available(definition, mode) <= cutoff
                 and (mode == "public_as_of" or (self._utc(definition.recorded_at) if "recorded_at" in getattr(definition, "model_fields_set", set()) else self._available(definition)) <= cutoff)]
 
     def query_observation_revisions(self, cutoff: datetime, mode: str = "public_as_of") -> List[Observation]:
@@ -1912,7 +1941,7 @@ class DualLayerStore:
                 continue
             if s_def is not None and (
                 (s_def.batch_id is not None and s_def.batch_id not in eligible)
-                or self._available(s_def) > cutoff
+                or self._definition_available(s_def, mode) > cutoff
                 or (mode == "system_as_of" and (self._utc(s_def.recorded_at) if "recorded_at" in getattr(s_def, "model_fields_set", set()) else self._available(s_def)) > cutoff)
             ):
                 continue
@@ -1923,7 +1952,7 @@ class DualLayerStore:
             matches = set(targets)
             for sid, definition in self._canonical_series.items():
                 if ((definition.batch_id is not None and definition.batch_id not in eligible)
-                        or self._available(definition) > cutoff
+                        or self._definition_available(definition, mode) > cutoff
                         or (mode == "system_as_of" and (self._utc(definition.recorded_at) if "recorded_at" in getattr(definition, "model_fields_set", set()) else self._available(definition)) > cutoff)
                         or ("recorded_at" in getattr(definition, "model_fields_set", set()) and self._utc(definition.recorded_at) > cutoff)):
                     continue
