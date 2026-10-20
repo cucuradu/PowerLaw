@@ -8,6 +8,8 @@
 
 **Spec:** user authorization in this session; `../reviews/2026-10-19-source-and-gemini-readiness.md`; existing architecture/ingestion specs.
 
+Verification status (re-reviewed 2026-10-20): budget cap and SDK routing are fixture-verified only (no paid generation was run); free-source ingestion into `data/pilot-germany` is live-verified 2026-10-19/20.
+
 - [x] Budget worker: RED/GREEN durable total-cap tests (new runs, restart, unresolved spend, concurrent reservations), implement in existing SQLite ledger.
 - [x] Source worker: RED/GREEN exact source selection using retained real provider responses, enable only tested source subsets, propagate law extraction failures and preserve recovery/cursors.
 - [x] Parent: RED/GREEN EUR configuration and SDK routing tests; wire ledger-wide ceiling through budget context; separate generation/embedding clients while retaining ADC and vector dimension.

@@ -10,6 +10,25 @@
 
 **Spec:** [Data ingestion design](../specs/2026-10-18-data-ingestion-design.md), [technical architecture/schemas/user setup](../specs/2026-10-18-technical-architecture.md) and [free-source register/maturity gates](../specs/2026-10-18-free-sources-and-ingestion-readiness.md). Required reading together. Tasks 1?3 have been implemented and reviewed; later unchecked tasks remain proposed. Germany first, geographic relationships, PyTorch Geometric and free data sources are user-confirmed. The exact current-vintage construction-price target is verified; historical release vintages, operational gates and optional processing budgets remain separate requirements.
 
+## Verification status (re-reviewed 2026-10-20)
+
+A checked box below means "implemented and tested", not "proven on real provider data". The 2026-10-19 expert review found several boxes ticked on fixtures that failed on live data (wrong target ID in the dashboard, parser defects, a baseline that fell back to 0). Status per task:
+
+| Task | Status | Evidence / caveat |
+|---|---|---|
+| 1 Inventory, demo isolation, target | Live-verified 2026-10-20 | Registry target ID now used everywhere; legacy demo graph tables that the store loaded as a fallback were quarantined (`data/_quarantine-2026-10-20/`). |
+| 2 Evidence, revision, quality contracts | Live-verified 2026-10-20 | Pilot store commits; unchanged re-fetches no longer create revisions. |
+| 3 One store, version-aware reads | Live-verified 2026-10-20 | Store choice depended on CWD/import order until `.env` loading was anchored to the repo. |
+| 4 Runner and object storage | Runner live-verified; MinIO restore fixture-only | Runner used for all 2026-10-19/20 ingestion; restore not re-checked. |
+| 4A AI SDK diagnostics | Live connection check only | `data/reports/*connection-check.json`; no extraction run. |
+| 5 Legal ingestion | Fixture-verified, paused | No forecast value shown yet. |
+| 6 News | Fixture-verified, paused | No forecast value shown yet. |
+| 7 Official statistics | Live-verified 2026-10-19/20 | Destatis 5 tables, Eurostat, ECB MIR, Bundesbank, Bundesbank real-time (PP300, AFC15). 61241 suspended (provider status 7000); SMARD disabled until misdated rows are retracted. |
+| 8 Orchestration and dashboard | Live-verified 2026-10-20 | Outlook shows the real target; GNN Lab no longer trains from the UI. |
+| 9 Backfill, schedules | Backfill live-verified; schedules not verified | Target 1958-2026, predictors 1990+. |
+| 10 Forecast dataset, baseline, GNN | Baseline superseded; GNN fixture-only | Replaced by the rolling-origin backtest on release-dated data (`scripts/ops/backtest_target.py`); GNN not shown to beat it. |
+| 11 Outlook with evidence | Live-verified 2026-10-20 | Open: `published_at` shows fetch time. |
+
 ## Global constraints
 
 - Start with EU legislation and Germany as the first construction market.
