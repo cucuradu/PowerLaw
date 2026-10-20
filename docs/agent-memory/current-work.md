@@ -15,9 +15,8 @@ Last reviewed: 2026-10-20, after dashboard speed work and the update schedule (b
 
 ## Active priorities
 
-1. Compact the pilot store's evidence: `python -m scripts.ops.compact_evidence --apply` (409,007 of 419,577 links only repeat an earlier vintage; the script backs up the state pin, verifies as-of reads at 89 cutoffs and rolls back on any change). Not yet run: needs the user's go-ahead. Cold dashboard load is ~10 s before, store load (4.4 s) should drop below 1 s after (not measured yet).
+1. Done 2026-10-20: redundant evidence compacted (409,007 links removed, 89 as-of cutoffs verified; state backup in `data/pilot-germany/backups/`). Dashboard home now 2.9 s cold, 0.2 s warm; other pages under 1 s.
 2. Intervals undercover (82-84% vs 90%) because of the 2021-23 shock; consider regime-aware or recent-window conformal calibration.
-3. Delete `data/_quarantine-2026-10-20/` once the user confirms nothing there is needed.
 
 ## Open issues
 
