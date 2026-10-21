@@ -40,3 +40,26 @@ def test_a_number_whose_quote_is_missing_goes_to_review(monkeypatch):
     monkeypatch.setattr("src.ingestion.load_data_sources_registry", lambda: registry)
     observations = parse("behg")["observations"]
     assert [o.quality_state for o in observations if o.value == 99] == ["needs_review"]
+
+
+def test_minimum_wage_is_one_series_quoted_from_three_laws():
+    results = [parse(key) for key in ("milog", "milov4", "milov5")]
+    values = {o.period_start[:4]: o.value for r in results for o in r["observations"]}
+    assert values == {"2023": 12.0, "2024": 12.41, "2025": 12.82, "2026": 13.9, "2027": 14.6}
+    assert all(o.quality_state == "accepted" for r in results for o in r["observations"])
+    definitions = {r["series"][0].model_dump_json(exclude={"available_at", "recorded_at", "batch_id"}) for r in results}
+    assert len(definitions) == 1  # identical definition from each law, so the store accepts all three
+
+
+def test_reingesting_law_numbers_does_not_conflict_with_stored_records(tmp_path):
+    from src.ingestion import run_ingestion
+    from src.storage.dual_layer_store import DualLayerStore
+    from tests.test_configured_sources import settings_at
+    items = list(_law_parameters_discover("LAW_PARAMETERS", None, None, 10))
+    docs = load_data_sources_registry()["sources"]["LAW_PARAMETERS"]["documents"]
+    raw = {i["url"]: (ROOT / docs[i["upstream_id"]]["fixture_path"]).read_bytes() for i in items}
+    fetch = lambda url, **kw: (raw[url], url, "application/zip", 200)
+    for run in range(2):  # the second run reopens the store, so records are compared after a round trip
+        store = DualLayerStore(settings_at(tmp_path).lancedb_path)
+        report = run_ingestion("LAW_PARAMETERS", limit=10, settings=settings_at(tmp_path), store=store, discover=lambda *a: items, fetch=fetch)
+        assert report["status"] == "committed", report["source_errors"]

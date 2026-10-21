@@ -44,8 +44,8 @@
     },
     "minimum_wage": {
       "label": "Statutory and construction minimum wages",
-      "source": "MiLoG / Bau-Mindestlohn (AEntG regulations, gesetze-im-internet) as a dated policy series",
-      "status": "needs_data"
+      "source": "MiLoG section 1, MiLoV4, MiLoV5 via LAW_PARAMETERS (series POLICY|DE|MiLoG|minimum_wage, 2023-2027)",
+      "status": "in_store"
     },
     "construction_employment": {
       "label": "Persons employed in main construction trade",

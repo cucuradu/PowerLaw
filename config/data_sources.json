@@ -7056,6 +7056,109 @@
               ]
             }
           ]
+        },
+        "milog": {
+          "format": "gii_zip",
+          "url": "https://www.gesetze-im-internet.de/milog/xml.zip",
+          "law_id": "law_de_milog",
+          "fixture_path": "tests/fixtures/ingestion/gii_milog_20261021_official.zip",
+          "parameters": [
+            {
+              "series_id": "POLICY|DE|MiLoG|minimum_wage",
+              "norm": "§ 1",
+              "unit": "EUR/hour",
+              "frequency": "ANNUAL",
+              "geo": "DE",
+              "measurement_kind": "POLICY_MINIMUM_WAGE",
+              "metric": "minimum_wage",
+              "label": "Statutory minimum wage, gross per hour (rate in force for the whole year)",
+              "dataset_id": "minimum_wage",
+              "dimensions": {
+                "label": "Statutory minimum wage, gross per hour",
+                "laws": "MiLoG section 1; MiLoV4; MiLoV5"
+              },
+              "known_from_note": "Promulgation dates are not in the consolidated texts, so each rate counts as known only from 1 January of its year.",
+              "entries": [
+                {
+                  "period": "2023",
+                  "value": 12.0,
+                  "quote": "ab dem 1. Oktober 2022 brutto 12 Euro je Zeitstunde"
+                }
+              ]
+            }
+          ]
+        },
+        "milov4": {
+          "format": "gii_zip",
+          "url": "https://www.gesetze-im-internet.de/milov4/xml.zip",
+          "law_id": "law_de_milov4",
+          "fixture_path": "tests/fixtures/ingestion/gii_milov4_20261021_official.zip",
+          "parameters": [
+            {
+              "series_id": "POLICY|DE|MiLoG|minimum_wage",
+              "norm": "§ 1",
+              "unit": "EUR/hour",
+              "frequency": "ANNUAL",
+              "geo": "DE",
+              "measurement_kind": "POLICY_MINIMUM_WAGE",
+              "metric": "minimum_wage",
+              "label": "Statutory minimum wage, gross per hour (rate in force for the whole year)",
+              "dataset_id": "minimum_wage",
+              "dimensions": {
+                "label": "Statutory minimum wage, gross per hour",
+                "laws": "MiLoG section 1; MiLoV4; MiLoV5"
+              },
+              "known_from_note": "Promulgation dates are not in the consolidated texts, so each rate counts as known only from 1 January of its year.",
+              "entries": [
+                {
+                  "period": "2024",
+                  "value": 12.41,
+                  "quote": "ab 1. Januar 202412,41 Euro brutto je Zeitstunde"
+                },
+                {
+                  "period": "2025",
+                  "value": 12.82,
+                  "quote": "ab 1. Januar 202512,82 Euro brutto je Zeitstunde"
+                }
+              ]
+            }
+          ]
+        },
+        "milov5": {
+          "format": "gii_zip",
+          "url": "https://www.gesetze-im-internet.de/milov5/xml.zip",
+          "law_id": "law_de_milov5",
+          "fixture_path": "tests/fixtures/ingestion/gii_milov5_20261021_official.zip",
+          "parameters": [
+            {
+              "series_id": "POLICY|DE|MiLoG|minimum_wage",
+              "norm": "§ 1",
+              "unit": "EUR/hour",
+              "frequency": "ANNUAL",
+              "geo": "DE",
+              "measurement_kind": "POLICY_MINIMUM_WAGE",
+              "metric": "minimum_wage",
+              "label": "Statutory minimum wage, gross per hour (rate in force for the whole year)",
+              "dataset_id": "minimum_wage",
+              "dimensions": {
+                "label": "Statutory minimum wage, gross per hour",
+                "laws": "MiLoG section 1; MiLoV4; MiLoV5"
+              },
+              "known_from_note": "Promulgation dates are not in the consolidated texts, so each rate counts as known only from 1 January of its year.",
+              "entries": [
+                {
+                  "period": "2026",
+                  "value": 13.9,
+                  "quote": "ab 1. Januar 202613,90 Euro brutto je Zeitstunde"
+                },
+                {
+                  "period": "2027",
+                  "value": 14.6,
+                  "quote": "ab 1. Januar 202714,60 Euro brutto je Zeitstunde"
+                }
+              ]
+            }
+          ]
         }
       }
     },

@@ -2744,6 +2744,14 @@
     "EXR.M.USD.EUR.SP00.A": {
       "name": "Euro to dollar exchange rate (monthly)",
       "status": "active"
+    },
+    "POLICY|DE|MiLoG|minimum_wage": {
+      "name": "German statutory minimum wage (EUR/hour)",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "minimum_wage"
+      }
     }
   }
 }

@@ -1371,9 +1371,11 @@ def _law_parameters_parse(item: SourceItem, content: bytes, document: SourceDocu
         if known_from and spec.get("known_from_quote") not in text:
             known_from = None  # the publication date must itself be in the text; otherwise fall back to the period start
         series.append(SeriesDefinition(
-            series_id=spec["series_id"], source_id=document.source_id, dataset_id=item["upstream_id"], provider_series_key=spec["series_id"],
-            dimensions_json=json.dumps({"law_id": doc["law_id"], "norm": spec["norm"], "label": spec["label"]}, ensure_ascii=False),
-            metric_name=spec["metric"], unit=spec["unit"], frequency=spec["frequency"], geography_id=spec["geo"], adjustment=None,
+            # A series quoted from several laws (minimum wage) fixes dataset_id and dimensions so every law yields the same definition.
+            series_id=spec["series_id"], source_id=document.source_id, dataset_id=spec.get("dataset_id", item["upstream_id"]),
+            provider_series_key=spec["series_id"],
+            dimensions_json=json.dumps(spec.get("dimensions") or {"law_id": doc["law_id"], "norm": spec["norm"], "label": spec["label"]}, ensure_ascii=False),
+            metric_name=spec["metric"], unit=spec["unit"], frequency=spec["frequency"], geography_id=spec["geo"],  # adjustment: default; stored None reads back as it
             measurement_kind=spec["measurement_kind"], available_at=document.available_at, batch_id=document.batch_id))
         for entry in spec["entries"]:
             found = entry["quote"] in text
@@ -1381,7 +1383,7 @@ def _law_parameters_parse(item: SourceItem, content: bytes, document: SourceDocu
             obs = Observation(series_id=spec["series_id"], period_start=f"{year}-01-01", period_end_exclusive=f"{year + 1}-01-01",
                               value=float(entry["value"]), original_value_text=entry["quote"], source_unit=spec["unit"], unit=spec["unit"],
                               available_at=document.available_at, quality_state="accepted" if found else "needs_review",
-                              conversion_lineage_json=json.dumps({"known_from": known_from or f"{year}-01-01"}), **origin)
+                              conversion_lineage_json=json.dumps({"known_from": known_from or f"{year}-01-01", "law_id": doc["law_id"]}), **origin)
             observations.append(obs)
             evidence.append(EvidenceLink(assertion_version_id=obs.revision_id, assertion_kind="OBSERVATION", document_version_id=document.version_id,
                                          selector_type="ARTICLE_PARAGRAPH", selector_json=json.dumps({"norm": spec["norm"], "period": entry["period"]}),
