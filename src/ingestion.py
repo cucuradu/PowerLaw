@@ -294,6 +294,9 @@ def _parse_result(result: Any) -> tuple[list[Fact], list[Observation], list[Evid
     raise TypeError("source parser must return a mapping with an explicit status")
 
 
+_LAST_REQUEST: dict[str, float] = {}  # ponytail: per-process pacing; parallel runs of one source are excluded by the worker lease
+
+
 def _content_type(item: SourceItem, fetched_type: str) -> str:
     value = str(item.get("content_type") or fetched_type or "application/octet-stream").lower()
     return value.split(";", 1)[0].strip()
@@ -422,7 +425,11 @@ def run_ingestion(source_id: str, *, limit: int, since: str | None = None, until
                     if settings.mode == "production" and urlparse(url).hostname not in _registered_hosts(policy):
                         raise FetchError("discovered URL is outside the registered source endpoints")
                     fetch_kwargs = {"settings": settings, "max_bytes": int(item.get("max_bytes", 25 * 1024 * 1024))}
-                    fetch_kwargs.update({key: item[key] for key in ("request_method", "request_data", "auth_source", "headers") if key in item})
+                    fetch_kwargs.update({key: item[key] for key in ("request_method", "request_data", "auth_source", "headers", "retries") if key in item})
+                    interval = float(policy.get("min_request_interval_seconds", 0))
+                    if interval:  # providers with a published request rate (GDELT: one per 5 s)
+                        time.sleep(max(0.0, _LAST_REQUEST.get(source_id, 0.0) + interval - time.monotonic()))
+                        _LAST_REQUEST[source_id] = time.monotonic()
                     if item.get("read_timeout_seconds"):  # slow but verified providers (ECB EXR answers in ~45 s)
                         fetch_kwargs.update(timeout=(10.0, float(item["read_timeout_seconds"])),
                                             total_timeout=3 * float(item["read_timeout_seconds"]))
@@ -1483,6 +1490,66 @@ def _pink_sheet_parse(item: SourceItem, content: bytes, document: SourceDocument
 
 
 register_source("WORLD_BANK_PINK_SHEET", _pink_sheet_discover, _pink_sheet_parse)
+
+
+# =====================================================================
+# GDELT news coverage: monthly share of German-language articles per topic (counts only, no text)
+# =====================================================================
+def _gdelt_discover(source_id: str, since: Optional[str], until: Optional[str], limit: int) -> Iterable[SourceItem]:
+    # Each request returns the whole daily history since `start`, so the window does not apply.
+    registry = load_data_sources_registry()["sources"][source_id]
+    end = datetime.now(timezone.utc).strftime("%Y%m%d000000")
+    for slug, topic in islice(registry["topics"].items(), limit):
+        query = {"query": f"{topic['query']} sourcelang:german", "mode": "timelinevolraw", "format": "json",
+                 "startdatetime": registry["start"], "enddatetime": end, "timelinesmooth": "0"}
+        url = f"{registry['endpoints']['doc_api']}?{urlencode(query)}"
+        yield {"item_id": f"{source_id}_{slug}", "upstream_id": slug, "url": url, "canonical_url": url, "retries": 1,
+               "publisher": registry.get("attribution", source_id), "content_type": "application/json"}
+
+
+def _gdelt_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
+    registry = load_data_sources_registry()["sources"][document.source_id]
+    topic = registry["topics"][item["upstream_id"]]
+    if not content.lstrip().startswith(b"{"):
+        raise FetchError(f"GDELT answered with text instead of data: {content[:80]!r}")
+    days = json.loads(content)["timeline"][0]["data"]
+    months: dict[str, list[int]] = {}
+    for day in days:
+        month = f"{day['date'][:4]}-{day['date'][4:6]}"
+        totals = months.setdefault(month, [0, 0, 0])
+        totals[0] += int(day["value"])
+        totals[1] += int(day["norm"])
+        totals[2] += 1
+    current = datetime.now(timezone.utc).strftime("%Y-%m")
+    origin = {"batch_id": document.batch_id, "data_origin": document.data_origin}
+    series = SeriesDefinition(series_id=topic["series_id"], source_id=document.source_id, dataset_id="doc_timelinevolraw",
+                              provider_series_key=topic["query"],
+                              dimensions_json=json.dumps({"query": topic["query"], "lang": "german"}, ensure_ascii=False),
+                              metric_name="news_attention", unit="articles per million monitored", frequency="MONTHLY",
+                              geography_id="DE", measurement_kind="NEWS_ATTENTION", available_at=document.available_at,
+                              batch_id=document.batch_id)
+    observations, evidence = [], []
+    for month, (matched, monitored, n_days) in sorted(months.items()):
+        year, mon = int(month[:4]), int(month[5:])
+        if month >= current or monitored == 0:
+            continue  # incomplete month
+        obs = Observation(series_id=topic["series_id"], period_start=f"{month}-01",
+                          period_end_exclusive=f"{year + mon // 12}-{mon % 12 + 1:02d}-01",
+                          value=round(1e6 * matched / monitored, 4), original_value_text=f"{matched}/{monitored}",
+                          source_unit="articles", unit="articles per million monitored", available_at=document.available_at, **origin)
+        observations.append(obs)
+        evidence.append(EvidenceLink(assertion_version_id=obs.revision_id, assertion_kind="OBSERVATION",
+                                     document_version_id=document.version_id, selector_type="TABLE_CELL",
+                                     selector_json=json.dumps({"month": month, "days": n_days}),
+                                     quoted_text=f"{matched} matching of {monitored} monitored articles", support_type="DIRECT",
+                                     available_at=document.available_at, batch_id=document.batch_id))
+    link_facts, link_entities, link_evidence = _series_links([series.series_id], document, item.get("_store"))
+    return {"status": "accepted", "facts": link_facts, "observations": observations, "evidence_links": evidence + link_evidence,
+            "entities": link_entities, "series": [series], "accepted_count": len(observations), "review_count": 0,
+            "rejected_count": 0}
+
+
+register_source("GDELT_DOC", _gdelt_discover, _gdelt_parse)
 
 
 # =====================================================================

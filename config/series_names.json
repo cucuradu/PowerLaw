@@ -2752,6 +2752,54 @@
         "sector": "D1",
         "metric": "minimum_wage"
       }
+    },
+    "GDELT|de|material_shortage": {
+      "name": "News: material shortages (articles per million)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "news_attention"
+      }
+    },
+    "GDELT|de|material_prices": {
+      "name": "News: building material prices (articles per million)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "news_attention"
+      }
+    },
+    "GDELT|de|construction_crisis": {
+      "name": "News: construction slump (articles per million)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "news_attention"
+      }
+    },
+    "GDELT|de|construction_insolvency": {
+      "name": "News: construction insolvencies (articles per million)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "news_attention"
+      }
+    },
+    "GDELT|de|building_interest": {
+      "name": "News: mortgage rates (articles per million)",
+      "status": "active",
+      "measures": {
+        "sector": "K64",
+        "metric": "news_attention"
+      }
+    },
+    "GDELT|de|building_subsidy": {
+      "name": "News: building subsidies and heating law (articles per million)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "news_attention"
+      }
     }
   }
 }

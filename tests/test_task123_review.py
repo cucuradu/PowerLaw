@@ -399,7 +399,7 @@ def test_official_context_keys_resolve_without_replacing_target():
     verified_enabled = {
         "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
         "BUNDESBANK_SDMX", "BUNDESBANK_RTD", "EURLEX_CELLAR", "EUROSTAT_NAIO", "GESETZE_IM_INTERNET", "STATISTISCHE_BIBLIOTHEK",
-        "LAW_PARAMETERS", "WORLD_BANK_PINK_SHEET",
+        "LAW_PARAMETERS", "WORLD_BANK_PINK_SHEET", "GDELT_DOC",
     }
     assert {key for key, meta in registry["sources"].items() if meta["enabled"]} == verified_enabled
     assert all(registry["sources"][key]["rights_checked"] for key in verified_enabled)

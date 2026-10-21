@@ -51,7 +51,7 @@ def test_only_verified_sources_and_requests_are_active():
     assert {key for key, value in sources.items() if value["enabled"]} == {
         "DESTATIS_GENESIS", "EUROSTAT_STS", "ECB_SDMX", "OFFICIAL_NEWS",
         "BUNDESBANK_SDMX", "BUNDESBANK_RTD", "EURLEX_CELLAR", "EUROSTAT_NAIO", "GESETZE_IM_INTERNET",
-        "STATISTISCHE_BIBLIOTHEK", "LAW_PARAMETERS", "WORLD_BANK_PINK_SHEET"}
+        "STATISTISCHE_BIBLIOTHEK", "LAW_PARAMETERS", "WORLD_BANK_PINK_SHEET", "GDELT_DOC"}
     assert list(sources["DESTATIS_GENESIS"]["series_keys"].values()) == [
         "61261-0002", "61261-0014", "61241-0004", "44111-0009", "31111-0020", "62221-0002", "61241-0006"]
     assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q", "ei_bsbu_m_r2", "sts_inpp_m", "lc_lci_r2_q"]

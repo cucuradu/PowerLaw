@@ -7229,6 +7229,64 @@
       "notes": {
         "Iron ore, cfr spot": "Spot price (62% Fe, cfr China) from December 2008; earlier values are annual contract prices, a series break."
       }
+    },
+    "GDELT_DOC": {
+      "name": "GDELT DOC 2.0 API: German-language news coverage timelines",
+      "category": "DISCOVERY_NEWS",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "trial": false,
+      "training_allowed": true,
+      "commercial_use_allowed": true,
+      "ai_training_restricted": false,
+      "rights_checked": true,
+      "rights": "GDELT Terms of Use: datasets 'are available for unlimited and unrestricted use for any academic, commercial, or governmental use of any kind without fee'; any use must cite the GDELT Project and link https://www.gdeltproject.org/. Only article counts are stored, never article text.",
+      "terms_url": "https://www.gdeltproject.org/about.html#termsofuse",
+      "terms_checked_at": "2026-10-21",
+      "attribution": "The GDELT Project, https://www.gdeltproject.org/",
+      "auth_method": "NONE",
+      "release_cadence": "CONTINUOUS",
+      "allowable_delay_days": 3,
+      "source_owner": "The GDELT Project",
+      "enabled": true,
+      "endpoints": {
+        "doc_api": "https://api.gdeltproject.org/api/v2/doc/doc"
+      },
+      "min_request_interval_seconds": 10,
+      "start": "20170101000000",
+      "description": "Daily count of German-language articles matching each topic query and the number of all articles GDELT monitored that day ('norm'); stored as monthly articles per million monitored. The provider asks for at most one request per 5 seconds; we wait 10 and do not retry.",
+      "topics": {
+        "material_shortage": {
+          "query": "(Baustoffmangel OR Materialmangel OR \"Lieferengpässe Baustoffe\" OR \"Mangel an Baustoffen\")",
+          "series_id": "GDELT|de|material_shortage",
+          "sector": "F"
+        },
+        "material_prices": {
+          "query": "(Baustoffpreise OR Baupreise OR Zementpreis OR Holzpreise OR Stahlpreise)",
+          "series_id": "GDELT|de|material_prices",
+          "sector": "F"
+        },
+        "construction_crisis": {
+          "query": "(Baukrise OR Wohnungsbaukrise OR \"Stornierungen im Wohnungsbau\" OR Baustopp)",
+          "series_id": "GDELT|de|construction_crisis",
+          "sector": "F"
+        },
+        "construction_insolvency": {
+          "query": "(Bauinsolvenz OR \"Insolvenz Bauunternehmen\" OR \"Bauunternehmen insolvent\" OR \"Bauträger insolvent\")",
+          "series_id": "GDELT|de|construction_insolvency",
+          "sector": "F"
+        },
+        "building_interest": {
+          "query": "(Bauzinsen OR Baufinanzierung)",
+          "series_id": "GDELT|de|building_interest",
+          "sector": "K64"
+        },
+        "building_subsidy": {
+          "query": "(Förderstopp OR \"KfW-Förderung\" OR Heizungsgesetz OR \"BEG-Förderung\")",
+          "series_id": "GDELT|de|building_subsidy",
+          "sector": "F"
+        }
+      }
     }
   }
 }
