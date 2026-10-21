@@ -34,4 +34,4 @@ def test_requests_wait_for_the_provider_interval(tmp_path, monkeypatch):
     report = run_ingestion("GDELT_DOC", limit=3, settings=settings_at(tmp_path), store=DualLayerStore(settings_at(tmp_path).lancedb_path),
                            discover=lambda *a: items, fetch=lambda url, **kw: (raw, url, "application/json", 200))
     assert report["status"] == "committed", report["source_errors"]
-    assert len([w for w in waits if w > 5]) >= 2  # second and third request wait about 10 s each
+    assert len([w for w in waits if w > 250]) >= 2  # second and third request wait about 300 s each

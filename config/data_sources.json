@@ -7248,13 +7248,13 @@
       "release_cadence": "CONTINUOUS",
       "allowable_delay_days": 3,
       "source_owner": "The GDELT Project",
-      "enabled": true,
+      "enabled": false,
       "endpoints": {
         "doc_api": "https://api.gdeltproject.org/api/v2/doc/doc"
       },
-      "min_request_interval_seconds": 10,
+      "min_request_interval_seconds": 300,
       "start": "20170101000000",
-      "description": "Daily count of German-language articles matching each topic query and the number of all articles GDELT monitored that day ('norm'); stored as monthly articles per million monitored. The provider asks for at most one request per 5 seconds; we wait 10 and do not retry.",
+      "description": "Daily count of German-language articles matching each topic query and the number of all articles GDELT monitored that day ('norm'); stored as monthly articles per million monitored. The provider asks for at most one request per 5 seconds; in practice long timelines were refused at 15 s spacing (2026-10-21), so we wait 300 s and do not retry.",
       "topics": {
         "material_shortage": {
           "query": "(Baustoffmangel OR Materialmangel OR \"Lieferengpässe Baustoffe\" OR \"Mangel an Baustoffen\")",
@@ -7286,7 +7286,8 @@
           "series_id": "GDELT|de|building_subsidy",
           "sector": "F"
         }
-      }
+      },
+      "disabled_reason": "2026-10-21: the DOC API refused (HTTP 429) full-history timelines even at 5-minute spacing after one success; enable only with bulk access or a provider agreement."
     }
   }
 }
