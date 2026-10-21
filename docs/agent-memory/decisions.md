@@ -106,3 +106,8 @@
 - **Validation of the one series:** correlation 0.68 (2017-01..2023-04) and 0.71 (to 2026-09) with the EU survey share of German builders short of materials; both peak in 2021 and fall to near zero after 2023, so the post-2023 zeros look real rather than a coverage break (GDELT's all-language article total did fall from 23M to 4M a month).
 - **Consequence:** this topic duplicates the survey already in the forecast. News would need another source with history (or GDELT bulk access) and should target what surveys miss (policy announcements, plant closures, strikes).
 
+## Interval calibration methods (2026-10-21)
+
+- **Compared** (`intervals_by_method` in every backtest report): split conformal on all past errors (published), the last 40 errors, and adaptive conformal inference (ACI, step 0.02). Published model, next release, 62 scored origins: coverage 87.1% for all three, mean half-width 0.80 / 1.05 / 1.14 pp. The VAT-aware AR baseline gains from adapting (83.9% -> 88.7%) but at wider intervals.
+- **Decision:** keep split conformal for the published interval. The shortfall (8 misses vs 6 expected) is within sampling noise (+-4 points) and the adaptive methods widen intervals without catching the 2021-23 shock quarters.
+

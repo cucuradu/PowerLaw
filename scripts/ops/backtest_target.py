@@ -143,7 +143,7 @@ def main() -> None:
         predictors=predictors, predictor_sets=sets, target_rule="next_release", live_origin=now, panel_prior=panel_prior)
 
     def section(result, reference, horizon):
-        return {**{k: result[k] for k in ("settings", "models", "intervals")},
+        return {**{k: result[k] for k in ("settings", "models", "intervals", "intervals_by_method")},
                 "diebold_mariano_vs_" + reference: comparisons(result, reference, horizon),
                 "predictions": [{**row, "origin": row["origin"].isoformat(),
                                  "label_available_at": row["label_available_at"].isoformat()}

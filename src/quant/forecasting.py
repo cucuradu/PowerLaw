@@ -255,13 +255,18 @@ def diebold_mariano(actual, forecast_a, forecast_b, horizon: int = 1) -> Dict[st
     return {"n": n, "statistic": statistic, "p_value": math.erfc(abs(statistic) / math.sqrt(2))}
 
 
+INTERVAL_METHODS = ("split", "recent", "aci")
+RECENT_RESIDUALS = 40  # "recent": the last 10 years of quarterly errors
+ACI_GAMMA = 0.02  # ponytail: one fixed step size; tune only on pre-2018 origins if it matters
+
+
 def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *, fit_start: str = "1991-01-01",
                             alpha: float = 0.10, min_calibration: int = 20, ar_order: int = 4,
                             vat_schedule: Optional[List[Dict[str, Any]]] = None,
                             predictors: Optional[Dict[str, Dict[str, Any]]] = None,
                             predictor_sets: Optional[Dict[str, List[str]]] = None,
                             target_rule: str = "after_origin_quarter", live_origin=None,
-                            panel_prior=None) -> Dict[str, Any]:
+                            panel_prior=None, interval_method: str = "split") -> Dict[str, Any]:
     """Expanding-window backtest of next-quarter growth on release-dated quarterly levels.
 
     `levels`: {period_start, value, available_at}. At each origin only levels released by then are used.
@@ -296,10 +301,14 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
         predictors = {name: {**p, "levels": [{**r, "available_at": utc(r["available_at"])} for r in p["levels"]
                                              if r.get("value") is not None]}
                       for name, p in (predictors or {}).items()}
+    if interval_method not in INTERVAL_METHODS:
+        raise ValueError(f"Unknown interval_method {interval_method!r}")
     if target_rule not in ("after_origin_quarter", "next_release"):
         raise ValueError(f"Unknown target_rule {target_rule!r}")
     rows: List[Dict[str, Any]] = []
     live = None
+    aci_alpha = {name: alpha for name in names}  # adaptive conformal: miscoverage level steered by past misses
+    aci_seen: set = set()
     schedule = [(utc(o), False) for o in origins] + ([(utc(live_origin), True)] if live_origin is not None else [])
     for origin, is_live in sorted(schedule, key=lambda item: item[0]):
         origin_quarter = origin.year * 4 + (origin.month - 1) // 3
@@ -346,16 +355,27 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
                           _direct_forecast(ex_growth, last, target, origin_quarter, fit_from, ar_order, feats))
                     forecasts[model] = None if ex is None else 100 * ((1 + ex / 100) * factor - 1)
         known = [r for r in rows if r["label_available_at"] <= origin]
-        widths = {}
+        # ACI (Gibbs & Candes 2021): each newly known label moves the level by ACI_GAMMA * (alpha - missed).
+        for r in sorted((r for r in known if id(r) not in aci_seen), key=lambda r: r["origin"]):
+            aci_seen.add(id(r))
+            for name in names:
+                width = r["interval_half_width_by"]["aci"][name]
+                if width is not None:
+                    missed = abs(r["actual"] - r["forecasts"][name]) > width
+                    aci_alpha[name] = min(0.5, max(0.01, aci_alpha[name] + ACI_GAMMA * (alpha - missed)))
+        by_method = {method: {} for method in INTERVAL_METHODS}
         for name in names:
             residuals = [abs(r["actual"] - r["forecasts"][name]) for r in known if r["forecasts"][name] is not None]
-            widths[name] = (calibrate_residual_interval(residuals, alpha)["interval_half_width"]
-                            if len(residuals) >= min_calibration and forecasts[name] is not None else None)
+            ready = len(residuals) >= min_calibration and forecasts[name] is not None
+            levels = {"split": (residuals, alpha), "recent": (residuals[-RECENT_RESIDUALS:], alpha), "aci": (residuals, aci_alpha[name])}
+            for method, (sample, miscoverage) in levels.items():
+                by_method[method][name] = calibrate_residual_interval(sample, miscoverage)["interval_half_width"] if ready else None
+        widths = by_method[interval_method]
         row = {"origin": origin, "target_period_start": _quarter_start(target),
                "denominator_period_start": _quarter_start(denominator),
                "last_observed_period_start": _quarter_start(last),
                "last_growth": growth.get(last), "forecasts": forecasts,
-               "calibration_count": len(known), "interval_half_width": widths}
+               "calibration_count": len(known), "interval_half_width": widths, "interval_half_width_by": by_method}
         if is_live:
             live = row
             continue
@@ -378,14 +398,17 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
                                                     == np.sign(r["actual"] - r["last_growth"]) for r in moved]))
                                      if moved else None,
         }
-    intervals = {}
-    for name in names:
-        scored = [r for r in rows if r["interval_half_width"][name] is not None]
-        hits = [abs(r["actual"] - r["forecasts"][name]) <= r["interval_half_width"][name] for r in scored]
-        intervals[name] = {"n": len(scored), "nominal": 1 - alpha,
-                           "coverage": float(np.mean(hits)) if scored else None,
-                           "mean_half_width": float(np.mean([r["interval_half_width"][name] for r in scored])) if scored else None}
+    def interval_summary(method):
+        out = {}
+        for name in names:
+            scored = [r for r in rows if r["interval_half_width_by"][method][name] is not None]
+            hits = [abs(r["actual"] - r["forecasts"][name]) <= r["interval_half_width_by"][method][name] for r in scored]
+            out[name] = {"n": len(scored), "nominal": 1 - alpha, "coverage": float(np.mean(hits)) if scored else None,
+                         "mean_half_width": float(np.mean([r["interval_half_width_by"][method][name] for r in scored])) if scored else None}
+        return out
+    intervals = interval_summary(interval_method)
     return {"predictions": rows, "models": models, "intervals": intervals, "live": live,
+            "intervals_by_method": {method: interval_summary(method) for method in INTERVAL_METHODS},
             "settings": {"fit_start": fit_start, "alpha": alpha, "min_calibration": min_calibration, "ar_order": ar_order,
                          "predictor_sets": predictor_sets or {}, "target_rule": target_rule}}
 

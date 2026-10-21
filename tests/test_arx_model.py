@@ -93,3 +93,20 @@ def test_pooled_seasonal_ar_moves_only_when_the_prior_disagrees():
     assert abs(_sar_forecast(growth, last, target, 8000, 4, prior=ols, prior_quarters=1e4) - plain) < 1e-6
     assert abs(_sar_forecast(growth, last, target, 8000, 4, prior=np.zeros(8), prior_quarters=0) - plain) < 1e-9
     assert abs(_sar_forecast(growth, last, target, 8000, 4, prior=np.zeros(8), prior_quarters=1e4) - plain) > 0.05
+
+
+def test_adaptive_intervals_widen_after_a_volatility_jump():
+    import numpy as np
+    from datetime import datetime, timedelta, timezone
+    from src.quant.forecasting import rolling_origin_backtest
+    rng = np.random.default_rng(5)
+    level, levels = 100.0, []
+    for i in range(160):
+        level *= 1 + (0.005 + rng.normal(0, 0.003 if i < 110 else 0.02))
+        start = datetime(1980 + i // 4, 3 * (i % 4) + 1, 1, tzinfo=timezone.utc)
+        levels.append({"period_start": start.date().isoformat(), "value": level, "available_at": start + timedelta(days=100)})
+    origins = [datetime(1995 + i // 4, 3 * (i % 4) + 1, 15, tzinfo=timezone.utc) for i in range(100)]
+    result = rolling_origin_backtest(levels, origins, fit_start="1980-01-01", target_rule="next_release")
+    after = [r for r in result["predictions"] if r["origin"].year >= 2010]
+    width = lambda m: np.mean([r["interval_half_width_by"][m]["ar4"] for r in after])
+    assert width("recent") > width("split") and width("aci") > width("split")
