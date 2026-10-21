@@ -33,4 +33,4 @@ Last reviewed: 2026-10-20, after the sector network, detailed material prices, E
 - SMARD disabled: 365 rows committed before the Berlin-date fix are dated one day early; retract before re-enabling.
 - Labels/features are release-dated latest-vintage values, not first-release values (PP300 QoQ revisions max 0.35 pp; AFC15 YoY revisions mean abs 0.17 pp).
 - Automatic updates: `python -m scripts.ops.schedule_updates on|off|status` or the toggle on the Ingestion Console; off by default. Runs `scripts/ops/update_forecast.cmd` weekly (tested by hand 2026-10-20: all steps OK). Log: `data/pilot-germany/reports/update-log.jsonl`.
-- GNN stays paused until an ablation beats the main model. EU legal extraction is manual (`scripts.ops.extract_laws`); many rules are needs_review.
+- GNN stays paused: training graph exported (`scripts.ops.export_training_graph`) and tested (`scripts.ops.graph_signal_test`); German structural edges carry no lag-1 signal, peer edges a weak one outside Germany (decisions.md). EU legal extraction is manual (`scripts.ops.extract_laws`); many rules are needs_review.
