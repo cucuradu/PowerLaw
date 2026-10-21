@@ -24,9 +24,11 @@ def stored_rules(store: DualLayerStore, celex: str) -> list[GNNRule]:
     latest = {}
     for fact in store._canonical_facts.values():
         if fact.batch_id in committed and fact.predicate == "MANDATES" and fact.subject_id == f"law_{celex}":
-            if fact.fact_id not in latest or store._available(fact) > store._available(latest[fact.fact_id]):
-                latest[fact.fact_id] = fact
-    live = sorted((f for f in latest.values() if not f.is_retracted), key=lambda f: f.object_id)
+            # Same tie-break as the store: a retraction shares its fact's date and wins by being recorded later.
+            key = (store._available(fact), store._utc(fact.recorded_at))
+            if fact.fact_id not in latest or key > latest[fact.fact_id][0]:
+                latest[fact.fact_id] = (key, fact)
+    live = sorted((f for _, f in latest.values() if not f.is_retracted), key=lambda f: f.object_id)
     return [GNNRule.model_validate_json(f.payload_json) for f in live], [f.object_id for f in live]
 
 
