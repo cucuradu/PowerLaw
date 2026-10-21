@@ -25,6 +25,7 @@ Last reviewed: 2026-10-20, after the sector network, detailed material prices, E
 3. Rule identity: stable IDs applied to the store 2026-10-21 (365 rules, counts unchanged; backup `backups/before-rule-rekey-20261021`). Policy series (BEHG CO2 price, CBAM factor) stored via `LAW_PARAMETERS`.
 4. Store open takes about 7.3 s (table reads + record sanitising); home cold load about 12 s. Candidate fix: cache the startup projection or load observations lazily.
 5. Intervals: published model covers 87% (nominal 90%); recent-window and adaptive conformal tested 2026-10-21, no gain for it (decisions.md).
+6. Done 2026-10-21: trade/material projections pool over same-metric series (error 1.503 -> 1.407 on 2018+) and use ACI intervals (coverage 78% -> 83%, still below 90%). Next: projection intervals remain short in shock quarters; trade forecasts with tested-link inputs are untested.
 
 ## Open issues
 

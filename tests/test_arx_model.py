@@ -110,3 +110,28 @@ def test_adaptive_intervals_widen_after_a_volatility_jump():
     after = [r for r in result["predictions"] if r["origin"].year >= 2010]
     width = lambda m: np.mean([r["interval_half_width_by"][m]["ar4"] for r in after])
     assert width("recent") > width("split") and width("aci") > width("split")
+
+
+def test_projection_pool_uses_only_quarters_public_at_the_origin():
+    import numpy as np
+    from datetime import datetime, timedelta, timezone
+    from scripts.ops.project_series import pooled_prior
+    from src.quant.forecasting import rolling_origin_backtest
+    rng = np.random.default_rng(7)
+
+    def series(n, shift):
+        level, out = 100.0, []
+        for i in range(n):
+            level *= 1 + 0.01 * (1 + np.sin(i + shift)) + rng.normal(0, 0.002)
+            start = datetime(1995 + i // 4, 3 * (i % 4) + 1, 1, tzinfo=timezone.utc)
+            out.append({"period_start": start.date().isoformat(), "value": level, "available_at": start + timedelta(days=150)})
+        return out
+    pool = {name: series(100, shift) for shift, name in enumerate("abcd")}
+    origin, later = datetime(2015, 1, 15, tzinfo=timezone.utc), datetime(2020, 1, 15, tzinfo=timezone.utc)
+    revised = {**pool, "b": [{**r, "value": r["value"] * (1 + rng.normal(0, 0.05))} if r["available_at"] > origin else r
+                             for r in pool["b"]]}  # values published after the origin change
+    assert np.allclose(pooled_prior(pool)(origin), pooled_prior(revised)(origin))
+    assert not np.allclose(pooled_prior(pool)(later), pooled_prior(revised)(later))
+    result = rolling_origin_backtest(pool["a"], [origin], fit_start="1995-01-01", target_rule="next_release",
+                                     panel_prior=pooled_prior(pool))
+    assert result["predictions"][0]["forecasts"]["ar4_seasonal_pooled"] is not None

@@ -294,6 +294,8 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
         names += ("ar4_seasonal_vat",)
         if panel_prior is not None:  # callable(origin) -> pooled coefficients from other countries public by then
             names += ("ar4_seasonal_vat_pooled",)
+    elif panel_prior is not None:  # same partial pooling on raw growth (series without a VAT effect)
+        names += ("ar4_seasonal_pooled",)
     if predictor_sets:
         if vat_schedule is None:
             raise ValueError("Predictor models are fitted on growth excluding VAT and need vat_schedule")
@@ -332,6 +334,9 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
             "ar4": _ar_forecast(growth, last, target, fit_from, ar_order),
             "ar4_seasonal": _sar_forecast(growth, last, target, fit_from, ar_order),
         }
+        if panel_prior is not None and vat_schedule is None:
+            prior = panel_prior(origin)
+            forecasts["ar4_seasonal_pooled"] = None if prior is None else _sar_forecast(growth, last, target, fit_from, ar_order, prior=prior)
         if vat_schedule is not None:
             # Model growth excluding VAT (past rates in force), then apply the rates the law said would apply
             # in the target and origin quarters, as knowable at the origin.

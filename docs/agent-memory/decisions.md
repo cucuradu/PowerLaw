@@ -117,3 +117,10 @@
 - **Graph-signal test** (`scripts.ops.graph_signal_test`, next-quarter growth, partial pooling, origins 2012+, release timing ignored): structural neighbours (29 German nodes) 1.355 vs 1.349 for own AR (p = 0.70, 13/29 improved); same sector in other EU countries (154 nodes) 2.074 vs 2.131 (p = 0.057, 109/154 improved) but not for German nodes (1.775 vs 1.763).
 - **Consequence:** there is no linear lag-1 signal in Germany's structural edges beyond each series' own history, and only a weak peer signal elsewhere. The GNN stays paused for the German target; if trained, it should start on the EU panel with peer edges and must beat partial pooling there and `arx_vat_selected` for Germany.
 
+
+## Pooled projections for trades and materials (2026-10-21)
+
+- **Change** (`scripts.ops.project_series`): a fifth candidate, seasonal AR partially pooled (prior worth 40 quarters, free intercept) over the other German series of the same metric, using only their quarters public at each origin (test with a mutation check). Pools: 37 trade output prices, 32 material producer prices; singleton metrics (building cost, wages) get no pooled candidate. Model choice stays on origins before 2018.
+- **Result (2018+, out of sample):** pooled beats own seasonal AR for 27/32 material prices (2.046 vs 2.293) and 25/37 trades (0.837 vs 0.868). Chosen for 38 of 72 series; mean error of the chosen models 1.503 -> 1.407, and 56 instead of 52 beat "no change". Caveat: the per-series Wilcoxon p-values (< 0.01) treat series as independent although their errors share shock quarters.
+- **Intervals:** split conformal covered 78% on average over these series (28 of 72 below 75%), the last-40-errors window 79%, ACI 83% (2 below 75%) at wider ranges (mean half-width 2.9 vs 2.1 pp). Projections now use ACI; the published target keeps split (no gain there, see "Interval calibration methods"). Still short of 90%: the shock quarters dominate.
+- **Consequence:** the panel helps where single series are short or noisy, as on the EU panel. This is the graph's first measured use for Germany: same-metric peers as a shrinkage prior, not as lagged inputs.
