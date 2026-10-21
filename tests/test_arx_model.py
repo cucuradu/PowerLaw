@@ -78,3 +78,18 @@ def test_next_release_rule_forecasts_the_first_unreleased_quarter_live():
     assert (live["last_observed_period_start"], live["target_period_start"]) == ("2015-01-01", "2015-04-01")
     assert live["forecasts"]["arx_vat_x"] is not None and live["interval_half_width"]["arx_vat_x"] is not None
     assert result["models"]["arx_vat_x"]["mae"] < result["models"]["ar4_seasonal_vat_direct"]["mae"]
+
+
+def test_pooled_seasonal_ar_moves_only_when_the_prior_disagrees():
+    import numpy as np
+    from src.quant.forecasting import _sar_forecast
+    rng = np.random.default_rng(3)
+    growth = {q: 0.5 + 0.4 * np.sin(q) + rng.normal(0, 0.2) for q in range(8000, 8080)}
+    last, target = 8079, 8080
+    plain = _sar_forecast(growth, last, target, 8000, 4)
+    quarters = list(range(8004, 8080))
+    X = np.array([[1.0] + [growth[q - k] for k in range(1, 5)] + [float(q % 4 == k) for k in (1, 2, 3)] for q in quarters])
+    ols = np.linalg.lstsq(X, np.array([growth[q] for q in quarters]), rcond=None)[0]
+    assert abs(_sar_forecast(growth, last, target, 8000, 4, prior=ols, prior_quarters=1e4) - plain) < 1e-6
+    assert abs(_sar_forecast(growth, last, target, 8000, 4, prior=np.zeros(8), prior_quarters=0) - plain) < 1e-9
+    assert abs(_sar_forecast(growth, last, target, 8000, 4, prior=np.zeros(8), prior_quarters=1e4) - plain) > 0.05

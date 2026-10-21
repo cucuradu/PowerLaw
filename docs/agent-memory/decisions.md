@@ -84,3 +84,9 @@
 - **Euro conversion:** ECB monthly EUR/USD (`EXR.M.USD.EUR.SP00.A`, 1999+) replaces the retired daily series; ECB requests get a 120 s read timeout (`read_timeout_seconds`), as the API answers in about 45 s.
 - **Tested chain links** (`scripts.ops.estimate_links`, quarterly growth in euros, common-trend control, 2005+): supported: oil -> diesel (pass-through 0.65), bitumen, plastic pipes, insulation boards; world gas -> German gas; zinc -> sheet-metal work. Not supported: aluminium -> metal windows, copper -> plumbing. Untestable: iron ore -> steel and copper -> cables (no German series, or only since 2021). Statuses are in `config/chains.json`; supported links show in the network view.
 
+## Pooling for the German target (2026-10-21)
+
+- **Candidate `ar4_seasonal_vat_pooled`** (`panel_prior` in `rolling_origin_backtest`): Germany's seasonal AR on growth excluding VAT, with lag and season coefficients pulled towards a pooled fit on the other EU countries' new-home price growth (prior worth 40 quarters; intercept free). Other countries' quarters count as public 100 days after quarter end (rule; Eurostat publishes about 90 days after).
+- **Result (82 origins 2006-2026):** two quarters ahead 0.576 vs 0.596 for the same model without pooling; next release 0.507 vs 0.497. No gain worth having: Germany's long own history already fixes its dynamics. The published model (`arx_vat_selected`, next release 0.446) is unchanged.
+- **Consequence:** the panel's value is for countries with short or volatile histories and for cross-country (graph) models, not for Germany's univariate dynamics. A graph model must beat `arx_vat_selected`, not the AR baseline.
+

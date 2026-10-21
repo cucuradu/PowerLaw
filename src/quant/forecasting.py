@@ -96,8 +96,13 @@ def _ar_forecast(growth: Dict[int, float], last: int, target: int, fit_from: int
     return path[-1]
 
 
-def _sar_forecast(growth: Dict[int, float], last: int, target: int, fit_from: int, order: int) -> Optional[float]:
-    """AR(order) with intercept and quarter-of-year dummies, fitted by OLS and iterated to `target`."""
+def _sar_forecast(growth: Dict[int, float], last: int, target: int, fit_from: int, order: int,
+                  prior: Optional[np.ndarray] = None, prior_quarters: float = 40.0) -> Optional[float]:
+    """AR(order) with intercept and quarter-of-year dummies, fitted by OLS and iterated to `target`.
+
+    With `prior` (same coefficient layout), lags and season terms are pulled towards it as if it had been fitted on
+    `prior_quarters` extra quarters (partial pooling); the intercept is left free.
+    """
     start = last
     while start - 1 in growth and start - 1 >= fit_from:
         start -= 1
@@ -110,7 +115,14 @@ def _sar_forecast(growth: Dict[int, float], last: int, target: int, fit_from: in
 
     x = [row(q, [growth[q - k] for k in range(1, order + 1)]) for q in quarters[order:]]
     y = [growth[q] for q in quarters[order:]]
-    coef, *_ = np.linalg.lstsq(np.array(x), np.array(y), rcond=None)
+    if prior is None:
+        coef, *_ = np.linalg.lstsq(np.array(x), np.array(y), rcond=None)
+    else:
+        X, Y = np.array(x), np.array(y)
+        weights = prior_quarters * np.maximum(np.diag(X.T @ X) / len(Y), 1e-6)
+        weights[0] = 0.0
+        penalty = np.diag(weights)
+        coef = np.linalg.solve(X.T @ X + penalty, X.T @ Y + penalty @ np.asarray(prior, dtype=float))
     path = {q: growth[q] for q in quarters}
     for q in range(last + 1, target + 1):
         path[q] = float(np.dot(coef, row(q, [path[q - k] for k in range(1, order + 1)])))
@@ -248,7 +260,8 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
                             vat_schedule: Optional[List[Dict[str, Any]]] = None,
                             predictors: Optional[Dict[str, Dict[str, Any]]] = None,
                             predictor_sets: Optional[Dict[str, List[str]]] = None,
-                            target_rule: str = "after_origin_quarter", live_origin=None) -> Dict[str, Any]:
+                            target_rule: str = "after_origin_quarter", live_origin=None,
+                            panel_prior=None) -> Dict[str, Any]:
     """Expanding-window backtest of next-quarter growth on release-dated quarterly levels.
 
     `levels`: {period_start, value, available_at}. At each origin only levels released by then are used.
@@ -274,6 +287,8 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
     names = ("no_change", "last_growth", "seasonal_naive", "mean_4q", "ar4", "ar4_seasonal")
     if vat_schedule is not None:
         names += ("ar4_seasonal_vat",)
+        if panel_prior is not None:  # callable(origin) -> pooled coefficients from other countries public by then
+            names += ("ar4_seasonal_vat_pooled",)
     if predictor_sets:
         if vat_schedule is None:
             raise ValueError("Predictor models are fitted on growth excluding VAT and need vat_schedule")
@@ -318,6 +333,10 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
             factor = ((1 + vat_rate(vat_schedule, _reference_date(target), known_at=origin))
                       / (1 + vat_rate(vat_schedule, _reference_date(denominator), known_at=origin)))
             forecasts["ar4_seasonal_vat"] = None if ex_forecast is None else 100 * ((1 + ex_forecast / 100) * factor - 1)
+            if panel_prior is not None:
+                prior = panel_prior(origin)
+                pooled = None if prior is None else _sar_forecast(ex_growth, last, target, fit_from, ar_order, prior=prior)
+                forecasts["ar4_seasonal_vat_pooled"] = None if pooled is None else 100 * ((1 + pooled / 100) * factor - 1)
             if predictor_sets:
                 features = {name: _feature_at_origin(p, origin, origin_quarter) for name, p in predictors.items()}
                 runs = {"ar4_seasonal_vat_direct": []}

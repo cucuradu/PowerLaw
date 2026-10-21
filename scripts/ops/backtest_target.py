@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from src.config import REPO_ROOT, get_settings, primary_target_series_id
+from src.config import REPO_ROOT, get_settings, load_data_sources_registry, primary_target_series_id
 from src.quant.forecasting import diebold_mariano, load_vat_schedule, rolling_origin_backtest
 from src.storage.dual_layer_store import DualLayerStore
 
@@ -26,6 +26,43 @@ def quarter_end_origins(first: str, last: datetime) -> list[datetime]:
             return origins
         origins.append(origin)
         index += 1
+
+
+PANEL_LAG_DAYS = 100  # assumption: Eurostat sts_copi_q is published about 90 days after the quarter (rule, not evidence)
+
+
+def panel_prior_builder(store: DualLayerStore, now: datetime, order: int = 4, since: int = 2000):
+    """Pooled seasonal-AR coefficients from the other EU countries' new-home price growth, using only quarters
+    assumed public at the origin (quarter end + PANEL_LAG_DAYS). Germany's own Eurostat copy is excluded."""
+    import numpy as np
+    context = load_data_sources_registry()["sources"]["EUROSTAT_STS"]["context_series"]
+    ids = {s["provider_series_key"]: s["dimensions"]["geo"] for name, s in context.items()
+           if name.startswith("eu_new_home_prices_") and s["dimensions"]["geo"] != "DE"}
+    levels = {}
+    for row in store.query_observations(cutoff=now, mode="public_as_of", series_ids=list(ids)).to_pylist():
+        if row["value"] is not None:
+            q = int(row["period_start"][:4]) * 4 + (int(row["period_start"][5:7]) - 1) // 3
+            levels.setdefault(ids[row["series_id"]], {})[q] = row["value"]
+    growth = {geo: {q: 100 * (v / lv[q - 1] - 1) for q, v in lv.items() if q - 1 in lv} for geo, lv in levels.items()}
+    public = lambda q: datetime(q // 4 + (q % 4 == 3), (q % 4 + 1) % 4 * 3 + 1, 1, tzinfo=timezone.utc) + timedelta(days=PANEL_LAG_DAYS)
+    geos, cache = sorted(growth), {}
+
+    def prior(origin):
+        known = max((q for g in growth.values() for q in g if public(q) <= origin), default=None)
+        if known is None:
+            return None
+        if known not in cache:
+            x, y = [], []
+            for i, geo in enumerate(geos):
+                g = growth[geo]
+                for q in g:
+                    lags = [g.get(q - k) for k in range(1, order + 1)]
+                    if since * 4 <= q <= known and None not in lags and abs(g[q]) < 50 and max(map(abs, lags)) < 50:
+                        x.append([1.0] + lags + [float(q % 4 == k) for k in (1, 2, 3)] + [float(j == i) for j in range(1, len(geos))])
+                        y.append(g[q])
+            cache[known] = np.linalg.lstsq(np.array(x), np.array(y), rcond=None)[0][:order + 4] if len(y) > 200 else None
+        return cache[known]
+    return prior
 
 
 def load_predictors(store: DualLayerStore, revisions: list) -> dict:
@@ -89,7 +126,8 @@ def main() -> None:
     predictors = load_predictors(store, revisions)
     origins = quarter_end_origins(args.first_origin, now)
     schedule = load_vat_schedule()
-    baseline = rolling_origin_backtest(levels, origins, fit_start=args.fit_start, vat_schedule=schedule)
+    panel_prior = panel_prior_builder(store, now)
+    baseline = rolling_origin_backtest(levels, origins, fit_start=args.fit_start, vat_schedule=schedule, panel_prior=panel_prior)
     evidence = [n for n, p in predictors.items() if p["availability"] == "evidence"]
     survey = [n for n, p in predictors.items() if p.get("group") == "survey"]  # near real time, published monthly
     selected = [n for n, p in predictors.items() if p.get("in_forecast")]  # inputs of the published model
@@ -102,7 +140,7 @@ def main() -> None:
     sets = {"evidence": evidence, "selected": selected}
     next_release = rolling_origin_backtest(
         levels, [o + timedelta(days=20) for o in origins], fit_start=args.fit_start, vat_schedule=schedule,
-        predictors=predictors, predictor_sets=sets, target_rule="next_release", live_origin=now)
+        predictors=predictors, predictor_sets=sets, target_rule="next_release", live_origin=now, panel_prior=panel_prior)
 
     def section(result, reference, horizon):
         return {**{k: result[k] for k in ("settings", "models", "intervals")},
