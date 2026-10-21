@@ -1170,10 +1170,58 @@ def _naio_discover(source_id: str, since: Optional[str], until: Optional[str], l
                "publisher": registry.get("attribution", source_id), "content_type": "application/json"}
 
 
+def _figaro_parse(item: SourceItem, data: dict, document: SourceDocument, table: dict) -> dict[str, Any]:
+    """Cross-border supply: product p from origin country o used by construction in country d, per year.
+
+    Kept when the origin supplies at least `min_share` of d's construction use of p (all origins, incl. domestic and
+    rest of world, are the denominator). The countries are payload, not nodes: subject sec_<p>, object sec_F, with
+    scope "<origin>><dest>" so these facts never merge with Germany's national input-output facts.
+    """
+    from src.utils.taxonomy import sector_entity
+    labels = {dim: data["dimension"][dim]["category"]["label"] for dim in data["id"]}
+    cells = [(c, v) for c, v in _jsonstat_cells(data) if v > 0 and c["c_orig"] != "DOM"]
+    if not cells:
+        raise FetchError("FIGARO response has no values")
+    totals: dict[tuple, float] = {}
+    for c, v in cells:
+        key = (c["prd_ava"], c["c_dest"], c["time"])
+        totals[key] = totals.get(key, 0.0) + v
+    construction = table["sector"]
+    origin = {"batch_id": document.batch_id, "data_origin": document.data_origin}
+    entities = {construction: sector_entity(construction, **origin)}
+    pairs: list[tuple[Fact, dict]] = []
+    for c, value in cells:
+        share = value / totals[(c["prd_ava"], c["c_dest"], c["time"])]
+        if c["c_orig"] == "WRL_REST" or share < table["min_share"]:
+            continue
+        code, year = c["prd_ava"].removeprefix("CPA_"), int(c["time"])
+        entities.setdefault(code, sector_entity(code, **origin))
+        payload = {"episode": year, "scope": f"{c['c_orig']}>{c['c_dest']}", "origin_geo": c["c_orig"], "dest_geo": c["c_dest"],
+                   "dataset": item["upstream_id"], "value_mio_eur": value, "share": round(share, 5),
+                   "share_of": "all origins", "flow": "cross_border_input", "subject_type": "SECTOR", "object_type": "SECTOR"}
+        fact = Fact(subject_id=f"sec_{code}", predicate="FLOWS_TO", object_id=f"sec_{construction}",
+                    payload_json=json.dumps(payload, sort_keys=True),
+                    valid_from=datetime(year, 1, 1, tzinfo=timezone.utc), valid_to=datetime(year + 1, 1, 1, tzinfo=timezone.utc),
+                    available_at=document.available_at, source_id=document.source_id, claim_kind="source_claim", **origin)
+        quote = (f"{labels['c_orig'][c['c_orig']]}: {labels['prd_ava'][c['prd_ava']]} -> {labels['c_dest'][c['c_dest']]}: "
+                 f"{labels['prd_use'][c['prd_use']]}, {year}: {value:g} million EUR")
+        pairs.append((fact, {**{k: c[k] for k in ("prd_ava", "prd_use", "c_orig", "c_dest", "time")}, "dataset": item["upstream_id"], "quote": quote}))
+    facts = _new_facts_only(item.get("_store"), [fact for fact, _ in pairs])
+    selectors = {fact.fact_id: selector for fact, selector in pairs}
+    evidence = [EvidenceLink(assertion_version_id=f.fact_version_id, assertion_kind="FACT", document_version_id=document.version_id,
+                             selector_type="TABLE_CELL", selector_json=json.dumps({k: v for k, v in selectors[f.fact_id].items() if k != "quote"}),
+                             quoted_text=selectors[f.fact_id]["quote"], support_type="DIRECT", available_at=document.available_at,
+                             batch_id=document.batch_id) for f in facts]
+    return {"status": "accepted", "facts": facts, "observations": [], "evidence_links": evidence,
+            "entities": list(entities.values()), "series": [], "accepted_count": len(facts), "review_count": 0, "rejected_count": 0}
+
+
 def _naio_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
     from src.utils.taxonomy import sector_config, sector_entity
     table = load_data_sources_registry()["sources"][document.source_id]["tables"][item["table"]]
     data = json.loads(content)
+    if table["role"] == "cross_border":
+        return _figaro_parse(item, data, document, table)
     labels = {dim: data["dimension"][dim]["category"]["label"] for dim in data["id"]}
     cells = {(c["stk_flow"], c["prd_ava"], c["prd_use"], c["time"]): v for c, v in _jsonstat_cells(data)}
     if not cells:

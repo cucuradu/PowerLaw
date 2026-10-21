@@ -21,7 +21,7 @@ def _replay(settings, store, source, items, files, content_type):
 def test_network_joins_suppliers_materials_prices_and_laws(tmp_path):
     settings = _settings(tmp_path)
     store = DualLayerStore(settings.lancedb_path)
-    for item in _naio_discover("EUROSTAT_NAIO", None, None, 5):  # both tables share one upstream ID, so one at a time
+    for item in (i for i in _naio_discover("EUROSTAT_NAIO", None, None, 10) if i["upstream_id"] == "naio_10_cp1700"):  # one at a time
         _replay(settings, store, "EUROSTAT_NAIO", [item],
                 {item["upstream_id"]: f"eurostat_naio_10_cp1700_de_{item['table'].split('_')[1]}_official.json"}, "application/json")
     prices = [i for i in _stats_discover("DESTATIS_GENESIS", "2025-01", "2025-12", 20) if i["upstream_id"] == "61241-0006"]

@@ -21,9 +21,9 @@ Last reviewed: 2026-10-20, after the sector network, detailed material prices, E
 ## Active priorities
 
 1. Done 2026-10-20: redundant evidence compacted (409,007 links removed, 89 as-of cutoffs verified; state backup in `data/pilot-germany/backups/`). Dashboard home now 2.9 s cold, 0.2 s warm; other pages under 1 s.
-2. Done 2026-10-21: policy series (BEHG CO2 price, CBAM factor), World Bank world prices + monthly EUR/USD with tested chain links (6 of 8 supported), pooled candidate for the German target (no gain). Next: FIGARO cross-border links; news-based indices (counts of typed, grounded events per node and month); minimum wage series.
+2. Done 2026-10-21: policy series (BEHG CO2 price, CBAM factor), World Bank world prices + monthly EUR/USD with tested chain links (6 of 8 supported), pooled candidate for the German target (no gain). FIGARO cross-border links stored and tested (co-movement only, see decisions.md). Next: news-based indices (counts of typed, grounded events per node and month); minimum wage series.
 3. Rule identity: stable IDs applied to the store 2026-10-21 (365 rules, counts unchanged; backup `backups/before-rule-rekey-20261021`). Policy series (BEHG CO2 price, CBAM factor) stored via `LAW_PARAMETERS`.
-4. Store open takes about 7 s with the panel; home cold load about 11 s.
+4. Store open takes about 7.3 s (table reads + record sanitising); home cold load about 12 s. Candidate fix: cache the startup projection or load observations lazily.
 5. Intervals undercover (82-84% vs 90%) because of the 2021-23 shock; consider regime-aware or recent-window conformal calibration.
 
 ## Open issues

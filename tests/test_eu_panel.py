@@ -49,3 +49,9 @@ def test_every_chain_node_exists_or_names_its_data_source():
         for link in chain["links"]:
             assert {link["from"], link["to"]} <= known, (chain["id"], link)
             assert link["mechanism"] and link["status"] in {"in_store", "tested_supported", "tested_not_supported", "needs_data"}
+
+
+def test_fact_copies_stay_safe_without_deep_copy():
+    from src.schemas.ingestion import Fact
+    mutable = [k for k, v in Fact.model_fields.items() if any(t in str(v.annotation) for t in ("list", "List", "dict", "Dict", "set"))]
+    assert mutable == []  # query_facts returns shallow copies; a mutable field would leak store state

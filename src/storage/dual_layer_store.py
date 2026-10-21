@@ -1917,7 +1917,8 @@ class DualLayerStore:
             raise ValueError(f"Invalid mode: {mode!r}")
         cutoff = self._utc(cutoff)
         eligible = self._eligible_batches(cutoff, mode)
-        return [fact.model_copy(deep=True) for fact in self._latest_facts(cutoff, mode, eligible)
+        # Shallow copies suffice: every Fact field is an immutable scalar (str, datetime, bool, float).
+        return [fact.model_copy() for fact in self._latest_facts(cutoff, mode, eligible)
                 if (include_expired or not fact.valid_to or self._utc(fact.valid_to) > cutoff)
                 and self._evidence_for_record(fact, cutoff, mode, eligible)]
 

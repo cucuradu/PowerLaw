@@ -94,8 +94,8 @@
     },
     "cross_border_supply": {
       "label": "Imports of materials by origin country",
-      "source": "Eurostat FIGARO inter-country input-output tables (naio_10_fcp_*)",
-      "status": "needs_data"
+      "source": "Eurostat FIGARO naio_10_fcp_ip1-ip4 (FLOWS_TO with scope origin>dest, 2010-2024)",
+      "status": "in_store"
     }
   },
   "chains": [
@@ -676,7 +676,8 @@
             0,
             2
           ],
-          "status": "needs_data"
+          "status": "tested_not_supported",
+          "note": "2026-10-21: German wood/mineral/metal producer prices follow EU producer prices (pass-through ~1), but FIGARO import weights fit no better than equal weights: European co-movement, not trade transmission at this level."
         }
       ]
     }

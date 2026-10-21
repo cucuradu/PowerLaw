@@ -56,6 +56,62 @@ def link_test(trade: dict, material: dict, common: dict, since: tuple) -> dict |
             "r2_gain": float((rss_base - rss_full) / max(np.sum((y - y.mean()) ** 2), 1e-12))}
 
 
+PANEL_PRICES = {"C16": "wood_prices", "C23": "mineral_prices", "C24": "metal_prices"}  # EU panel slugs (build_eu_panel)
+
+
+def import_weighted_growth(shares: dict, foreign_growth: dict) -> dict:
+    """{quarter: share-weighted mean growth of foreign producer prices}, shares from the year before the quarter.
+
+    shares: {(origin, year): share}; foreign_growth: {origin: {quarter: growth}}. Origins without a price that
+    quarter drop out and the remaining weights are renormalised.
+    """
+    out = {}
+    for q in sorted({q for g in foreign_growth.values() for q in g}):
+        weights = {o: w for (o, year), w in shares.items() if year == q[0] - 1 and q in foreign_growth.get(o, {})}
+        if sum(weights.values()) > 0:
+            out[q] = sum(w * foreign_growth[o][q] for o, w in weights.items()) / sum(weights.values())
+    return out
+
+
+def cross_border_tests(store, now, growth: dict, materials: list, since: tuple) -> list:
+    """German producer prices of wood, minerals and metals vs. the import-weighted foreign producer prices
+    (FIGARO shares of foreign EU suppliers to German construction x EU panel producer prices)."""
+    from src.config import load_data_sources_registry
+    context = load_data_sources_registry()["sources"]["EUROSTAT_STS"]["context_series"]
+    results = []
+    facts = store.query_facts(cutoff=now, mode="public_as_of", include_expired=True)
+    for code, slug in PANEL_PRICES.items():
+        shares = {}
+        for f in facts:
+            p = json.loads(f.payload_json or "{}")
+            if f.predicate == "FLOWS_TO" and f.subject_id == f"sec_{code}" and p.get("dest_geo") == "DE" and p.get("origin_geo") != "DE":
+                shares[(p["origin_geo"], p["episode"])] = p["share"]
+        ids = {s["provider_series_key"]: s["dimensions"]["geo"] for name, s in context.items() if name.startswith(f"eu_{slug}_")}
+        monthly = {}
+        for row in store.query_observations(cutoff=now, mode="public_as_of", series_ids=list(ids)).to_pylist():
+            if row["value"] is not None:
+                monthly.setdefault(ids[row["series_id"]], {})[row["period_start"][:7]] = row["value"]
+        foreign = {geo: quarterly_growth(levels) for geo, levels in monthly.items() if geo != "DE"}
+        source = import_weighted_growth(shares, foreign)
+        if code not in growth:
+            continue
+        others = [growth[o] for o in materials if o != code]
+        common = {q: float(np.mean([g[q] for g in others if q in g])) for q in growth[code]}
+        test = link_test(growth[code], source, common, since)
+        # Placebo: every EU country weighted equally. If it fits as well, the trade weights add nothing beyond
+        # shocks all European producers share.
+        equal = import_weighted_growth({(o, y): 1.0 for o in foreign for (_, y) in shares}, foreign)
+        placebo = link_test(growth[code], equal, common, since)
+        if test:
+            trade_matters = placebo is None or test["r2_gain"] > placebo["r2_gain"]
+            results.append({"sector": code, "from": "import-weighted EU producer prices", "origins": sorted({o for o, _ in shares}),
+                            "verdict": ("supported" if trade_matters else "co-movement only")
+                                       if test["p"] < 0.05 and test["pass_through"] > 0 else "not supported",
+                            "placebo_equal_weights": {k: round(v, 4) if isinstance(v, float) else v for k, v in (placebo or {}).items()},
+                            **{k: round(v, 4) if isinstance(v, float) else v for k, v in test.items()}})
+    return results
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--since", default="2005-01-01")
@@ -120,14 +176,16 @@ def main() -> None:
                 chain_results.append({"chain": chain["id"], "from": link["from"], "to": link["to"], "metric": "world_price_eur",
                                       "verdict": "supported" if test["p"] < 0.05 and test["pass_through"] > 0 else "not supported",
                                       **{k: round(v, 4) if isinstance(v, float) else v for k, v in test.items()}})
+    cross_border = cross_border_tests(store, now, growth, materials, since)
     out = Path(get_settings().data_dir) / "reports" / "graph-links-latest.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"generated_at": now.isoformat(), "since": args.since, "links": results, "chain_links": chain_results,
+    out.write_text(json.dumps({"generated_at": now.isoformat(), "since": args.since, "links": results, "chain_links": chain_results, "cross_border": cross_border,
                                "method": __doc__.split("\n\n")[1].replace("\n", " ")}, indent=2), encoding="utf-8")
     hyp = [r for r in results if r["hypothesised"]]
     print(json.dumps({"output": str(out), "hypothesised": len(hyp), "supported": sum(r["verdict"] == "supported" for r in hyp),
                       "discovered": sum(not r["hypothesised"] for r in results),
-                      "chain_links": len(chain_results), "chain_supported": sum(r["verdict"] == "supported" for r in chain_results)}))
+                      "chain_links": len(chain_results), "chain_supported": sum(r["verdict"] == "supported" for r in chain_results),
+                      "cross_border": {r["sector"]: r["verdict"] for r in cross_border}}))
 
 
 if __name__ == "__main__":

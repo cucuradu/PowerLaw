@@ -90,3 +90,10 @@
 - **Result (82 origins 2006-2026):** two quarters ahead 0.576 vs 0.596 for the same model without pooling; next release 0.507 vs 0.497. No gain worth having: Germany's long own history already fixes its dynamics. The published model (`arx_vat_selected`, next release 0.446) is unchanged.
 - **Consequence:** the panel's value is for countries with short or volatile histories and for cross-country (graph) models, not for Germany's univariate dynamics. A graph model must beat `arx_vat_selected`, not the AR baseline.
 
+## Cross-border supply (FIGARO) (2026-10-21)
+
+- **Stored:** Eurostat FIGARO product-by-product tables `naio_10_fcp_ip1`-`ip4` (2010-2024): construction in each EU country, 11 material and energy products, every origin country supplying at least 1% (19.9k FLOWS_TO facts). Countries are payload (`origin_geo`, `dest_geo`, `scope` "<origin>><dest>"), so these facts never merge with Germany's national input-output facts; the network view uses only facts without `scope`.
+- **Test** (`scripts.ops.estimate_links`, `cross_border`): German producer prices of wood, minerals and metals vs. foreign EU producer prices weighted by the previous year's FIGARO import shares, with the common-trend control. Pass-through about 1 and p < 0.001 for all three, but an equal-weights placebo fits as well or better (R2 gain 0.17/0.19/0.21 vs 0.15/0.14/0.21). Verdict "co-movement only": German material prices move with European producer prices, and trade weights add nothing at this level of detail.
+- **Consequence for a graph model:** an EU sector-average input captures this; trade-weighted cross-border edges are not justified by the data yet (retest with product detail or import price indices).
+- **Store open:** fact copies are shallow (all fields immutable; guarded by a test): opening 8.1 -> 7.3 s. The rest is table reads and record sanitising (open issue).
+

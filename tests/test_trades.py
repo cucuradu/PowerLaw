@@ -32,3 +32,12 @@ def test_link_test_separates_a_real_input_from_the_common_trend():
     since = (2000, 0)
     assert link_test(trade, material, common, since)["p"] < 0.01
     assert link_test(trade, unrelated, common, since)["p"] > 0.05  # co-moves with the trend, but adds nothing
+
+
+def test_import_weights_use_last_years_shares_and_renormalise_over_reporting_origins():
+    from scripts.ops.estimate_links import import_weighted_growth
+    shares = {("PL", 2020): 0.03, ("CZ", 2020): 0.01, ("PL", 2021): 0.01, ("CZ", 2021): 0.03}
+    foreign = {"PL": {(2021, 0): 4.0, (2022, 0): 4.0}, "CZ": {(2021, 0): 0.0, (2022, 0): 0.0, (2022, 1): 8.0}}
+    out = import_weighted_growth(shares, foreign)
+    assert out[(2021, 0)] == 3.0 and out[(2022, 0)] == 1.0  # 2020 shares for 2021, 2021 shares for 2022
+    assert out[(2022, 1)] == 8.0  # Poland has no price that quarter: Czechia carries the whole weight

@@ -1042,7 +1042,7 @@ def get_sector_network(store: Any, cutoff: Optional[datetime] = None, year: Opti
     entities = store._canonical_entities
     names = {**{k: v["name"] for k, v in series_names().items()}, **_law_names()}
     payload = lambda f: json.loads(f.payload_json or "{}")
-    flows = [f for f in facts if f.predicate == "FLOWS_TO"]
+    flows = [f for f in facts if f.predicate == "FLOWS_TO" and "scope" not in payload(f)]  # Germany's table, not FIGARO
     years = sorted({payload(f)["episode"] for f in flows})
     if not years:
         return {"year": None, "years": [], "nodes": [], "edges": []}
