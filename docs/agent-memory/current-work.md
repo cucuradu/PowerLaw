@@ -22,7 +22,7 @@ Last reviewed: 2026-10-20, after the sector network, detailed material prices, E
 
 1. Done 2026-10-20: redundant evidence compacted (409,007 links removed, 89 as-of cutoffs verified; state backup in `data/pilot-germany/backups/`). Dashboard home now 2.9 s cold, 0.2 s warm; other pages under 1 s.
 2. Next: policy series (BEHG CO2 price, CBAM phase-in, VAT, minimum wage) from stored law texts; World Bank commodity prices; FIGARO cross-border links; partial-pooling model for the German target; news-based indices (counts of typed, grounded events per node and month).
-3. Rule identity refactor (stable rule ids from CELEX + article + paragraph + mechanism) waits for user approval: it retracts stored rule facts.
+3. Rule identity: code done (stable IDs, full-rule retraction); store migration `scripts.ops.rekey_rules` not yet applied (back up first). Policy series (BEHG CO2 price, CBAM factor) stored via `LAW_PARAMETERS`.
 4. Store open takes about 7 s with the panel; home cold load about 11 s.
 5. Intervals undercover (82-84% vs 90%) because of the 2021-23 shock; consider regime-aware or recent-window conformal calibration.
 

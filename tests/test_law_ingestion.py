@@ -421,3 +421,45 @@ def test_process_pdf_uses_verified_archive_before_publication(mock_store, temp_d
 def test_celex_resolution_from_eurlex_url_and_source_law_type(mock_store):
     pipeline = LawIngestionPipeline(store=mock_store)
     assert pipeline.get_celex_id("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023D1534") == "32023D1534"
+
+
+def test_rule_ids_survive_reordering_and_a_dropped_rule_is_fully_retracted(mock_store, sample_xml_content, monkeypatch):
+    """Rule IDs come from law + article + paragraph + mechanism, not extraction order; dropping a rule retracts its
+    law link and its own sector/commodity links."""
+    pipeline = LawIngestionPipeline(store=mock_store)
+
+    def ingest(batch_id, day, rules=None, tag=None):
+        content = sample_xml_content + f"<!-- {tag or batch_id} -->".encode()
+        doc = SourceDocument.from_content(
+            source_id="EURLEX_CELLAR", canonical_url="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1069",
+            publisher="Publications Office of the EU", content_bytes=content, batch_id=batch_id, data_origin="test",
+            available_at=datetime(2024, 5, day, 8, tzinfo=timezone.utc),
+        ).model_copy(update={"content_type": "application/xml", "upstream_id": "32024R1069"})
+        if rules is not None:
+            monkeypatch.setattr(pipeline, "extract_rules_from_text", lambda *a, **k: list(rules))
+        facts = pipeline.process_document(doc, content)
+        mock_store.stage_batch(BatchManifest(batch_id=batch_id, source_id="EURLEX_CELLAR", data_origin="test"), [doc], facts, [],
+                               evidence_links=pipeline.last_evidence_links, entities=pipeline.last_entities)
+        mock_store.commit_batch(batch_id)
+        return facts
+
+    original, seen = pipeline.extract_rules_from_text, []
+    monkeypatch.setattr(pipeline, "extract_rules_from_text", lambda *a, **k: seen.extend(original(*a, **k)) or list(seen))
+    first = ingest("batch_rules_1", 1)
+    rules = list(seen)
+    ids = {f.object_id for f in first if f.predicate == "MANDATES"}
+    assert len(rules) >= 2 and all(i.startswith("rule_32024R1069_") and not i.endswith("_0") for i in ids)
+
+    reordered = ingest("batch_rules_2", 1, rules=list(reversed(rules)), tag="batch_rules_1")
+    assert {f.object_id for f in reordered if f.predicate == "MANDATES"} == ids
+    assert not [f for f in reordered if f.is_retracted]
+
+    # Re-reading the unchanged document (same date, as re-keying does) must still supersede what it no longer yields.
+    dropped = ingest("batch_rules_3", 1, rules=rules[1:], tag="batch_rules_1")
+    retracted = [f for f in dropped if f.is_retracted]
+    gone = ids - {f.object_id for f in dropped if f.predicate == "MANDATES" and not f.is_retracted}
+    assert len(gone) == 1
+    assert {f.predicate for f in retracted if gone & {f.subject_id, f.object_id}} >= {"MANDATES", "REGULATES"}
+    live = mock_store.project_graph(cutoff=datetime(2024, 6, 1, tzinfo=timezone.utc), mode="public_as_of")["edges"]
+    assert not [e for e in live if gone & {e["source_id"], e["target_id"]}]
+    assert [e for e in live if (ids - gone) & {e["source_id"], e["target_id"]}]

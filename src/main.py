@@ -85,6 +85,30 @@ SECTOR_WORDS = {
 # Date Conversion Helper
 import datetime
 
+def rule_ids(celex_id: str, rules: List[GNNRule]) -> List[str]:
+    """Stable rule IDs: law + article + paragraph + what the rule does, independent of extraction order.
+
+    The value, dates and scope are left out on purpose: an amendment that changes them is a new version of the same
+    rule, not a new rule. Rules sharing the whole key get an ordinal by content, so the same set always maps the same way.
+    """
+    keys = []
+    for rule in rules:
+        article = re.sub(r"[^A-Za-z0-9]+", "_", rule.metadata.article_id).strip("_").upper()
+        paragraph = re.search(r"\((\d+[a-z]?)\)", rule.mechanism.evidence_anchor or "")
+        target = re.sub(r"[^a-z0-9]+", "_", (rule.mechanism.target_variable or "").lower()).strip("_")
+        identity = "|".join([celex_id, article, paragraph.group(1) if paragraph else "", rule.mechanism.action_type.value,
+                             rule.mechanism.operator.value, target])
+        content = json.dumps([rule.mechanism.value, sorted(rule.scope.industrial_sectors), sorted(rule.scope.affected_commodities),
+                              rule.summary], default=str)
+        keys.append((f"rule_{celex_id}_{article}_{hashlib.sha256(identity.encode()).hexdigest()[:10]}", content))
+    ids = [None] * len(rules)
+    for base in {key for key, _ in keys}:
+        members = sorted((content, i) for i, (key, content) in enumerate(keys) if key == base)
+        for ordinal, (_, i) in enumerate(members):
+            ids[i] = base if ordinal == 0 else f"{base}_{ordinal + 1}"
+    return ids
+
+
 def to_timestamp(date_str: str) -> int:
     """Convert YYYY-MM-DD string to Unix timestamp."""
     if not date_str:
@@ -779,18 +803,15 @@ class LawIngestionPipeline:
         law_entity_id = f"law_{celex_id}"
         entities.append(self._law_entity(celex_id, document, document.upstream_id or f"EU Law {celex_id}"))
 
-        art_counts: Dict[str, int] = {}
-        for rule in rules:
+        for rule, rule_id in zip(rules, rule_ids(celex_id, rules)):
             art = rule.metadata.article_id
-            idx = art_counts.get(art, 0)
-            art_counts[art] = idx + 1
-            rule_id = f"rule_{celex_id}_{art}_{idx}"
             rule_entity = Entity(
                 entity_id=rule_id,
                 entity_type="ACTION",
                 entity_subtype="LEGAL_RULE",
                 canonical_label=f"Rule {celex_id} {art}",
                 jurisdiction="EU",
+                metadata_json=json.dumps({"law_id": law_entity_id, "article_id": art}),
                 batch_id=document.batch_id,
                 data_origin=document.data_origin,
             )
@@ -1045,7 +1066,9 @@ class LawIngestionPipeline:
             if hasattr(self.store, "_canonical_facts"):
                 committed = {k for k, b in getattr(self.store, "_canonical_batches", {}).items() if b.status == "committed"}
                 for f in self.store._canonical_facts.values():
-                    if f.batch_id in committed and (f.subject_id == law_entity_id or f.subject_id == f"law_{celex_id}") and not f.is_retracted:
+                    # The law's own facts and those of its rules (rule -> sector/commodity/geography) are both superseded.
+                    ours = f.subject_id in (law_entity_id, f"law_{celex_id}") or str(f.subject_id).startswith(f"rule_{celex_id}_")
+                    if f.batch_id in committed and ours and not f.is_retracted:
                         if not any(pf.fact_id == f.fact_id for pf in previous_facts):
                             previous_facts.append(f)
             elif hasattr(self.store, "ledger_store"):
@@ -1065,7 +1088,9 @@ class LawIngestionPipeline:
         retractions = []
         for old_fact in previous_facts:
             if old_fact.fact_id not in current_fact_ids and not old_fact.is_retracted:
-                if old_fact.available_at < document.available_at:
+                # <=: a re-read of the same document (same date) also supersedes facts it no longer yields;
+                # the retraction is recorded later, so it wins the tie.
+                if old_fact.available_at <= document.available_at:
                     retracted_fact = Fact(
                         fact_id=old_fact.fact_id,
                         subject_id=old_fact.subject_id,
@@ -1099,6 +1124,10 @@ class LawIngestionPipeline:
         # Ensure endpoints of any retracted facts are also present in entities
         for rf in retractions:
             for ep_id in (rf.subject_id, rf.object_id):
+                stored = getattr(self.store, "_canonical_entities", {}).get(ep_id) if ep_id else None
+                if stored is not None and ep_id not in seen_entity_ids:  # entities are immutable: resend the stored one
+                    deduped_entities.append(stored.model_copy(update={"batch_id": document.batch_id}))
+                    seen_entity_ids.add(ep_id)
                 if ep_id and ep_id not in seen_entity_ids:
                     ep_type = (
                         "SECTOR" if ep_id.startswith("sec_")
