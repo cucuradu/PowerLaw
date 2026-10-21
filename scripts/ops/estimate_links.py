@@ -18,6 +18,7 @@ from scipy import stats
 
 from src.config import REPO_ROOT, get_settings
 from src.storage.dual_layer_store import DualLayerStore
+from src.utils.taxonomy import is_german_series
 
 LAGS = 3  # material growth at t, t-1, t-2
 
@@ -67,7 +68,8 @@ def main() -> None:
     for series_id, info in names.items():
         measures = info.get("measures") or {}
         node = measures.get("commodity") or measures.get("sector")
-        if info["status"] == "active" and measures.get("metric") in ("producer_price", "output_price") and node:
+        if (info["status"] == "active" and measures.get("metric") in ("producer_price", "output_price") and node
+                and is_german_series(series_id)):
             node_series.setdefault(node, series_id)
     levels = {}
     for row in store.query_observations(cutoff=now, mode="public_as_of").to_pylist():

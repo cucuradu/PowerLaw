@@ -24,7 +24,7 @@ import threading
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple, Union
+from typing import List, Dict, Any, Iterable, Optional, Tuple, Union
 from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
@@ -1932,16 +1932,18 @@ class DualLayerStore:
                 and self._definition_available(definition, mode) <= cutoff
                 and (mode == "public_as_of" or (self._utc(definition.recorded_at) if "recorded_at" in getattr(definition, "model_fields_set", set()) else self._available(definition)) <= cutoff)]
 
-    def query_observation_revisions(self, cutoff: datetime, mode: str = "public_as_of") -> List[Observation]:
-        """Eligible release history; a withdrawn logical observation revokes its old labels."""
+    def query_observation_revisions(self, cutoff: datetime, mode: str = "public_as_of",
+                                    series_ids: Optional[Iterable[str]] = None) -> List[Observation]:
+        """Eligible release history (optionally only `series_ids`); a withdrawn logical observation revokes its old labels."""
         if mode not in ("public_as_of", "system_as_of"):
             raise ValueError(f"Invalid mode: {mode!r}")
         cutoff = self._utc(cutoff)
         self._ensure_observations_loaded()
         eligible = self._eligible_batches(cutoff, mode)
         definitions = {s.series_id for s in self.query_series(cutoff, mode)}
+        wanted = set(series_ids) if series_ids is not None else None
         visible = [o for o in self._canonical_observations.values()
-                   if o.batch_id in eligible and self._available(o) <= cutoff
+                   if (wanted is None or o.series_id in wanted) and o.batch_id in eligible and self._available(o) <= cutoff
                    and (mode == "public_as_of" or self._utc(o.recorded_at) <= cutoff)]
         latest = {}
         for obs in visible:
@@ -1958,15 +1960,18 @@ class DualLayerStore:
                 and self._evidence_for_record(o, cutoff, mode, eligible)]
 
     def query_observations(self, cutoff: datetime, mode: str = "public_as_of",
-                           entity_ids: Optional[List[str]] = None) -> pa.Table:
-        """Read accepted latest revisions from this instance's pinned committed snapshot."""
+                           entity_ids: Optional[List[str]] = None, series_ids: Optional[Iterable[str]] = None) -> pa.Table:
+        """Read accepted latest revisions from this instance's pinned committed snapshot (optionally only `series_ids`)."""
         if mode not in ("public_as_of", "system_as_of"):
             raise ValueError(f"Invalid mode: {mode!r}")
         cutoff = self._utc(cutoff)
         self._ensure_observations_loaded()
         eligible = self._eligible_batches(cutoff, mode)
         latest = {}
+        wanted = set(series_ids) if series_ids is not None else None
         for obs in self._canonical_observations.values():
+            if wanted is not None and obs.series_id not in wanted:
+                continue
             if obs.batch_id not in eligible or self._available(obs) > cutoff:
                 continue
             if mode == "system_as_of" and self._utc(obs.recorded_at) > cutoff:

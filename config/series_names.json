@@ -724,6 +724,1926 @@
         "sector": "F_BPNB555",
         "metric": "output_price"
       }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=AT|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Austria: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=BE|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Belgium: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=BG|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Bulgaria: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=CY|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Cyprus: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=CZ|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Czechia: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=DK|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Denmark: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=EE|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Estonia: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=EL|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Greece: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=ES|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Spain: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=FI|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Finland: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=FR|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "France: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=HR|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Croatia: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=HU|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Hungary: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=IE|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Ireland: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=IT|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Italy: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=LT|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Lithuania: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=LU|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Luxembourg: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=LV|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Latvia: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=MT|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Malta: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=NL|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Netherlands: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=PL|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Poland: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=PT|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Portugal: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=RO|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Romania: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=SE|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Sweden: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=SI|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Slovenia: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=SK|indic_bt=PRC_PRR|s_adj=NSA|unit=I21": {
+      "name": "Slovakia: construction prices, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "output_price"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=AT|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Austria: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=BE|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Belgium: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=BG|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Bulgaria: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=CY|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Cyprus: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=CZ|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Czechia: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=DE|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Germany: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=DK|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Denmark: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=EE|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Estonia: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=EL|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Greece: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=ES|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Spain: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=FI|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Finland: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=FR|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "France: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=HR|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Croatia: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=HU|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Hungary: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=IE|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Ireland: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=IT|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Italy: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=LT|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Lithuania: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=LU|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Luxembourg: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=LV|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Latvia: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=MT|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Malta: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=NL|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Netherlands: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=PL|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Poland: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=PT|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Portugal: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=RO|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Romania: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=SE|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Sweden: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=SI|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Slovenia: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_copi_q|cpa2_1=CPA_F41001_X_410014|freq=Q|geo=SK|indic_bt=COST|s_adj=NSA|unit=I21": {
+      "name": "Slovakia: building costs, new homes",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "input_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=AT|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Austria: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=BE|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Belgium: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=BG|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Bulgaria: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=CY|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Cyprus: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=CZ|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Czechia: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=DE|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Germany: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=DK|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Denmark: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=EE|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Estonia: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=EL|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Greece: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=ES|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Spain: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=FI|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Finland: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=FR|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "France: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=HR|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Croatia: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=HU|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Hungary: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=IE|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Ireland: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=IT|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Italy: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=LT|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Lithuania: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=LU|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Luxembourg: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=LV|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Latvia: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=MT|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Malta: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=NL|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Netherlands: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=PL|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Poland: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=PT|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Portugal: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=RO|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Romania: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=SE|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Sweden: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=SI|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Slovenia: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|lc_lci_r2_q|freq=Q|geo=SK|lcstruct=D1_D4_MD5|nace_r2=F|s_adj=NSA|unit=I20": {
+      "name": "Slovakia: labour cost in construction",
+      "status": "active",
+      "measures": {
+        "sector": "D1",
+        "metric": "labour_cost"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=AT|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Austria: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=BE|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Belgium: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=BG|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Bulgaria: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=CY|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Cyprus: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=CZ|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Czechia: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=DE|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Germany: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=DK|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Denmark: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=EE|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Estonia: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=EL|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Greece: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=ES|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Spain: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=FI|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Finland: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=FR|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "France: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=HR|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Croatia: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=HU|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Hungary: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=IE|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Ireland: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=IT|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Italy: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LT|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Lithuania: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LU|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Luxembourg: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LV|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Latvia: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=MT|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Malta: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=NL|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Netherlands: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=PL|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Poland: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=PT|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Portugal: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=RO|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Romania: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SE|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Sweden: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SI|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Slovenia: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SK|indic_bt=PRC_PRR|nace_r2=C16|s_adj=NSA|unit=I21": {
+      "name": "Slovakia: producer prices, wood products",
+      "status": "active",
+      "measures": {
+        "sector": "C16",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=AT|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Austria: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=BE|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Belgium: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=BG|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Bulgaria: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=CY|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Cyprus: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=CZ|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Czechia: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=DE|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Germany: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=DK|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Denmark: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=EE|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Estonia: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=EL|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Greece: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=ES|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Spain: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=FI|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Finland: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=FR|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "France: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=HR|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Croatia: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=HU|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Hungary: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=IE|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Ireland: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=IT|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Italy: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LT|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Lithuania: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LU|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Luxembourg: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LV|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Latvia: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=MT|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Malta: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=NL|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Netherlands: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=PL|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Poland: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=PT|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Portugal: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=RO|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Romania: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SE|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Sweden: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SI|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Slovenia: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SK|indic_bt=PRC_PRR|nace_r2=C23|s_adj=NSA|unit=I21": {
+      "name": "Slovakia: producer prices, cement, concrete, bricks, glass",
+      "status": "active",
+      "measures": {
+        "sector": "C23",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=AT|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Austria: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=BE|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Belgium: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=BG|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Bulgaria: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=CY|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Cyprus: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=CZ|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Czechia: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=DE|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Germany: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=DK|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Denmark: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=EE|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Estonia: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=EL|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Greece: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=ES|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Spain: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=FI|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Finland: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=FR|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "France: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=HR|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Croatia: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=HU|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Hungary: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=IE|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Ireland: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=IT|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Italy: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LT|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Lithuania: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LU|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Luxembourg: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LV|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Latvia: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=MT|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Malta: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=NL|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Netherlands: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=PL|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Poland: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=PT|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Portugal: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=RO|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Romania: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SE|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Sweden: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SI|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Slovenia: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SK|indic_bt=PRC_PRR|nace_r2=C24|s_adj=NSA|unit=I21": {
+      "name": "Slovakia: producer prices, basic metals",
+      "status": "active",
+      "measures": {
+        "sector": "C24",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=AT|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Austria: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=BE|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Belgium: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=BG|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Bulgaria: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=CY|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Cyprus: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=CZ|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Czechia: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=DE|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Germany: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=DK|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Denmark: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=EE|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Estonia: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=EL|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Greece: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=ES|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Spain: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=FI|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Finland: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=FR|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "France: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=HR|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Croatia: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=HU|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Hungary: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=IE|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Ireland: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=IT|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Italy: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LT|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Lithuania: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LU|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Luxembourg: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=LV|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Latvia: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=MT|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Malta: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=NL|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Netherlands: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=PL|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Poland: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=PT|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Portugal: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=RO|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Romania: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SE|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Sweden: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SI|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Slovenia: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|sts_inpp_m|freq=M|geo=SK|indic_bt=PRC_PRR|nace_r2=D35|s_adj=NSA|unit=I21": {
+      "name": "Slovakia: producer prices, electricity and gas",
+      "status": "active",
+      "measures": {
+        "sector": "D",
+        "metric": "producer_price"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=AT|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Austria: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=BE|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Belgium: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=BG|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Bulgaria: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=CY|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Cyprus: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=CZ|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Czechia: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=DK|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Denmark: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=EE|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Estonia: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=EL|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Greece: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=ES|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Spain: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=FI|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Finland: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=FR|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "France: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=HR|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Croatia: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=HU|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Hungary: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=IE|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Ireland: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=IT|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Italy: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=LT|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Lithuania: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=LU|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Luxembourg: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=LV|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Latvia: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=MT|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Malta: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=NL|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Netherlands: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=PL|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Poland: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=PT|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Portugal: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=RO|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Romania: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=SE|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Sweden: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=SI|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Slovenia: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=SK|indic=BS-CPE-BAL|s_adj=NSA": {
+      "name": "Slovakia: builders' price expectations (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "price_expectations"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=AT|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Austria: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=BE|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Belgium: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=BG|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Bulgaria: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=CY|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Cyprus: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=CZ|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Czechia: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=DK|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Denmark: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=EE|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Estonia: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=EL|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Greece: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=ES|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Spain: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=FI|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Finland: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=FR|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "France: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=HR|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Croatia: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=HU|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Hungary: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=IE|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Ireland: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=IT|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Italy: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=LT|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Lithuania: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=LU|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Luxembourg: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=LV|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Latvia: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=MT|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Malta: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=NL|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Netherlands: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=PL|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Poland: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=PT|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Portugal: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=RO|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Romania: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=SE|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Sweden: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=SI|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Slovenia: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
+    },
+    "EUROSTAT_STS|ei_bsbu_m_r2|freq=M|geo=SK|indic=BS-FLBA5-PC|s_adj=NSA": {
+      "name": "Slovakia: builders short of materials (survey)",
+      "status": "active",
+      "measures": {
+        "sector": "F",
+        "metric": "material_shortage"
+      }
     }
   }
 }

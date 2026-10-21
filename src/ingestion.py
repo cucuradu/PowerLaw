@@ -830,14 +830,18 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
         required_series_keys = []
         if source_id == "EUROSTAT_STS":
             crosscheck = target["eurostat_crosscheck"]
+            table = [s for s in registry.get("context_series", {}).values() if s["table_id"] == key_val]
+            selections = [s["dimensions"] for s in table if not s.get("panel")]
             if key_val == crosscheck["dataset_id"]:
-                selections = [crosscheck["dimensions"]]
-            else:
-                selections = [s["dimensions"] for s in registry.get("context_series", {}).values() if s["table_id"] == key_val]
-            if not selections:
+                selections.insert(0, crosscheck["dimensions"])
+            # EU panel series are kept when the response has them; a country that does not report one is not an error.
+            panel = [s["dimensions"] for s in table if s.get("panel")]
+            if not selections and not panel:
                 raise FetchError("Eurostat dataset has no verified exact series selection")
-            required_series_keys = [f"EUROSTAT_STS|{key_val}|" + "|".join(f"{key}={dims[key]}" for key in sorted(dims))
-                                    for dims in selections]
+            as_key = lambda dims: f"EUROSTAT_STS|{key_val}|" + "|".join(f"{key}={dims[key]}" for key in sorted(dims))
+            required_series_keys = [as_key(dims) for dims in selections]
+            request_contract["optional_series_keys"] = [as_key(dims) for dims in panel]
+            selections = selections + panel
             query: dict[str, list] = {}
             for dims in selections:  # extra combinations are dropped by the required-series filter
                 for key, value in dims.items():
@@ -968,10 +972,11 @@ def _make_stats_parser(source_id: str) -> Parser:
         series_key = str(item.get("series_key") or item.get("upstream_id") or "")
         fetched_at = document.available_at or document.fetched_at
         raw_obs = normalize_series_response(source_id, series_key, content, fetched_at)
-        if item.get("required_series_keys"):
-            required = set(item["required_series_keys"])
-            raw_obs = [observation for observation in raw_obs if observation.series_id in required]
-            if {observation.series_id for observation in raw_obs} != required:
+        if item.get("required_series_keys") or item.get("optional_series_keys"):
+            required = set(item.get("required_series_keys") or [])
+            raw_obs = [observation for observation in raw_obs
+                       if observation.series_id in required | set(item.get("optional_series_keys") or [])]
+            if not required <= {observation.series_id for observation in raw_obs}:
                 raise FetchError("configured statistical series is missing from provider response; review required")
         source_dimensions = {}
         if source_id in {"ECB_SDMX", "BUNDESBANK_SDMX"}:
@@ -1053,8 +1058,12 @@ def _make_stats_parser(source_id: str) -> Parser:
                     dim_dict["dataset"] = parts[1]
                     freq = {"D": "DAILY", "M": "MONTHLY", "Q": "QUARTERLY", "A": "ANNUAL"}.get(dim_dict.get("freq"), freq)
                     indicator = dim_dict.get("indic_bt") or dim_dict.get("indic", "")
-                    m_kind = {"PRC_PRR": "PRODUCER_PRICE_INDEX", "COST": "CONSTRUCTION_INPUT_COST_INDEX", "PROD": "PRODUCTION_INDEX",
-                              "BS-CPE-BAL": "SURVEY_PRICE_EXPECTATIONS", "BS-FLBA5-PC": "SURVEY_MATERIAL_SHORTAGE"}.get(indicator, "UNKNOWN")
+                    from src.config import load_data_sources_registry
+                    registered = {sel["provider_series_key"]: sel["measurement_kind"] for sel in
+                                  load_data_sources_registry()["sources"]["EUROSTAT_STS"].get("context_series", {}).values()}
+                    m_kind = registered.get(o.series_id) or {
+                        "PRC_PRR": "PRODUCER_PRICE_INDEX", "COST": "CONSTRUCTION_INPUT_COST_INDEX", "PROD": "PRODUCTION_INDEX",
+                        "BS-CPE-BAL": "SURVEY_PRICE_EXPECTATIONS", "BS-FLBA5-PC": "SURVEY_MATERIAL_SHORTAGE"}.get(indicator, "UNKNOWN")
                     m_name = m_kind.lower()
                 elif source_id == "DESTATIS_GENESIS":
                     # The registry selection states what each verified Destatis series measures.

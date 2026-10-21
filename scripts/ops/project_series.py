@@ -19,6 +19,7 @@ from src.quant.forecasting import rolling_origin_backtest
 from src.storage.dual_layer_store import DualLayerStore
 
 from src.storage.dashboard_data import PRICE_METRICS
+from src.utils.taxonomy import is_german_series
 CANDIDATES = ("ar4_seasonal", "ar4", "mean_4q", "no_change")
 SPLIT = datetime(2018, 1, 1, tzinfo=timezone.utc)
 
@@ -81,7 +82,8 @@ def main() -> None:
     projections = []
     for series_id, info in names.items():
         metric = (info.get("measures") or {}).get("metric")
-        if info["status"] != "active" or metric not in PRICE_METRICS or series_id == primary_target_series_id():
+        if (info["status"] != "active" or metric not in PRICE_METRICS or series_id == primary_target_series_id()
+                or not is_german_series(series_id)):
             continue
         levels = quarterly_levels(revisions, series_id, rules.get(series_id), store)
         outcome = project(levels, origins, now) if levels else None

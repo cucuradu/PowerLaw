@@ -20,6 +20,7 @@ from src.models.dual_layer_model import NodeType
 from src.storage.graph_store import DualLayerGraphStore
 
 from src.config import get_settings
+from src.utils.taxonomy import is_german_series
 
 logger = logging.getLogger(__name__)
 
@@ -570,7 +571,10 @@ def get_construction_outlook(
     canonical_store = store or get_graph_store(str(settings.lancedb_path)).canonical_store
 
     # Retrieve committed observations as of cutoff
-    obs_table = canonical_store.query_observations(cutoff=cutoff, mode="public_as_of")
+    # Germany's outlook: the EU panel's other countries stay out of the context list.
+    german = [sid for sid in getattr(canonical_store, "_canonical_series", {}) if is_german_series(sid)]
+    obs_table = canonical_store.query_observations(cutoff=cutoff, mode="public_as_of",
+                                                   series_ids=german if hasattr(canonical_store, "_canonical_series") else None)
     obs_list = obs_table.to_pylist() if hasattr(obs_table, "to_pylist") else []
 
     target_obs = [o for o in obs_list if o.get("series_id") == target_series_id]
@@ -611,7 +615,7 @@ def get_construction_outlook(
         avail = latest.get("available_at")
         # Revisions can repeat a value (fetch-dated and release-dated); show when the value first became public.
         if hasattr(canonical_store, "query_observation_revisions"):
-            first = [canonical_store._available(r) for r in canonical_store.query_observation_revisions(cutoff, "public_as_of")
+            first = [canonical_store._available(r) for r in canonical_store.query_observation_revisions(cutoff, "public_as_of", series_ids=[target_series_id])
                      if r.series_id == target_series_id and r.period_start == latest.get("period_start")
                      and r.value == latest.get("value")]
             avail = min(first) if first else avail
@@ -933,7 +937,7 @@ def get_target_history(store: Any, cutoff: Optional[datetime] = None, since: str
     """Quarterly target levels as public at the cutoff, with quarter-on-quarter growth in percent."""
     from src.config import primary_target_series_id
     target = primary_target_series_id()
-    rows = store.query_observations(cutoff=cutoff or datetime.now(timezone.utc), mode="public_as_of").to_pylist()
+    rows = store.query_observations(cutoff=cutoff or datetime.now(timezone.utc), mode="public_as_of", series_ids=[target]).to_pylist()
     levels = sorted((r["period_start"], r["value"]) for r in rows if r["series_id"] == target and r["value"] is not None)
     history, previous = [], None
     for period, value in levels:
@@ -1009,7 +1013,7 @@ def _law_names() -> Dict[str, str]:
 
 def _price_changes(store: Any, cutoff: datetime, series_ids: set) -> Dict[str, Dict[str, Any]]:
     """Latest level and change on a year earlier for each series, as public at the cutoff."""
-    rows = store.query_observations(cutoff=cutoff, mode="public_as_of").to_pylist()
+    rows = store.query_observations(cutoff=cutoff, mode="public_as_of", series_ids=series_ids).to_pylist()
     levels: Dict[str, Dict[str, float]] = {}
     for row in rows:
         if row["series_id"] in series_ids and row["value"] is not None:
@@ -1089,7 +1093,8 @@ def get_sector_network(store: Any, cutoff: Optional[datetime] = None, year: Opti
         if link["hypothesised"] and link["verdict"] == "supported" and source in nodes and target in nodes:
             edges.append({"source": source, "target": target, "kind": "feeds", "pass_through": link["pass_through"],
                           "p": link["p"]})
-    measures = [f for f in facts if f.predicate == "MEASURES" and f.object_id in nodes]
+    # The network is Germany's; the EU panel's other countries measure the same nodes and are left out here.
+    measures = [f for f in facts if f.predicate == "MEASURES" and f.object_id in nodes and is_german_series(f.subject_id)]
     changes = _price_changes(store, cutoff, {f.subject_id for f in measures})
     for f in measures:
         if f.subject_id in changes and payload(f).get("metric") in PRICE_METRICS:

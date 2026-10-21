@@ -54,7 +54,7 @@ def test_only_verified_sources_and_requests_are_active():
         "STATISTISCHE_BIBLIOTHEK"}
     assert list(sources["DESTATIS_GENESIS"]["series_keys"].values()) == [
         "61261-0002", "61261-0014", "61241-0004", "44111-0009", "31111-0020", "62221-0002", "61241-0006"]
-    assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q", "ei_bsbu_m_r2"]
+    assert list(sources["EUROSTAT_STS"]["series_keys"].values()) == ["sts_copi_q", "ei_bsbu_m_r2", "sts_inpp_m", "lc_lci_r2_q"]
     assert list(sources["ECB_SDMX"]["series_keys"].values()) == ["MIR.M.DE.B.A2C.A.R.A.2250.EUR.N"]
     news = list(_news_discover("OFFICIAL_NEWS", None, None, 10))
     assert [item["url"] for item in news] == ["https://ec.europa.eu/commission/presscorner/api/rss?language=en"]
@@ -95,23 +95,24 @@ def test_configured_real_response_commits_exact_selection_with_pilot_cap(tmp_pat
     report = run_ingestion(source, limit=1, settings=settings, store=store, max_series=8,
         discover=lambda *a: [item], fetch=lambda url, **kw: (raw, url, item["content_type"], 200))
     assert report["status"] == "committed", report["source_errors"]
-    assert len(store._canonical_series) == 1
-    expected = item["required_series_keys"][0]
-    assert set(store._canonical_series) == {expected}
-    assert {obs.series_id for obs in store._canonical_observations.values()} == {expected}
+    # Germany's response also carries its EU-panel cost series, which is kept; nothing unregistered is.
+    expected = {item["required_series_keys"][0]} | ({k for k in item.get("optional_series_keys", []) if "geo=DE" in k})
+    assert set(store._canonical_series) == expected
+    assert {obs.series_id for obs in store._canonical_observations.values()} == expected
     document = next(iter(store._canonical_documents.values()))
     assert document.content_sha256 == hashlib.sha256(raw).hexdigest()
     assert all(obs.available_at == document.available_at and obs.data_origin == "test"
         for obs in store._canonical_observations.values())
     if source == "DESTATIS_GENESIS":
-        assert expected == load_data_sources_registry()["primary_target"]["provider_series_key"]
+        assert expected == {load_data_sources_registry()["primary_target"]["provider_series_key"]}
         assert {obs.period_start: obs.value for obs in store._canonical_observations.values()} == {
             "2025-01-01": 132.6, "2025-04-01": 133.6, "2025-07-01": 134.3, "2025-10-01": 135.0}
     elif source == "EUROSTAT_STS":
         params = parse_qs(urlparse(item["url"]).query)
         dimensions = load_data_sources_registry()["primary_target"]["eurostat_crosscheck"]["dimensions"]
-        assert all(params[key] == [value] for key, value in dimensions.items())
-        assert "indic_bt=PRC_PRR" in expected and "COST" not in expected
+        assert all(value in params[key] for key, value in dimensions.items())
+        crosscheck = item["required_series_keys"][0]
+        assert "indic_bt=PRC_PRR" in crosscheck and "COST" not in crosscheck
 
 
 def test_each_context_table_fixture_yields_exactly_its_registered_keys():
@@ -217,7 +218,8 @@ def test_eurostat_survey_selections_request_and_parse_exactly_the_registered_ser
     items = {item["upstream_id"]: item for item in _stats_discover("EUROSTAT_STS", "2025-01", "2025-12", 10)}
     survey = items["ei_bsbu_m_r2"]
     assert "indic=BS-CPE-BAL" in survey["url"] and "indic=BS-FLBA5-PC" in survey["url"]
-    expected = {s["provider_series_key"]: s["measurement_kind"] for s in registry["context_series"].values()}
+    expected = {s["provider_series_key"]: s["measurement_kind"] for s in registry["context_series"].values()
+                if s["table_id"] == "ei_bsbu_m_r2" and not s.get("panel")}
     assert set(survey["required_series_keys"]) == set(expected)
     raw = (FIXTURES / "eurostat_ei_bsbu_m_r2_de_2025_official.json").read_bytes()
     doc = SourceDocument.from_content("EUROSTAT_STS", survey["canonical_url"], "Eurostat", raw, "survey-replay",

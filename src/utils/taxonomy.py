@@ -166,3 +166,8 @@ def commodity_entity(name: str, *, batch_id: str, data_origin: str):
     return Entity(entity_id=f"commodity_{slug}", entity_type="COMMODITY",
                   canonical_label=info.get("label", slug.replace("_", " ").capitalize()),
                   batch_id=batch_id, data_origin=data_origin)
+
+
+def is_german_series(series_id: str) -> bool:
+    """Germany's series: national sources, or Eurostat series for geo=DE (the EU panel holds the other countries)."""
+    return "|geo=" not in series_id or "|geo=DE|" in series_id

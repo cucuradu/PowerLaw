@@ -16,10 +16,15 @@ Last reviewed: 2026-10-20, after the sector network, detailed material prices, E
 
 - Sector network (2026-10-20): Eurostat input-output links (2010-2022), 30 detailed material prices (61241-0006, archive-dated), MEASURES/BELONGS_TO links, 9 EU laws (Gemini) and 7 German laws (quoted links). Graph Explorer opens on "Sector network"; home page shows next-quarter projections for 35 price series (`scripts.ops.project_series`, also run by the weekly update).
 
+- EU panel (2026-10-20): 27 countries x 9 Eurostat series (`scripts.ops.build_eu_panel`), Germany-only views via `is_german_series`; partial pooling beats per-country models (`scripts.ops.panel_backtest`). Cost chains with data sources: `config/chains.json`.
+
 ## Active priorities
 
 1. Done 2026-10-20: redundant evidence compacted (409,007 links removed, 89 as-of cutoffs verified; state backup in `data/pilot-germany/backups/`). Dashboard home now 2.9 s cold, 0.2 s warm; other pages under 1 s.
-2. Intervals undercover (82-84% vs 90%) because of the 2021-23 shock; consider regime-aware or recent-window conformal calibration.
+2. Next: policy series (BEHG CO2 price, CBAM phase-in, VAT, minimum wage) from stored law texts; World Bank commodity prices; FIGARO cross-border links; partial-pooling model for the German target; news-based indices (counts of typed, grounded events per node and month).
+3. Rule identity refactor (stable rule ids from CELEX + article + paragraph + mechanism) waits for user approval: it retracts stored rule facts.
+4. Store open takes about 7 s with the panel; home cold load about 11 s.
+5. Intervals undercover (82-84% vs 90%) because of the 2021-23 shock; consider regime-aware or recent-window conformal calibration.
 
 ## Open issues
 

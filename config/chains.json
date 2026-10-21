@@ -1,0 +1,165 @@
+{
+  "description": "Causal chains that move German (and EU) construction prices. Each link is a hypothesis with a mechanism and the free data that can test it; it becomes a training edge only when an official accounting source (input-output table, index weights) or a test in scripts/ops/estimate_links.py supports it. Node references: sector:<code> and commodity:<slug> exist in config/sectors.json; new:<id> nodes are listed under new_nodes with the source that would measure them. Status: in_store (both ends measured), tested_supported / tested_not_supported (see reports/graph-links-latest.json), needs_data.",
+  "reviewed_at": "2026-10-20",
+  "new_nodes": {
+    "eu_carbon_price": {"label": "EU ETS allowance price (EUR/t CO2)", "source": "EEX primary auction results (daily, free download) or ICAP allowance price explorer", "status": "needs_data"},
+    "de_fuel_co2_price": {"label": "German fuel CO2 price (BEHG fixed price / corridor)", "source": "BEHG section 10 (gesetze-im-internet, already ingested law text) as a dated policy series", "status": "needs_data"},
+    "cbam_phase_in": {"label": "Share of CBAM goods' emissions charged (free allocation phase-out)", "source": "Regulation (EU) 2023/956 and ETS Directive Art. 10a(1a) schedule (EUR-Lex, ingested)", "status": "needs_data"},
+    "truck_toll_co2": {"label": "Truck toll CO2 surcharge (EUR/t CO2, since 2023-12-01)", "source": "BFStrMG annex (gesetze-im-internet)", "status": "needs_data"},
+    "brent": {"label": "Crude oil price (USD/bbl)", "source": "World Bank commodity prices (Pink Sheet, monthly, CC BY 4.0)", "status": "needs_data"},
+    "iron_ore": {"label": "Iron ore price", "source": "World Bank Pink Sheet", "status": "needs_data"},
+    "steel_scrap": {"label": "Steel scrap price", "source": "Destatis 61241 (GP19 383211 scrap) or Eurostat sts_inpp", "status": "needs_data"},
+    "lme_aluminium": {"label": "Aluminium price", "source": "World Bank Pink Sheet", "status": "needs_data"},
+    "lme_copper": {"label": "Copper price", "source": "World Bank Pink Sheet", "status": "needs_data"},
+    "ttf_gas": {"label": "European natural gas price (TTF)", "source": "World Bank Pink Sheet (Europe natural gas)", "status": "needs_data"},
+    "eur_usd": {"label": "EUR/USD exchange rate", "source": "ECB EXR (in store)", "status": "in_store"},
+    "import_prices": {"label": "Import prices of construction materials", "source": "Destatis 61411 import price indices by GP2019 product", "status": "needs_data"},
+    "coal_generation": {"label": "Hard coal and lignite power generation (GWh)", "source": "SMARD generation data (CC BY 4.0; source disabled until the date fix is retracted)", "status": "needs_data"},
+    "minimum_wage": {"label": "Statutory and construction minimum wages", "source": "MiLoG / Bau-Mindestlohn (AEntG regulations, gesetze-im-internet) as a dated policy series", "status": "needs_data"},
+    "construction_employment": {"label": "Persons employed in main construction trade", "source": "Destatis 44111 / Eurostat sts_coemp", "status": "needs_data"},
+    "construction_insolvencies": {"label": "Insolvencies in construction", "source": "Destatis 52411-0010", "status": "needs_data"},
+    "house_prices": {"label": "Residential property price index", "source": "Destatis 61262-0001 / Eurostat prc_hpi_q (all EU countries)", "status": "needs_data"},
+    "public_construction_orders": {"label": "New orders, public civil engineering", "source": "Destatis 44111-0009 (other BAUART codes)", "status": "needs_data"},
+    "civil_engineering_prices": {"label": "Road and civil engineering price indices", "source": "Destatis 61261-0006 / -0007", "status": "needs_data"},
+    "renovation_subsidy": {"label": "Federal efficient-building subsidy (BEG) rates and stops", "source": "BEG funding guidelines (Bundesanzeiger) as a dated policy series", "status": "needs_data"},
+    "efficiency_standard": {"label": "Statutory energy standard for new buildings", "source": "GEG (ingested) and EPBD (ingested) as a dated policy series", "status": "needs_data"},
+    "vat_rate": {"label": "German VAT rate", "source": "UStG section 12 (in store as model input)", "status": "in_store"},
+    "road_freight_prices": {"label": "Road freight producer prices", "source": "Destatis 61311 service producer prices (freight transport by road)", "status": "needs_data"},
+    "cross_border_supply": {"label": "Imports of materials by origin country", "source": "Eurostat FIGARO inter-country input-output tables (naio_10_fcp_*)", "status": "needs_data"}
+  },
+  "chains": [
+    {
+      "id": "energy_to_materials_to_trades",
+      "label": "Energy -> energy-intensive materials -> trades -> building price",
+      "why": "Cement, lime, bricks, glass, plasterboard and steel are energy-intensive; their price passes to the trades that use them, weighted by the official trade weights.",
+      "links": [
+        {"from": "commodity:natural_gas", "to": "commodity:clay_bricks", "mechanism": "kiln firing", "lag_q": [0, 2], "status": "in_store"},
+        {"from": "commodity:natural_gas", "to": "commodity:insulating_glass", "mechanism": "float glass furnaces", "lag_q": [0, 2], "status": "in_store"},
+        {"from": "commodity:natural_gas", "to": "commodity:plasterboard", "mechanism": "board drying", "lag_q": [0, 2], "status": "in_store"},
+        {"from": "commodity:electricity", "to": "commodity:steel_bars", "mechanism": "electric arc furnaces make rebar from scrap", "lag_q": [0, 1], "status": "in_store"},
+        {"from": "commodity:electricity", "to": "commodity:aluminium", "mechanism": "electrolysis", "lag_q": [0, 1], "status": "in_store"},
+        {"from": "commodity:diesel", "to": "sector:F_BPNB005", "mechanism": "earthmoving fuel", "lag_q": [0, 1], "status": "tested_supported"},
+        {"from": "commodity:cement", "to": "sector:F_BPNB450", "mechanism": "screed material", "lag_q": [0, 2], "status": "tested_supported"},
+        {"from": "commodity:cement", "to": "sector:F_BPNB095", "mechanism": "concrete binder", "lag_q": [0, 2], "status": "tested_not_supported", "note": "not supported in 2005-2026 quarterly data; labour and the common trend dominate"},
+        {"from": "sector:F_BPNB095", "to": "sector:F", "mechanism": "official weight 17.3% of the new-home index", "status": "in_store"}
+      ]
+    },
+    {
+      "id": "carbon_pricing",
+      "label": "Carbon prices -> cement, lime, steel, glass; fuel CO2 price -> diesel and heating",
+      "why": "ETS sectors pay for emissions above free allocation; CBAM phases free allocation out from 2026 and charges imports; BEHG prices fuels outside the ETS.",
+      "links": [
+        {"from": "new:eu_carbon_price", "to": "commodity:cement", "mechanism": "about 0.6 t CO2 per t clinker; cost above free allocation", "lag_q": [0, 4], "status": "needs_data"},
+        {"from": "new:eu_carbon_price", "to": "commodity:lime", "mechanism": "process emissions of calcination", "lag_q": [0, 4], "status": "needs_data"},
+        {"from": "new:eu_carbon_price", "to": "commodity:steel", "mechanism": "blast furnace emissions", "lag_q": [0, 4], "status": "needs_data"},
+        {"from": "new:cbam_phase_in", "to": "new:eu_carbon_price", "mechanism": "scales how much of the carbon price CBAM goods actually pay (2026 2.5% -> 2034 100%)", "status": "needs_data", "kind": "modulates"},
+        {"from": "new:cbam_phase_in", "to": "new:import_prices", "mechanism": "certificate cost on imported cement, steel, aluminium", "lag_q": [0, 2], "status": "needs_data"},
+        {"from": "new:de_fuel_co2_price", "to": "commodity:diesel", "mechanism": "about 2.65 kg CO2 per litre diesel", "lag_q": [0, 0], "status": "needs_data"},
+        {"from": "new:de_fuel_co2_price", "to": "commodity:natural_gas", "mechanism": "gas outside the ETS", "lag_q": [0, 0], "status": "needs_data"},
+        {"from": "new:truck_toll_co2", "to": "new:road_freight_prices", "mechanism": "CO2 surcharge on truck toll since 2023-12-01", "lag_q": [0, 1], "status": "needs_data"}
+      ]
+    },
+    {
+      "id": "global_commodities_and_fx",
+      "label": "World commodity prices and the dollar -> imported inputs -> German producer prices",
+      "why": "Oil, ore, aluminium, copper and timber are priced in dollars on world markets; German producer prices follow with a lag.",
+      "links": [
+        {"from": "new:brent", "to": "commodity:diesel", "mechanism": "refining", "lag_q": [0, 1], "status": "needs_data"},
+        {"from": "new:brent", "to": "commodity:bitumen_products", "mechanism": "refinery residue", "lag_q": [0, 2], "status": "needs_data"},
+        {"from": "new:brent", "to": "commodity:plastic_pipes", "mechanism": "PVC/PE feedstock", "lag_q": [1, 3], "status": "needs_data"},
+        {"from": "new:brent", "to": "commodity:foam_insulation_boards", "mechanism": "EPS/XPS feedstock", "lag_q": [1, 3], "status": "needs_data"},
+        {"from": "new:iron_ore", "to": "commodity:steel", "mechanism": "blast furnace input", "lag_q": [1, 2], "status": "needs_data"},
+        {"from": "new:steel_scrap", "to": "commodity:steel_bars", "mechanism": "electric arc furnace input", "lag_q": [0, 1], "status": "needs_data"},
+        {"from": "new:lme_aluminium", "to": "commodity:metal_windows_doors", "mechanism": "aluminium profiles", "lag_q": [1, 3], "status": "needs_data"},
+        {"from": "new:lme_copper", "to": "commodity:electric_cables", "mechanism": "conductor metal", "lag_q": [0, 2], "status": "needs_data"},
+        {"from": "new:ttf_gas", "to": "commodity:natural_gas", "mechanism": "wholesale to producer price", "lag_q": [0, 2], "status": "needs_data"},
+        {"from": "new:eur_usd", "to": "new:import_prices", "mechanism": "dollar invoicing", "lag_q": [0, 2], "status": "needs_data"}
+      ]
+    },
+    {
+      "id": "labour",
+      "label": "Wage agreements and minimum wages -> labour cost -> trades",
+      "why": "Labour is about 40-50% of trade prices; agreed wage rises are announced months ahead, which makes them a leading indicator.",
+      "links": [
+        {"from": "new:minimum_wage", "to": "sector:D1", "mechanism": "wage floor", "lag_q": [0, 1], "status": "needs_data"},
+        {"from": "sector:D1", "to": "sector:F", "mechanism": "labour share in the input-output table", "status": "in_store"},
+        {"from": "new:construction_employment", "to": "sector:D1", "mechanism": "tight labour market raises wage drift", "lag_q": [1, 4], "status": "needs_data"}
+      ]
+    },
+    {
+      "id": "finance_and_demand",
+      "label": "Interest rates -> mortgages -> permits -> orders -> backlog -> margins -> prices",
+      "why": "Prices include a margin that follows demand; rate rises cut permits and orders a year later and builders' price expectations turn.",
+      "links": [
+        {"from": "sector:K64", "to": "sector:F", "mechanism": "mortgage rates set demand for new homes (via permits and orders)", "lag_q": [2, 6], "status": "in_store"},
+        {"from": "new:house_prices", "to": "sector:F", "mechanism": "profitability of building to sell", "lag_q": [1, 4], "status": "needs_data"},
+        {"from": "new:construction_insolvencies", "to": "sector:F", "mechanism": "capacity exit after a demand fall", "lag_q": [2, 6], "status": "needs_data"}
+      ]
+    },
+    {
+      "id": "public_demand",
+      "label": "Public investment -> civil engineering orders -> civil engineering prices",
+      "why": "The 2025 infrastructure fund and municipal budgets drive road and rail work, which competes with housing for firms and materials.",
+      "links": [
+        {"from": "new:public_construction_orders", "to": "new:civil_engineering_prices", "mechanism": "demand-pull", "lag_q": [1, 4], "status": "needs_data"},
+        {"from": "new:civil_engineering_prices", "to": "sector:F_BPNB005", "mechanism": "shared earthworks capacity", "lag_q": [0, 2], "status": "needs_data"}
+      ]
+    },
+    {
+      "id": "policy_demand_for_technologies",
+      "label": "Heating law and subsidies -> heat pump demand -> heating trade prices",
+      "why": "GEG 2024 (65% renewable heating) and BEG subsidy changes moved heat pump demand sharply in 2023-2024.",
+      "links": [
+        {"from": "new:renovation_subsidy", "to": "commodity:heat_pumps", "mechanism": "subsidy raises demand and lets suppliers raise prices", "lag_q": [0, 2], "status": "needs_data"},
+        {"from": "commodity:heat_pumps", "to": "sector:F_BPNB525", "mechanism": "main component of heating installation", "lag_q": [0, 2], "status": "tested_not_supported"}
+      ]
+    },
+    {
+      "id": "standards_raise_quantity",
+      "label": "Energy standards -> more material per m2 -> cost per m2 (not the price index)",
+      "why": "Price indices hold quality fixed, so a stricter standard shows up in cost per square metre (permit-stage planned cost), not in the index. Training must use the right label for this chain.",
+      "links": [
+        {"from": "new:efficiency_standard", "to": "commodity:foam_insulation_boards", "mechanism": "thicker insulation required", "lag_q": [0, 4], "status": "needs_data", "kind": "quantity"},
+        {"from": "new:efficiency_standard", "to": "sector:F", "mechanism": "planned cost per m2 in building permits (31111-0020, in store)", "lag_q": [0, 4], "status": "needs_data", "kind": "quantity"}
+      ]
+    },
+    {
+      "id": "coal_exit_gypsum",
+      "label": "Coal phase-out -> less flue-gas gypsum -> plasterboard prices",
+      "why": "About half of German gypsum came from coal plant desulphurisation; the coal exit (KVBG) shrinks that supply and shifts it to quarried or recycled gypsum.",
+      "links": [
+        {"from": "new:coal_generation", "to": "commodity:plasterboard", "mechanism": "falling FGD gypsum supply", "lag_q": [2, 8], "sign": "negative", "status": "needs_data"},
+        {"from": "commodity:plasterboard", "to": "sector:F_BPNB443", "mechanism": "drywall material", "lag_q": [0, 2], "status": "tested_not_supported"}
+      ]
+    },
+    {
+      "id": "logistics",
+      "label": "Diesel, toll and drivers -> freight -> delivered bulk materials",
+      "why": "Sand, gravel and ready-mixed concrete are heavy and cheap per tonne, so transport is a large share of their delivered price.",
+      "links": [
+        {"from": "commodity:diesel", "to": "new:road_freight_prices", "mechanism": "fuel cost", "lag_q": [0, 1], "status": "needs_data"},
+        {"from": "new:road_freight_prices", "to": "commodity:ready_mixed_concrete", "mechanism": "delivery", "lag_q": [0, 2], "status": "needs_data"},
+        {"from": "new:road_freight_prices", "to": "commodity:gravel", "mechanism": "delivery", "lag_q": [0, 2], "status": "needs_data"}
+      ]
+    },
+    {
+      "id": "taxes",
+      "label": "VAT -> price including VAT",
+      "why": "The forecast target includes VAT; the 2007 rise and the 2020 cut are mechanical jumps.",
+      "links": [
+        {"from": "new:vat_rate", "to": "sector:F", "mechanism": "price incl. VAT = price excl. VAT x (1 + rate)", "lag_q": [0, 0], "status": "in_store"}
+      ]
+    },
+    {
+      "id": "cross_border",
+      "label": "Neighbouring countries' material prices -> German import prices -> German producer prices",
+      "why": "Cement, steel and timber trade across borders (Poland, Czechia, Austria, Benelux); a shock in one country's materials reaches others through trade shares.",
+      "links": [
+        {"from": "new:cross_border_supply", "to": "new:import_prices", "mechanism": "import shares from FIGARO weight the partner countries' producer prices (EU panel, in store)", "lag_q": [0, 2], "status": "needs_data"}
+      ]
+    }
+  ],
+  "not_nodes": {
+    "events": "Covid, the war in Ukraine, the 2021 floods and similar one-off events are dated annotations, not training nodes: each happened once, and their effect enters through measured channels (energy, materials, surveys). Policy changes that recur become numeric policy series instead (new_nodes with 'policy series' in the source)."
+  }
+}
