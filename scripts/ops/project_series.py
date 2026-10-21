@@ -81,7 +81,8 @@ def main() -> None:
     origins = [o + timedelta(days=20) for o in quarter_end_origins(args.first_origin, now)]
     projections = []
     for series_id, info in names.items():
-        metric = (info.get("measures") or {}).get("metric")
+        measures = info.get("measures") or {}
+        metric = measures.get("metric") if isinstance(measures, dict) else None  # lists: policy numbers, not prices
         if (info["status"] != "active" or metric not in PRICE_METRICS or series_id == primary_target_series_id()
                 or not is_german_series(series_id)):
             continue

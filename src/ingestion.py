@@ -929,10 +929,28 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
         count += 1
 
 
+def _measure_link(series_id, target, facts, entities, common, entity) -> None:
+    from src.utils.taxonomy import commodity_entity, sector_config, sector_entity
+    if "commodity" in target:
+        commodity = commodity_entity(target["commodity"], **entity)
+        sector = sector_entity(sector_config()["commodities"][target["commodity"]]["sector"], **entity)
+        entities.update({commodity.entity_id: commodity, sector.entity_id: sector})
+        member = Fact(subject_id=commodity.entity_id, predicate="BELONGS_TO", object_id=sector.entity_id,
+                      payload_json=json.dumps({"basis": "product classification (CPA 2.1 / GP2019)"}), **common)
+        facts.setdefault(member.fact_version_id, (member, series_id))
+        measured = commodity.entity_id
+    else:
+        sector = sector_entity(target["sector"], **entity)
+        entities[sector.entity_id] = sector
+        measured = sector.entity_id
+    link = Fact(subject_id=series_id, predicate="MEASURES", object_id=measured,
+                payload_json=json.dumps({"metric": target.get("metric", "level"), "subject_type": "ECONOMIC_INDEX"}), **common)
+    facts.setdefault(link.fact_version_id, (link, series_id))
+
+
 def _series_links(series_ids: list[str], document: SourceDocument, store: Optional[DualLayerStore]):
     """MEASURES (series -> sector/commodity) and BELONGS_TO (commodity -> sector) from config/series_names.json."""
     from pathlib import Path
-    from src.utils.taxonomy import commodity_entity, sector_config, sector_entity
     catalog = json.loads((Path(__file__).resolve().parents[1] / "config" / "series_names.json").read_text(encoding="utf-8"))["series"]
     common = {"available_at": document.available_at, "source_id": document.source_id, "claim_kind": "catalog_mapping",
               "batch_id": document.batch_id, "data_origin": document.data_origin}
@@ -940,24 +958,9 @@ def _series_links(series_ids: list[str], document: SourceDocument, store: Option
     facts: dict[str, tuple[Fact, str]] = {}
     entities = {}
     for series_id in series_ids:
-        target = (catalog.get(series_id) or {}).get("measures")
-        if not target:
-            continue
-        if "commodity" in target:
-            commodity = commodity_entity(target["commodity"], **entity)
-            sector = sector_entity(sector_config()["commodities"][target["commodity"]]["sector"], **entity)
-            entities.update({commodity.entity_id: commodity, sector.entity_id: sector})
-            member = Fact(subject_id=commodity.entity_id, predicate="BELONGS_TO", object_id=sector.entity_id,
-                          payload_json=json.dumps({"basis": "product classification (CPA 2.1 / GP2019)"}), **common)
-            facts.setdefault(member.fact_version_id, (member, series_id))
-            measured = commodity.entity_id
-        else:
-            sector = sector_entity(target["sector"], **entity)
-            entities[sector.entity_id] = sector
-            measured = sector.entity_id
-        link = Fact(subject_id=series_id, predicate="MEASURES", object_id=measured,
-                    payload_json=json.dumps({"metric": target.get("metric", "level"), "subject_type": "ECONOMIC_INDEX"}), **common)
-        facts.setdefault(link.fact_version_id, (link, series_id))
+        targets = (catalog.get(series_id) or {}).get("measures") or []
+        for target in (targets if isinstance(targets, list) else [targets]):  # a policy number can act on several nodes
+            _measure_link(series_id, target, facts, entities, common, entity)
     kept = _new_facts_only(store, [fact for fact, _ in facts.values()])
     evidence = [EvidenceLink(assertion_version_id=fact.fact_version_id, assertion_kind="FACT", document_version_id=document.version_id,
                              selector_type="SDMX_DIMENSION", selector_json=json.dumps({"series_id": facts[fact.fact_version_id][1]}),
@@ -1275,6 +1278,69 @@ def _gii_parse(item: SourceItem, content: bytes, document: SourceDocument) -> di
 
 
 register_source("GESETZE_IM_INTERNET", _gii_discover, _gii_parse)
+
+
+# =====================================================================
+# Policy numbers quoted from official law texts (CO2 prices, CBAM phase-in): no LLM, a quote check per number
+# =====================================================================
+def _law_parameters_discover(source_id: str, since: Optional[str], until: Optional[str], limit: int) -> Iterable[SourceItem]:
+    registry = load_data_sources_registry()["sources"][source_id]
+    for key, doc in islice(registry["documents"].items(), limit):
+        yield {"item_id": f"{source_id}_{key}", "upstream_id": key, "url": doc["url"], "canonical_url": doc.get("canonical_url", doc["url"]),
+               "publisher": registry.get("attribution", source_id), "headers": doc.get("headers", {}),
+               "content_type": "application/zip" if doc["format"] == "gii_zip" else "application/xhtml+xml"}
+
+
+def _law_text(doc: dict, content: bytes, norm: str) -> str:
+    """Plain text the quotes are checked against: the named norm of a German law, or the whole EU act."""
+    if doc["format"] == "gii_zip":
+        from src.scrapers.german_laws import parse_gii_xml
+        norms = parse_gii_xml(content)["norms"]
+        return " ".join(n["text"] for n in norms if n["norm"] == norm or n["norm"].startswith((norm + " ", norm + "(")))
+    import html
+    text = html.unescape(re.sub(r"<[^>]+>", " ", content.decode("utf-8", errors="replace")))
+    return re.sub(r"\s+", " ", text)
+
+
+def _law_parameters_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
+    doc = load_data_sources_registry()["sources"][document.source_id]["documents"][item["upstream_id"]]
+    origin = {"batch_id": document.batch_id, "data_origin": document.data_origin}
+    observations, evidence, series = [], [], []
+    for spec in doc["parameters"]:
+        try:
+            text = _law_text(doc, content, spec["norm"])
+        except (ET.ParseError, ValueError, KeyError, zipfile.BadZipFile) as exc:
+            raise FetchError(f"law text could not be parsed: {_safe_error(exc)}") from exc
+        if not text:
+            raise FetchError(f"norm {spec['norm']!r} not found in the law text")
+        known_from = spec.get("known_from")
+        if known_from and spec.get("known_from_quote") not in text:
+            known_from = None  # the publication date must itself be in the text; otherwise fall back to the period start
+        series.append(SeriesDefinition(
+            series_id=spec["series_id"], source_id=document.source_id, dataset_id=item["upstream_id"], provider_series_key=spec["series_id"],
+            dimensions_json=json.dumps({"law_id": doc["law_id"], "norm": spec["norm"], "label": spec["label"]}, ensure_ascii=False),
+            metric_name=spec["metric"], unit=spec["unit"], frequency=spec["frequency"], geography_id=spec["geo"], adjustment=None,
+            measurement_kind=spec["measurement_kind"], available_at=document.available_at, batch_id=document.batch_id))
+        for entry in spec["entries"]:
+            found = entry["quote"] in text
+            year = int(entry["period"])
+            obs = Observation(series_id=spec["series_id"], period_start=f"{year}-01-01", period_end_exclusive=f"{year + 1}-01-01",
+                              value=float(entry["value"]), original_value_text=entry["quote"], source_unit=spec["unit"], unit=spec["unit"],
+                              available_at=document.available_at, quality_state="accepted" if found else "needs_review",
+                              conversion_lineage_json=json.dumps({"known_from": known_from or f"{year}-01-01"}), **origin)
+            observations.append(obs)
+            evidence.append(EvidenceLink(assertion_version_id=obs.revision_id, assertion_kind="OBSERVATION", document_version_id=document.version_id,
+                                         selector_type="ARTICLE_PARAGRAPH", selector_json=json.dumps({"norm": spec["norm"], "period": entry["period"]}),
+                                         quoted_text=entry["quote"], support_type="DIRECT" if found else "UNVERIFIED",
+                                         available_at=document.available_at, batch_id=document.batch_id))
+    link_facts, link_entities, link_evidence = _series_links([s.series_id for s in series], document, item.get("_store"))
+    accepted = sum(o.quality_state == "accepted" for o in observations)
+    return {"status": "accepted" if accepted else "needs_review", "facts": link_facts, "observations": observations,
+            "evidence_links": evidence + link_evidence, "entities": link_entities, "series": series,
+            "accepted_count": accepted, "review_count": len(observations) - accepted, "rejected_count": 0}
+
+
+register_source("LAW_PARAMETERS", _law_parameters_discover, _law_parameters_parse)
 
 
 # =====================================================================

@@ -67,6 +67,8 @@ def main() -> None:
     node_series = {}  # sector/commodity node -> series id (price series only)
     for series_id, info in names.items():
         measures = info.get("measures") or {}
+        if isinstance(measures, list):  # policy numbers acting on several nodes are not prices
+            continue
         node = measures.get("commodity") or measures.get("sector")
         if (info["status"] == "active" and measures.get("metric") in ("producer_price", "output_price") and node
                 and is_german_series(series_id)):

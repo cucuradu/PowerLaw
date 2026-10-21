@@ -6681,6 +6681,167 @@
           "verified_scope": "Wägungsanteile (per mille) for residential building work, base 2021 = 100; checked against national trade indices."
         }
       }
+    },
+    "LAW_PARAMETERS": {
+      "name": "Policy numbers quoted from official law texts",
+      "category": "OFFICIAL_LEGAL_TEXT",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "trial": false,
+      "training_allowed": true,
+      "commercial_use_allowed": true,
+      "ai_training_restricted": false,
+      "rights_checked": true,
+      "rights": "German federal law texts: official works, section 5 UrhG (gesetze-im-internet.de). EU law: reuse under Commission Decision 2011/833/EU with attribution.",
+      "terms_url": "https://www.gesetze-im-internet.de/hinweise.html",
+      "terms_checked_at": "2026-10-21",
+      "attribution": "gesetze-im-internet.de (BMJ / juris); European Union, https://eur-lex.europa.eu",
+      "auth_method": "NONE",
+      "release_cadence": "ON_AMENDMENT",
+      "allowable_delay_days": 30,
+      "source_owner": "Bundesministerium der Justiz; Publications Office of the European Union",
+      "enabled": true,
+      "description": "Each number is stored only if its quote is found in the fetched official text (otherwise needs_review). Values are fetch-dated in the store; 'known_from' is the date a model may assume the number was public: the verified promulgation date, else the start of the period it applies to.",
+      "endpoints": {
+        "law_xml": "https://www.gesetze-im-internet.de",
+        "cellar_celex": "https://publications.europa.eu/resource/celex",
+        "eurlex_legal_content": "https://eur-lex.europa.eu/legal-content/EN/TXT/"
+      },
+      "documents": {
+        "behg": {
+          "format": "gii_zip",
+          "url": "https://www.gesetze-im-internet.de/behg/xml.zip",
+          "law_id": "law_de_behg",
+          "fixture_path": "tests/fixtures/ingestion/gii_behg_20260928_official.zip",
+          "parameters": [
+            {
+              "series_id": "POLICY|DE|BEHG|co2_price",
+              "norm": "§ 10",
+              "unit": "EUR/t CO2",
+              "frequency": "ANNUAL",
+              "geo": "DE",
+              "measurement_kind": "POLICY_CO2_PRICE",
+              "metric": "co2_price",
+              "label": "Fixed sale price of national emission allowances (fuels outside the EU ETS); 2026: floor of the price corridor",
+              "known_from_note": "Set and changed by several amending acts whose promulgation dates are not in the consolidated text, so each value counts as known only from 1 January of its year.",
+              "entries": [
+                {
+                  "period": "2021",
+                  "value": 25,
+                  "quote": "1. Januar 2021 bis zum 31. Dezember 2021: 25 Euro"
+                },
+                {
+                  "period": "2022",
+                  "value": 30,
+                  "quote": "1. Januar 2022 bis zum 31. Dezember 2022: 30 Euro"
+                },
+                {
+                  "period": "2023",
+                  "value": 30,
+                  "quote": "1. Januar 2023 bis zum 31. Dezember 2023: 30 Euro"
+                },
+                {
+                  "period": "2024",
+                  "value": 45,
+                  "quote": "1. Januar 2024 bis zum 31. Dezember 2024: 45 Euro"
+                },
+                {
+                  "period": "2025",
+                  "value": 55,
+                  "quote": "1. Januar 2025 bis zum 31. Dezember 2025: 55 Euro"
+                },
+                {
+                  "period": "2026",
+                  "value": 55,
+                  "quote": "Mindestpreis von 55 Euro pro Emissionszertifikat"
+                }
+              ]
+            }
+          ]
+        },
+        "eu_2023_959": {
+          "format": "xhtml",
+          "url": "https://publications.europa.eu/resource/celex/32023L0959",
+          "canonical_url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023L0959",
+          "headers": {
+            "Accept": "application/xhtml+xml",
+            "Accept-Language": "en"
+          },
+          "law_id": "law_32023L0959",
+          "fixture_path": "tests/fixtures/ingestion/eurlex_32023L0959_en_official.xhtml",
+          "parameters": [
+            {
+              "series_id": "POLICY|EU|ETS|cbam_factor",
+              "norm": "Article 10a(1a) of Directive 2003/87/EC as amended",
+              "unit": "PERCENT",
+              "frequency": "ANNUAL",
+              "geo": "EU",
+              "measurement_kind": "POLICY_FREE_ALLOCATION_SHARE",
+              "metric": "free_allocation_share",
+              "label": "CBAM factor: share of free ETS allocation still given for cement, steel, aluminium, fertiliser and hydrogen production",
+              "known_from": "2023-05-16",
+              "known_from_quote": "16.5.2023 EN Official Journal of the European Union L 130/134",
+              "entries": [
+                {
+                  "period": "2024",
+                  "value": 100,
+                  "quote": "equal to 100 % for the period between the entry into force of that Regulation and the end of 2025"
+                },
+                {
+                  "period": "2025",
+                  "value": 100,
+                  "quote": "equal to 100 % for the period between the entry into force of that Regulation and the end of 2025"
+                },
+                {
+                  "period": "2026",
+                  "value": 97.5,
+                  "quote": "97,5 % in 2026"
+                },
+                {
+                  "period": "2027",
+                  "value": 95,
+                  "quote": "95 % in 2027"
+                },
+                {
+                  "period": "2028",
+                  "value": 90,
+                  "quote": "90 % in 2028"
+                },
+                {
+                  "period": "2029",
+                  "value": 77.5,
+                  "quote": "77,5 % in 2029"
+                },
+                {
+                  "period": "2030",
+                  "value": 51.5,
+                  "quote": "51,5 % in 2030"
+                },
+                {
+                  "period": "2031",
+                  "value": 39,
+                  "quote": "39 % in 2031"
+                },
+                {
+                  "period": "2032",
+                  "value": 26.5,
+                  "quote": "26,5 % in 2032"
+                },
+                {
+                  "period": "2033",
+                  "value": 14,
+                  "quote": "14 % in 2033"
+                },
+                {
+                  "period": "2034",
+                  "value": 0,
+                  "quote": "From 2034, no CBAM factor shall apply"
+                }
+              ]
+            }
+          ]
+        }
+      }
     }
   }
 }

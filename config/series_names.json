@@ -2644,6 +2644,46 @@
         "sector": "F",
         "metric": "material_shortage"
       }
+    },
+    "POLICY|DE|BEHG|co2_price": {
+      "name": "German CO2 price on fuels (BEHG)",
+      "status": "active",
+      "measures": [
+        {
+          "commodity": "diesel",
+          "metric": "co2_price"
+        },
+        {
+          "commodity": "natural_gas",
+          "metric": "co2_price"
+        }
+      ]
+    },
+    "POLICY|EU|ETS|cbam_factor": {
+      "name": "CBAM factor: free allocation kept (%)",
+      "status": "active",
+      "measures": [
+        {
+          "commodity": "cement",
+          "metric": "free_allocation_share"
+        },
+        {
+          "commodity": "steel",
+          "metric": "free_allocation_share"
+        },
+        {
+          "commodity": "aluminium",
+          "metric": "free_allocation_share"
+        },
+        {
+          "commodity": "fertilisers",
+          "metric": "free_allocation_share"
+        },
+        {
+          "commodity": "hydrogen",
+          "metric": "free_allocation_share"
+        }
+      ]
     }
   }
 }
