@@ -6201,10 +6201,12 @@
         "sdmx_rest": "https://data-api.ecb.europa.eu/service/data"
       },
       "series_keys": {
-        "germany_housing_loan_rate_new_business": "MIR.M.DE.B.A2C.A.R.A.2250.EUR.N"
+        "germany_housing_loan_rate_new_business": "MIR.M.DE.B.A2C.A.R.A.2250.EUR.N",
+        "eur_usd_monthly": "EXR.M.USD.EUR.SP00.A"
       },
       "series_notes": {
-        "germany_housing_loan_rate_new_business": "Provider title: bank interest rates - loans to households for house purchase (new business), Germany, AAR/NDER, percent p.a. Verified live 2026-10-20: 2003-01..2026-08."
+        "germany_housing_loan_rate_new_business": "Provider title: bank interest rates - loans to households for house purchase (new business), Germany, AAR/NDER, percent p.a. Verified live 2026-10-20: 2003-01..2026-08.",
+        "eur_usd_monthly": "Provider title: ECB reference exchange rate, US dollar/Euro, monthly average. Converts World Bank dollar prices to euros (scripts/ops/estimate_links.py). Verified live 2026-10-21: 1999-01..2026-09."
       },
       "retired_series_keys": {
         "eur_usd_exchange_rate": {
@@ -6212,7 +6214,8 @@
           "since": "2026-10-20",
           "reason": "No consumer and no direct path to the quarterly construction target; daily history requests time out. Stored rows remain valid."
         }
-      }
+      },
+      "read_timeout_seconds": 120
     },
     "BUNDESBANK_SDMX": {
       "name": "Deutsche Bundesbank SDMX Web Service",
@@ -6841,6 +6844,74 @@
             }
           ]
         }
+      }
+    },
+    "WORLD_BANK_PINK_SHEET": {
+      "name": "World Bank Commodity Price Data (The Pink Sheet), monthly",
+      "category": "OFFICIAL_STATISTICS",
+      "access_fee": 0,
+      "requires_paid_subscription": false,
+      "trial": false,
+      "training_allowed": true,
+      "commercial_use_allowed": true,
+      "ai_training_restricted": false,
+      "rights_checked": true,
+      "rights": "World Bank Dataset Terms: 'Unless specifically labeled otherwise, these Datasets are provided to you under a Creative Commons Attribution 4.0 International License (CC BY 4.0)' with additional terms (mediation/arbitration). The Pink Sheet carries no other label and its Description sheet states no third-party restriction for the series used (checked 2026-10-21).",
+      "terms_url": "https://www.worldbank.org/ext/en/legal/terms-conditions/datasets",
+      "terms_checked_at": "2026-10-21",
+      "attribution": "The World Bank: Commodity Price Data (The Pink Sheet): sources as listed in the workbook's Description sheet",
+      "auth_method": "NONE",
+      "release_cadence": "MONTHLY",
+      "allowable_delay_days": 40,
+      "source_owner": "World Bank Prospects Group",
+      "enabled": true,
+      "endpoints": {
+        "landing_page": "https://www.worldbank.org/en/research/commodity-markets",
+        "files": "https://thedocs.worldbank.org/en/doc/"
+      },
+      "description": "The workbook URL changes each month, so discovery reads the official landing page for the current link. Monthly averages in nominal US dollars; published early in the following month ('Updated on' date in the sheet is the vintage).",
+      "sheet": "Monthly Prices",
+      "fixture_path": "tests/fixtures/ingestion/worldbank_pink_sheet_monthly_202610_official.xlsx",
+      "fixture_sha256": "ea1c350827878ea3bbe30e3cda16a13fd3bd5b409b8458940dc94a36b5a33154",
+      "series": {
+        "Crude oil, Brent": {
+          "series_id": "WB_PINK|brent",
+          "commodity": "crude_oil",
+          "unit": "USD/bbl"
+        },
+        "Natural gas, Europe": {
+          "series_id": "WB_PINK|natural_gas_europe",
+          "commodity": "natural_gas",
+          "unit": "USD/mmbtu"
+        },
+        "Coal, Australian": {
+          "series_id": "WB_PINK|coal_australia",
+          "commodity": "coal",
+          "unit": "USD/t"
+        },
+        "Aluminum": {
+          "series_id": "WB_PINK|aluminium",
+          "commodity": "aluminium",
+          "unit": "USD/t"
+        },
+        "Iron ore, cfr spot": {
+          "series_id": "WB_PINK|iron_ore",
+          "commodity": "iron_ore",
+          "unit": "USD/dmtu"
+        },
+        "Copper": {
+          "series_id": "WB_PINK|copper",
+          "commodity": "copper",
+          "unit": "USD/t"
+        },
+        "Zinc": {
+          "series_id": "WB_PINK|zinc",
+          "commodity": "zinc",
+          "unit": "USD/t"
+        }
+      },
+      "notes": {
+        "Iron ore, cfr spot": "Spot price (62% Fe, cfr China) from December 2008; earlier values are annual contract prices, a series break."
       }
     }
   }

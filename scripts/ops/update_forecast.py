@@ -13,7 +13,7 @@ REPO = Path(__file__).resolve().parents[2]
 # (source, days back): 400 days covers a revised year; 45 days re-reads vintages that came out before Destatis did.
 SOURCES = [("DESTATIS_GENESIS", 400), ("BUNDESBANK_RTD", 45), ("ECB_SDMX", 400), ("BUNDESBANK_SDMX", 400),
            ("EUROSTAT_STS", 400), ("EUROSTAT_NAIO", 0), ("GESETZE_IM_INTERNET", 0),
-           ("LAW_PARAMETERS", 0)]  # last three ignore the window
+           ("LAW_PARAMETERS", 0), ("WORLD_BANK_PINK_SHEET", 0)]  # last four ignore the window
 
 
 def run(*args: str) -> dict:

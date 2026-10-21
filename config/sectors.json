@@ -520,6 +520,26 @@
   "fertilisers": {
    "label": "Fertilisers",
    "sector": "C20"
+  },
+  "crude_oil": {
+   "label": "Crude oil",
+   "sector": "B"
+  },
+  "coal": {
+   "label": "Coal",
+   "sector": "B"
+  },
+  "iron_ore": {
+   "label": "Iron ore",
+   "sector": "B"
+  },
+  "copper": {
+   "label": "Copper",
+   "sector": "C24"
+  },
+  "zinc": {
+   "label": "Zinc",
+   "sector": "C24"
   }
  }
 }

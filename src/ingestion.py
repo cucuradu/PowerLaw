@@ -8,6 +8,7 @@ import json
 import socket
 import time
 import uuid
+import io
 import re
 import zipfile
 import xml.etree.ElementTree as ET
@@ -422,6 +423,9 @@ def run_ingestion(source_id: str, *, limit: int, since: str | None = None, until
                         raise FetchError("discovered URL is outside the registered source endpoints")
                     fetch_kwargs = {"settings": settings, "max_bytes": int(item.get("max_bytes", 25 * 1024 * 1024))}
                     fetch_kwargs.update({key: item[key] for key in ("request_method", "request_data", "auth_source", "headers") if key in item})
+                    if item.get("read_timeout_seconds"):  # slow but verified providers (ECB EXR answers in ~45 s)
+                        fetch_kwargs.update(timeout=(10.0, float(item["read_timeout_seconds"])),
+                                            total_timeout=3 * float(item["read_timeout_seconds"]))
                     if settings.mode == "production":
                         fetch_kwargs["allowed_hosts"] = _registered_hosts(policy)
                     content, final_url, fetched_type, status = fetch(url, **fetch_kwargs)
@@ -880,6 +884,8 @@ def _stats_discover(source_id: str, since: Optional[str], until: Optional[str], 
             content_type = "application/zip"
         elif source_id == "ECB_SDMX":
             required_series_keys = [key_val]
+            if registry.get("read_timeout_seconds"):
+                request_contract = {"read_timeout_seconds": registry["read_timeout_seconds"]}
             flow, dimensions = key_val.split(".", 1)
             canonical_url = f"{base_url.rstrip('/')}/{flow}/{dimensions}"
             url = f"{canonical_url}?format=csvdata"
@@ -1341,6 +1347,92 @@ def _law_parameters_parse(item: SourceItem, content: bytes, document: SourceDocu
 
 
 register_source("LAW_PARAMETERS", _law_parameters_discover, _law_parameters_parse)
+
+
+# =====================================================================
+# World Bank commodity prices (Pink Sheet): world prices of oil, gas, coal and metals
+# =====================================================================
+PINK_SHEET_LINK = re.compile(r"https://thedocs\.worldbank\.org/en/doc/[0-9a-f]{32}-\d{10}/related/CMO-Historical-Data-Monthly\.xlsx")
+
+
+def _pink_sheet_link(page: str) -> str:
+    links = sorted(set(PINK_SHEET_LINK.findall(page)))
+    if len(links) != 1:
+        raise FetchError(f"expected one monthly Pink Sheet link on the landing page, found {len(links)}")
+    return links[0]
+
+
+def _pink_sheet_discover(source_id: str, since: Optional[str], until: Optional[str], limit: int) -> Iterable[SourceItem]:
+    # The whole history is one workbook whose URL changes monthly; the window does not apply.
+    registry = load_data_sources_registry()["sources"][source_id]
+    landing = registry["endpoints"]["landing_page"]
+    page, _, _, _ = bounded_fetch(landing, allowed_hosts=_registered_hosts(registry), max_bytes=2 * 1024 * 1024)
+    url = _pink_sheet_link(page.decode("utf-8", errors="replace"))
+    yield {"item_id": f"{source_id}_monthly", "upstream_id": "monthly", "url": url, "canonical_url": url,
+           "publisher": registry.get("attribution", source_id),
+           "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+
+
+def _xlsx_rows(content: bytes, sheet_name: str) -> Iterable[tuple[int, dict[str, str]]]:
+    """Rows of one worksheet as {column letter: text}, read with the standard library (xlsx is zipped XML)."""
+    ns = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+          "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"}
+    book = zipfile.ZipFile(io.BytesIO(content))
+    strings = ["".join(t.text or "" for t in si.iter(f"{{{ns['m']}}}t"))
+               for si in ET.fromstring(book.read("xl/sharedStrings.xml")).findall("m:si", ns)]
+    sheet = next(s for s in ET.fromstring(book.read("xl/workbook.xml")).iter(f"{{{ns['m']}}}sheet") if s.get("name") == sheet_name)
+    rel = sheet.get(f"{{{ns['r']}}}id")
+    target = next(r.get("Target") for r in ET.fromstring(book.read("xl/_rels/workbook.xml.rels")) if r.get("Id") == rel)
+    for row in ET.fromstring(book.read("xl/" + target.lstrip("/").removeprefix("xl/"))).iter(f"{{{ns['m']}}}row"):
+        cells = {}
+        for cell in row.findall("m:c", ns):
+            value = cell.find("m:v", ns)
+            if value is not None:
+                cells[re.match(r"[A-Z]+", cell.get("r")).group()] = strings[int(value.text)] if cell.get("t") == "s" else value.text
+        yield int(row.get("r")), cells
+
+
+def _pink_sheet_parse(item: SourceItem, content: bytes, document: SourceDocument) -> dict[str, Any]:
+    registry = load_data_sources_registry()["sources"][document.source_id]
+    try:
+        rows = list(_xlsx_rows(content, registry["sheet"]))
+    except (KeyError, StopIteration, ET.ParseError, zipfile.BadZipFile) as exc:
+        raise FetchError(f"Pink Sheet workbook could not be read: {_safe_error(exc)}") from exc
+    updated = next((re.search(r"Updated on (\w+ \d{1,2}, \d{4})", c.get("A", "")) for _, c in rows[:6] if "Updated on" in c.get("A", "")), None)
+    vintage = datetime.strptime(updated.group(1), "%B %d, %Y").date().isoformat() if updated else None
+    header = next(c for _, c in rows if "Crude oil, Brent" in c.values())
+    columns = {label.strip(): col for col, label in header.items()}
+    missing = [label for label in registry["series"] if label not in columns]
+    if missing:
+        raise FetchError(f"Pink Sheet columns missing: {missing}")
+    origin = {"batch_id": document.batch_id, "data_origin": document.data_origin}
+    observations, evidence, series = [], [], []
+    for label, spec in registry["series"].items():
+        col = columns[label]
+        series.append(SeriesDefinition(series_id=spec["series_id"], source_id=document.source_id, dataset_id="CMO-Historical-Data-Monthly",
+                                       provider_series_key=label, dimensions_json=json.dumps({"column": label}), metric_name="world_price",
+                                       unit=spec["unit"], currency="USD", frequency="MONTHLY", geography_id="WORLD", adjustment="NSA",
+                                       measurement_kind="WORLD_COMMODITY_PRICE", available_at=document.available_at, batch_id=document.batch_id))
+        for number, cells in rows:
+            period = re.fullmatch(r"(\d{4})M(\d{2})", cells.get("A", ""))
+            text = cells.get(col, "")
+            if not period or not re.fullmatch(r"-?\d+(\.\d+)?(E-?\d+)?", text):
+                continue  # "…" and "..." mark months without a price
+            year, month = int(period.group(1)), int(period.group(2))
+            end = f"{year + month // 12}-{month % 12 + 1:02d}-01"
+            obs = Observation(series_id=spec["series_id"], period_start=f"{year}-{month:02d}-01", period_end_exclusive=end,
+                              value=round(float(text), 6), original_value_text=text, source_unit=spec["unit"], unit=spec["unit"],
+                              vintage_id=vintage, available_at=document.available_at, **origin)
+            observations.append(obs)
+            evidence.append(EvidenceLink(assertion_version_id=obs.revision_id, assertion_kind="OBSERVATION", document_version_id=document.version_id,
+                                         selector_type="TABLE_CELL", selector_json=json.dumps({"sheet": registry["sheet"], "cell": f"{col}{number}"}),
+                                         quoted_text=text, support_type="DIRECT", available_at=document.available_at, batch_id=document.batch_id))
+    link_facts, link_entities, link_evidence = _series_links([s.series_id for s in series], document, item.get("_store"))
+    return {"status": "accepted", "facts": link_facts, "observations": observations, "evidence_links": evidence + link_evidence,
+            "entities": link_entities, "series": series, "accepted_count": len(observations), "review_count": 0, "rejected_count": 0}
+
+
+register_source("WORLD_BANK_PINK_SHEET", _pink_sheet_discover, _pink_sheet_parse)
 
 
 # =====================================================================

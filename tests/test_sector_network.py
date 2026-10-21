@@ -37,6 +37,12 @@ def test_network_joins_suppliers_materials_prices_and_laws(tmp_path):
     edges = {(e["source"], e["target"], e["kind"]) for e in network["edges"]}
     assert ("commodity_cement", "sec_C23", "part of") in edges
     assert ("law_de_geg", "sec_F", "regulates") in edges and ("law_de_geg", "law_32010L0031", "implements") in edges
+    # Supported world-price chain links appear; unsupported ones do not.
+    chain = {"chain_links": [{"from": "commodity:crude_oil", "to": "commodity:bitumen_products", "verdict": "supported", "pass_through": 0.17, "p": 0.002},
+                             {"from": "commodity:copper", "to": "sector:F_BPNB530", "verdict": "not supported", "pass_through": 0.0, "p": 0.2}]}
+    linked = {(e["source"], e["target"]) for e in get_sector_network(store, cutoff=datetime.now(timezone.utc), top=10, links=chain)["edges"]
+              if e["kind"] == "feeds"}
+    assert ("commodity_crude_oil", "commodity_bitumen_products") in linked and ("commodity_copper", "sec_F_BPNB530") not in linked
     # Nothing is visible before the data was fetched.
     assert get_sector_network(store, cutoff=datetime(2020, 1, 1, tzinfo=timezone.utc))["nodes"] == []
 

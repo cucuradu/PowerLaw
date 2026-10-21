@@ -1027,7 +1027,7 @@ def _price_changes(store: Any, cutoff: datetime, series_ids: set) -> Dict[str, D
     return changes
 
 
-PRICE_METRICS = {"producer_price", "output_price", "material_cost", "labour_cost", "wages"}
+PRICE_METRICS = {"producer_price", "output_price", "material_cost", "labour_cost", "wages", "world_price"}
 
 
 def get_sector_network(store: Any, cutoff: Optional[datetime] = None, year: Optional[int] = None,
@@ -1093,6 +1093,14 @@ def get_sector_network(store: Any, cutoff: Optional[datetime] = None, year: Opti
         if link["hypothesised"] and link["verdict"] == "supported" and source in nodes and target in nodes:
             edges.append({"source": source, "target": target, "kind": "feeds", "pass_through": link["pass_through"],
                           "p": link["p"]})
+    # World price -> German price links from config/chains.json, shown only where the price data supports them.
+    node_id = lambda ref: ("commodity_" if ref.startswith("commodity:") else "sec_") + ref.split(":", 1)[1]
+    for link in (links or {}).get("chain_links", []):
+        source, target = node_id(link["from"]), node_id(link["to"])
+        if link["verdict"] == "supported" and source != target:
+            add(source, "material")
+            add(target, "trade" if target.startswith("sec_F_") else "material")
+            edges.append({"source": source, "target": target, "kind": "feeds", "pass_through": link["pass_through"], "p": link["p"]})
     # The network is Germany's; the EU panel's other countries measure the same nodes and are left out here.
     measures = [f for f in facts if f.predicate == "MEASURES" and f.object_id in nodes and is_german_series(f.subject_id)]
     changes = _price_changes(store, cutoff, {f.subject_id for f in measures})

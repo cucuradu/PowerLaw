@@ -2684,6 +2684,66 @@
           "metric": "free_allocation_share"
         }
       ]
+    },
+    "WB_PINK|brent": {
+      "name": "World price: crude oil (Brent)",
+      "status": "active",
+      "measures": {
+        "commodity": "crude_oil",
+        "metric": "world_price"
+      }
+    },
+    "WB_PINK|natural_gas_europe": {
+      "name": "World price: natural gas, Europe",
+      "status": "active",
+      "measures": {
+        "commodity": "natural_gas",
+        "metric": "world_price"
+      }
+    },
+    "WB_PINK|coal_australia": {
+      "name": "World price: coal (Australia)",
+      "status": "active",
+      "measures": {
+        "commodity": "coal",
+        "metric": "world_price"
+      }
+    },
+    "WB_PINK|aluminium": {
+      "name": "World price: aluminium",
+      "status": "active",
+      "measures": {
+        "commodity": "aluminium",
+        "metric": "world_price"
+      }
+    },
+    "WB_PINK|iron_ore": {
+      "name": "World price: iron ore",
+      "status": "active",
+      "measures": {
+        "commodity": "iron_ore",
+        "metric": "world_price"
+      }
+    },
+    "WB_PINK|copper": {
+      "name": "World price: copper",
+      "status": "active",
+      "measures": {
+        "commodity": "copper",
+        "metric": "world_price"
+      }
+    },
+    "WB_PINK|zinc": {
+      "name": "World price: zinc",
+      "status": "active",
+      "measures": {
+        "commodity": "zinc",
+        "metric": "world_price"
+      }
+    },
+    "EXR.M.USD.EUR.SP00.A": {
+      "name": "Euro to dollar exchange rate (monthly)",
+      "status": "active"
     }
   }
 }

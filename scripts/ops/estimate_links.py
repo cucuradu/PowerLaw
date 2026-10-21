@@ -21,6 +21,7 @@ from src.storage.dual_layer_store import DualLayerStore
 from src.utils.taxonomy import is_german_series
 
 LAGS = 3  # material growth at t, t-1, t-2
+FX_SERIES = "EXR.M.USD.EUR.SP00.A"  # ECB reference rate, US dollars per euro, monthly average
 
 
 def quarterly_growth(levels: dict) -> dict:
@@ -73,10 +74,17 @@ def main() -> None:
         if (info["status"] == "active" and measures.get("metric") in ("producer_price", "output_price") and node
                 and is_german_series(series_id)):
             node_series.setdefault(node, series_id)
-    levels = {}
+    world = {measures["commodity"]: series_id for series_id, info in names.items()
+             if isinstance(measures := info.get("measures"), dict) and measures.get("metric") == "world_price"}
+    levels, fx_days = {}, {}
     for row in store.query_observations(cutoff=now, mode="public_as_of").to_pylist():
-        if row["value"] is not None:
+        if row["value"] is None:
+            continue
+        if row["series_id"] == FX_SERIES:
+            fx_days.setdefault(row["period_start"][:7], []).append(row["value"])
+        else:
             levels.setdefault(row["series_id"], {})[row["period_start"][:7]] = row["value"]
+    usd_per_eur = {month: float(np.mean(v)) for month, v in fx_days.items()}
     growth = {node: quarterly_growth(levels[sid]) for node, sid in node_series.items() if sid in levels}
     materials = [m for m in json.loads((REPO_ROOT / "config" / "sectors.json").read_text(encoding="utf-8"))["commodities"] if m in growth]
     results = []
@@ -97,13 +105,29 @@ def main() -> None:
                 results.append({"trade": trade, "material": material, "hypothesised": hypothesised,
                                 "verdict": "supported" if (supported if hypothesised else discovered) else "not supported",
                                 **{k: round(v, 4) if isinstance(v, float) else v for k, v in test.items()}})
+    # Chain links from config/chains.json: world prices (converted to euros) -> German material and trade prices.
+    chain_results = []
+    for chain in json.loads((REPO_ROOT / "config" / "chains.json").read_text(encoding="utf-8"))["chains"]:
+        for link in chain["links"]:
+            source, target = link["from"].split(":", 1)[1], link["to"].split(":", 1)[1]
+            if link.get("from_metric") != "world_price" or world.get(source) not in levels or target not in growth:
+                continue
+            in_eur = {m: v / usd_per_eur[m] for m, v in levels[world[source]].items() if m in usd_per_eur}
+            others = [growth[o] for o in materials if o != target]
+            common = {q: float(np.mean([g[q] for g in others if q in g])) for q in growth[target]}
+            test = link_test(growth[target], quarterly_growth(in_eur), common, since)
+            if test:
+                chain_results.append({"chain": chain["id"], "from": link["from"], "to": link["to"], "metric": "world_price_eur",
+                                      "verdict": "supported" if test["p"] < 0.05 and test["pass_through"] > 0 else "not supported",
+                                      **{k: round(v, 4) if isinstance(v, float) else v for k, v in test.items()}})
     out = Path(get_settings().data_dir) / "reports" / "graph-links-latest.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"generated_at": now.isoformat(), "since": args.since, "links": results,
+    out.write_text(json.dumps({"generated_at": now.isoformat(), "since": args.since, "links": results, "chain_links": chain_results,
                                "method": __doc__.split("\n\n")[1].replace("\n", " ")}, indent=2), encoding="utf-8")
     hyp = [r for r in results if r["hypothesised"]]
     print(json.dumps({"output": str(out), "hypothesised": len(hyp), "supported": sum(r["verdict"] == "supported" for r in hyp),
-                      "discovered": sum(not r["hypothesised"] for r in results)}))
+                      "discovered": sum(not r["hypothesised"] for r in results),
+                      "chain_links": len(chain_results), "chain_supported": sum(r["verdict"] == "supported" for r in chain_results)}))
 
 
 if __name__ == "__main__":
