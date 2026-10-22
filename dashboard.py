@@ -27,6 +27,7 @@ from src.storage.dashboard_data import (
     get_price_events,
     get_forecast_surprises,
     load_projections,
+    load_horizon,
     model_name,
 )
 
@@ -392,6 +393,38 @@ if projections and projections["projections"]:
     st.caption(f"{beat} of {len(rows)} forecasts beat \"no change\" in the test. Ranges held about "
                f"{np.mean([p['test']['coverage'] for p in projections['projections'] if p['test']['coverage'] is not None]):.0%} "
                "of the time (target 90%). Generated " + projections["generated_at"][:10] + " by scripts.ops.project_series.")
+    st.divider()
+
+# --- 2c. NEXT 1-3 YEARS ---
+horizon = load_horizon()
+if horizon and horizon["forecasts"]:
+    from src.config import primary_target_series_id
+    st.markdown("### 📅 Construction prices over the next 1-3 years")
+    st.caption("Cumulative change from the latest released quarter. Models were chosen on 1998-2012 and then scored "
+               "once on 2013 onward (a period that includes the 2021-23 price surge); the errors and ranges below are "
+               "from that held-out test.")
+    rows = []
+    for h in (4, 8, 12):
+        key = f"h{h}"
+        target = next((f for f in horizon["forecasts"] if f["series_id"] == primary_target_series_id()
+                       and f["horizon_quarters"] == h), None)
+        test = horizon["target"].get(key, {}).get("holdout", {})
+        trades = [f["growth_pct"] for f in horizon["forecasts"] if f["series_id"] != primary_target_series_id()
+                  and f["horizon_quarters"] == h]
+        if not target:
+            continue
+        interval = target["interval_growth_pct"]
+        rows.append({"Horizon": f"{h // 4} year{'s' if h > 4 else ''}", "To quarter": target["target_period_start"][:7],
+                     "Forecast %": round(target["growth_pct"], 1),
+                     "Likely range %": f"{interval[0]:+.1f} to {interval[1]:+.1f}" if interval else "",
+                     "Typical miss (pts)": round(test["mae"][target["model"]], 1) if test.get("mae") else None,
+                     "Trend-only miss": round(test["mae"]["drift_10y"], 1) if test.get("mae") else None,
+                     "Range held": f"{test['coverage']:.0%}" if test.get("coverage") is not None else "",
+                     "Trades, median %": round(float(np.median(trades)), 1) if trades else None})
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    st.caption("\"Trend-only\" assumes the last ten years' average growth continues. Where it missed less, the model "
+               "adds nothing over the trend at that horizon. Ranges are calibrated on calmer years and held far less "
+               "often than 90% in the test. Generated " + horizon["generated_at"][:10] + " by scripts.ops.horizon_forecast.")
     st.divider()
 
 # --- 3. INTERACTIVE CONSTRUCTION PRICE & COMMODITY TELEMETRY ---

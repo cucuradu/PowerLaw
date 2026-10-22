@@ -144,3 +144,18 @@
 - **Models:** no change, 10-year drift, seasonal AR iterated, direct AR (h-quarter growth on last year's growth), direct AR + the published model's inputs.
 - **Split:** origins 1998-2012 to choose (target: lowest MAE per horizon; trades: lowest mean MAE, one model for the group); origins 2013+ held out, scored once with the chosen model. Bug fixes may rerun; the model list, inputs and choice rule do not change after seeing the holdout.
 - **Known weakness:** 12-quarter labels overlap, so 2013-2023 holds about 4 independent 3-year windows for the target; the trades add cross-section but share the same shocks. The design was set knowing that 2021-23 had a shock.
+
+## 1-3 year forecasts: held-out result (first run 2026-10-22, per the protocol above)
+
+- **Target** (MAE in points of cumulative change; development 28 origins, holdout 2013+):
+
+  | horizon | chosen on 1998-2012 | holdout chosen | drift_10y | direct_inputs | no change | coverage (90%) |
+  |---|---|---|---|---|---|---|
+  | 1 year | sar | 2.75 | 2.75 | 2.56 | 4.84 | 75% |
+  | 2 years | sar | 7.78 | 5.72 | 5.83 | 10.3 | 73% |
+  | 3 years | sar | 15.33 | 9.22 | 10.39 | 16.56 | 44% |
+
+  Diebold-Mariano (overlap-corrected) finds no significant difference from no change or drift at any horizon.
+- **Trades** (35 series, one model for the group): 1 year direct_inputs 2.50 (drift 2.79, no change 4.90); 2 years drift 5.97 (inputs 5.96); 3 years drift 9.66 (inputs 10.58). The iterated seasonal AR explodes for some trades at 2-3 years (mean holdout error in the hundreds); it was not chosen there.
+- **Reading:** the calm 1998-2012 period chose the seasonal AR for the target, which extrapolates recent momentum and failed after 2021; the trend and the input model held up better. At 2-3 years nothing beats a 10-year trend reliably, and intervals calibrated on calm years held 44-75% of the time. A 1-3 year price path is mainly an inflation-regime question; the honest product is a trend with scenario ranges, not a point forecast.
+- **Per protocol the chosen models stay published** (dashboard section "Construction prices over the next 1-3 years" shows the trend's holdout error beside them) and every forecast goes into the ledger. Changing the choice rule (e.g. to the trend or a combination) is for the next scheduled review, and the holdout can no longer test that choice; only the ledger can.

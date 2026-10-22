@@ -27,6 +27,7 @@ Last reviewed: 2026-10-20, after the sector network, detailed material prices, E
 5. Intervals: published model covers 87% (nominal 90%); recent-window and adaptive conformal tested 2026-10-21, no gain for it (decisions.md).
 6. Done 2026-10-21: trade/material projections pool over same-metric series (error 1.503 -> 1.407 on 2018+) and use ACI intervals (coverage 78% -> 83%, still below 90%). Projection intervals remain short in shock quarters.
 7. Done 2026-10-22: trade and producer-price projections can use the published model's inputs (trades 0.834 -> 0.774 on 2018+); each trade's own linked materials hurt (decisions.md).
+8. 2026-10-22: product horizon is 1-3 years (user). Forecast ledger running (prospective scoring). 1-3 year forecasts with a held-out test: no model beats the 10-year trend reliably at 2-3 years; intervals undercover. Next: outside forecasts as benchmarks, then scenario ranges (inflation regime, CO2 price path, wages).
 
 ## Open issues
 
