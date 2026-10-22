@@ -7,3 +7,4 @@
 - Tests: 617 passed.
 - Outside benchmark: DIW Wochenberichte 2019-2026 in `config/external_forecasts.json` (collected by a fetch agent, checked by nominal/real identity), scored by `scripts.ops.benchmark_external`: on par with ours.
 - Target 1-3 year ranges switched to history since 1968 (coverage 88/85/77% on 2013+ vs 75/73/44%).
+- Graph research (user asked how a graph could beat the model): literature says graph gains come from cross-learning, hierarchies and structure, not lagged neighbour signals. Tested: EU-wide 1-3 year model (robust, ties trend), adding up trades (`scripts.ops.hierarchy_test`, tie; small 1-year edge), cost build-up (`src.quant.cost_model`, `scripts.ops.cost_scenarios`): with actual costs half the trend's error, so 1-3 year price risk is material cost risk. Dashboard shows cost what-ifs. Tests: 621 passed.

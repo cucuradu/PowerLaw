@@ -1140,6 +1140,12 @@ def load_horizon(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, 
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+def load_cost_scenarios(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
+    """Cost build-up scenarios written offline by scripts.ops.cost_scenarios (never computed by the dashboard)."""
+    path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "cost-scenarios-latest.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
 def load_graph_links(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
     """Material -> trade link tests written offline by scripts.ops.estimate_links."""
     path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "graph-links-latest.json"

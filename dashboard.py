@@ -28,6 +28,7 @@ from src.storage.dashboard_data import (
     get_forecast_surprises,
     load_projections,
     load_horizon,
+    load_cost_scenarios,
     model_name,
 )
 
@@ -422,6 +423,23 @@ if horizon and horizon["forecasts"]:
                      "Range held": f"{test['history_range_coverage']:.0%}" if test.get("history_range_coverage") is not None else "",
                      "Trades, median %": round(float(np.median(trades)), 1) if trades else None})
     st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    costs = load_cost_scenarios()
+    if costs and costs["forecasts"]:
+        st.markdown("##### What would move it: building costs")
+        st.caption("Prices follow building costs (60% materials, 40% labour; Destatis cost index). Labour is assumed to "
+                   "keep its 10-year trend; each row is one path for material costs, taken from what materials did over "
+                   "the same span since 2000. These are what-ifs, not probabilities.")
+        labels = {"low": "Materials weak (1 in 10)", "central": "Materials typical", "high": "Materials strong (1 in 10)",
+                  "record": "Materials like the record (2021-23)"}
+        by_h = {f["horizon_quarters"]: f for f in costs["forecasts"]}
+        table = [{"If": label, **{f"{h // 4} year{'s' if h > 4 else ''} %": round(by_h[h]["scenarios"][key], 1)
+                                  for h in (4, 8, 12) if h in by_h}} for key, label in labels.items()]
+        st.dataframe(pd.DataFrame(table), width="stretch", hide_index=True)
+        cond = {h: costs["evaluation"][f"h{h}"]["holdout"].get("mae_conditional") for h in (4, 8, 12)}
+        st.caption("When the cost path is right, this rule missed by about "
+                   + ", ".join(f"{v:.1f}" for v in cond.values() if v is not None)
+                   + " points at 1, 2 and 3 years in 2013 onward (half the trend's miss). Getting the material path right "
+                   "is the hard part; labour is the more predictable half.")
     st.caption("\"Trend-only\" assumes the last ten years' average growth continues. Where it missed less, the model "
                "adds nothing over the trend at that horizon. The range is what happened over the same span in 90% of "
                "all periods since 1968 (including the 1970s and 2021-23), not a band around the forecast; in the test "

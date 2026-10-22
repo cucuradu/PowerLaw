@@ -1,6 +1,7 @@
 """Append-only record of every published forecast, scored once the outcome is released (prospective evaluation).
 
-record  appends each forecast in reports/forecast-latest.json, projections-latest.json and horizon-latest.json that
+record  appends each forecast in reports/forecast-latest.json, projections-latest.json, horizon-latest.json and
+        cost-scenarios-latest.json that
         is not yet in the ledger (one entry per series, model, base quarter and target quarter: the first forecast
         made after each release). Every line carries the SHA-256 of the line before it, so edits break the chain.
 score   checks the chain and scores every entry whose target quarter was released after the forecast was made:
@@ -87,10 +88,9 @@ def collect(now: datetime) -> list[dict]:
                         "made_at": projections["generated_at"], "base_period_start": p["last_period_start"],
                         "base_level": p["last_level"], "target_period_start": p["target_period_start"],
                         "growth_pct": p["growth_pct"], "interval_growth_pct": p["interval_growth_pct"]})
-    horizon = load("horizon-latest.json")
-    for p in (horizon or {}).get("forecasts", []):
+    for p in [*(load("horizon-latest.json") or {}).get("forecasts", []), *(load("cost-scenarios-latest.json") or {}).get("forecasts", [])]:
         out.append({**base, "kind": "horizon", "series_id": p["series_id"], "model": p["model"],
-                    "made_at": horizon["generated_at"], "base_period_start": p["base_period_start"],
+                    "made_at": now.isoformat(), "base_period_start": p["base_period_start"],
                     "base_level": p["base_level"], "target_period_start": p["target_period_start"],
                     "growth_pct": p["growth_pct"], "interval_growth_pct": p["interval_growth_pct"]})
     for entry in out:
