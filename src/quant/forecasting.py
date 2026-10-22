@@ -297,8 +297,6 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
     elif panel_prior is not None:  # same partial pooling on raw growth (series without a VAT effect)
         names += ("ar4_seasonal_pooled",)
     if predictor_sets:
-        if vat_schedule is None:
-            raise ValueError("Predictor models are fitted on growth excluding VAT and need vat_schedule")
         names += ("ar4_seasonal_vat_direct",) + tuple(f"arx_vat_{name}" for name in predictor_sets)
         predictors = {name: {**p, "levels": [{**r, "available_at": utc(r["available_at"])} for r in p["levels"]
                                              if r.get("value") is not None]}
@@ -351,14 +349,17 @@ def rolling_origin_backtest(levels: List[Dict[str, Any]], origins: List[Any], *,
                 prior = panel_prior(origin)
                 pooled = None if prior is None else _sar_forecast(ex_growth, last, target, fit_from, ar_order, prior=prior)
                 forecasts["ar4_seasonal_vat_pooled"] = None if pooled is None else 100 * ((1 + pooled / 100) * factor - 1)
-            if predictor_sets:
-                features = {name: _feature_at_origin(p, origin, origin_quarter) for name, p in predictors.items()}
-                runs = {"ar4_seasonal_vat_direct": []}
-                runs.update({f"arx_vat_{s}": [features[n] for n in members] for s, members in predictor_sets.items()})
-                for model, feats in runs.items():
-                    ex = (None if any(f is None for f in feats) else
-                          _direct_forecast(ex_growth, last, target, origin_quarter, fit_from, ar_order, feats))
-                    forecasts[model] = None if ex is None else 100 * ((1 + ex / 100) * factor - 1)
+        if predictor_sets:
+            # Series without a VAT schedule (e.g. prices excluding VAT) are modelled on their own growth.
+            if vat_schedule is None:
+                ex_growth, factor = growth, 1.0
+            features = {name: _feature_at_origin(p, origin, origin_quarter) for name, p in predictors.items()}
+            runs = {"ar4_seasonal_vat_direct": []}
+            runs.update({f"arx_vat_{s}": [features[n] for n in members] for s, members in predictor_sets.items()})
+            for model, feats in runs.items():
+                ex = (None if any(f is None for f in feats) else
+                      _direct_forecast(ex_growth, last, target, origin_quarter, fit_from, ar_order, feats))
+                forecasts[model] = None if ex is None else 100 * ((1 + ex / 100) * factor - 1)
         known = [r for r in rows if r["label_available_at"] <= origin]
         # ACI (Gibbs & Candes 2021): each newly known label moves the level by ACI_GAMMA * (alpha - missed).
         for r in sorted((r for r in known if id(r) not in aci_seen), key=lambda r: r["origin"]):

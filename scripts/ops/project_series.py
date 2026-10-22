@@ -3,7 +3,8 @@
 Each series gets the same rolling-origin test as the target, on data public at each past origin: the model is
 chosen on origins before SPLIT and scored on later ones, so the reported error is not flattered by the choice.
 Candidates include a seasonal AR partially pooled over the other series of the same metric (trade output prices,
-material producer prices), using only their quarters public at the origin.
+material producer prices), using only their quarters public at the origin, and a direct ARX with the published
+target model's inputs (orders, material and energy prices, builders' price expectations) at their release dates.
 Writes data/<pilot>/reports/projections-latest.json, which the dashboard reads.
 
 Usage: python -m scripts.ops.project_series [--first-origin 2010-03-31]
@@ -15,17 +16,20 @@ from pathlib import Path
 
 import numpy as np
 
-from scripts.ops.backtest_target import BERLIN, quarter_end_origins
+from scripts.ops.backtest_target import BERLIN, load_predictors, quarter_end_origins
 from src.config import REPO_ROOT, get_settings, primary_target_series_id
 from src.quant.forecasting import INTERVAL_METHODS, rolling_origin_backtest
 from src.storage.dual_layer_store import DualLayerStore
 
 from src.storage.dashboard_data import PRICE_METRICS
 from src.utils.taxonomy import is_german_series
-CANDIDATES = ("ar4_seasonal", "ar4", "mean_4q", "no_change", "ar4_seasonal_pooled")
+CANDIDATES = ("ar4_seasonal", "ar4", "mean_4q", "no_change")
+# Compete only where they forecast at every origin (no pool for singleton metrics; inputs start later).
+OPTIONAL = ("ar4_seasonal_pooled", "arx_vat_inputs")
 SPLIT = datetime(2018, 1, 1, tzinfo=timezone.utc)
 # Adaptive conformal: split intervals covered 78% on 2018+ across these series, ACI 83% (decisions.md).
 INTERVAL_METHOD = "aci"
+INPUT_METRICS = {"output_price", "producer_price"}  # building-cost indices may include VAT: no inputs
 
 
 def quarterly_levels(revisions: list, series_id: str, rule_lag_days, store) -> list:
@@ -76,12 +80,14 @@ def pooled_prior(series_levels: dict, order: int = 4):
     return prior
 
 
-def project(levels: list, origins: list, now: datetime, prior=None) -> dict | None:
+def project(levels: list, origins: list, now: datetime, prior=None, inputs: dict | None = None) -> dict | None:
+    """`inputs`: the published target model's predictors (scripts.ops.backtest_target.load_predictors), used as one
+    set by a direct ARX candidate; only for series without VAT in them."""
     result = rolling_origin_backtest(levels, origins, fit_start="1995-01-01", target_rule="next_release", live_origin=now,
-                                     panel_prior=prior, interval_method=INTERVAL_METHOD)
-    rows = [r for r in result["predictions"] if all(r["forecasts"][m] is not None for m in CANDIDATES[:-1])]
-    # The pooled model competes only where a pool exists at every origin (singleton metrics have none).
-    candidates = CANDIDATES if rows and all(r["forecasts"].get(CANDIDATES[-1]) is not None for r in rows) else CANDIDATES[:-1]
+                                     panel_prior=prior, interval_method=INTERVAL_METHOD, predictors=inputs,
+                                     predictor_sets={"inputs": list(inputs)} if inputs else None)
+    rows = [r for r in result["predictions"] if all(r["forecasts"][m] is not None for m in CANDIDATES)]
+    candidates = CANDIDATES + tuple(m for m in OPTIONAL if rows and all(r["forecasts"].get(m) is not None for r in rows))
     train, test = [r for r in rows if r["origin"] < SPLIT], [r for r in rows if r["origin"] >= SPLIT]
     live = result["live"]
     if len(train) < 8 or len(test) < 8 or live is None:
@@ -91,7 +97,7 @@ def project(levels: list, origins: list, now: datetime, prior=None) -> dict | No
     width = live["interval_half_width"].get(model)
     scored = [r for r in test if r["interval_half_width"].get(model) is not None]
     growth = live["forecasts"].get(model)
-    return {"model": model, "target_period_start": live["target_period_start"],
+    return {"model": model, "train_mae_by_model": {m: mae(m, train) for m in candidates}, "target_period_start": live["target_period_start"],
             "last_period_start": live["last_observed_period_start"], "growth_pct": growth,
             "interval_growth_pct": None if growth is None or width is None else [growth - width, growth + width],
             "test": {"from": SPLIT.date().isoformat(), "n": len(test), "mae": mae(model, test),
@@ -134,10 +140,12 @@ def main() -> None:
     # Partial pooling within one metric (trade output prices, material producer prices, ...).
     priors = {m: pooled_prior({sid: lv for sid, (metric, lv) in eligible.items() if metric == m})
               for m in {metric for metric, _ in eligible.values()}}
+    # The published target model's inputs; offered to trade prices (excl. VAT) and producer prices only.
+    inputs = {name: p for name, p in load_predictors(store, revisions).items() if p.get("in_forecast")}
     projections = []
     for series_id, (metric, levels) in eligible.items():
         info = names[series_id]
-        outcome = project(levels, origins, now, priors[metric])
+        outcome = project(levels, origins, now, priors[metric], inputs if metric in INPUT_METRICS else None)
         if outcome:
             projections.append({"series_id": series_id, "name": info["name"], "measures": info["measures"],
                                 "dating": "rule" if series_id in rules else "evidence",

@@ -43,6 +43,17 @@ def test_arx_recovers_a_leading_predictor():
     assert models["arx_vat_x"]["mae"] < 0.1 < models["ar4_seasonal_vat_direct"]["mae"]
 
 
+
+def test_arx_without_vat_schedule_models_the_series_own_growth():
+    target, predictor, schedule = _synthetic()
+    ex_vat = [{**r, "value": r["value"] / (1 + vat_rate(schedule, date.fromisoformat(r["period_start"]) + timedelta(days=45)))}
+              for r in target]  # a price index excluding VAT, like the 61261 trade series
+    result = rolling_origin_backtest(ex_vat, _origins(2010, 2018), fit_start="1995-01-01",
+                                     predictors={"x": {"levels": predictor, "frequency": "QUARTERLY", "transform": "qoq"}},
+                                     predictor_sets={"x": ["x"]})
+    assert "ar4_seasonal_vat" not in result["models"]
+    assert result["models"]["arx_vat_x"]["mae"] < 0.1 < result["models"]["ar4_seasonal_vat_direct"]["mae"]
+
 def test_arx_ignores_predictor_values_released_after_the_origin():
     target, predictor, schedule = _synthetic()
     origin = datetime(2012, 6, 30, 23, 59, 59, tzinfo=timezone.utc)
