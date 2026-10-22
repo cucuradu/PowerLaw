@@ -130,3 +130,17 @@
 - **Test** (2018+, next release, inputs at their release dates): the published target model's inputs (orders, material and energy producer prices, builders' price expectations) in a direct ARX for each of 37 trade price series (61261-0002, excl. VAT): 0.742 vs 0.847 for the trade's own direct AR (34/37 better) and vs 0.819 pooled (30/37). Each trade's own tested material links (graph `tested_link`, 10 trades) instead: 1.164 vs 1.056, worse for 8 of 10. Same-period pass-through does not make a material a useful leading input for a single trade; the broad cost and demand signals do.
 - **Change:** `project_series` offers that ARX (`arx_vat_inputs`) to trade and producer prices (building-cost indices may include VAT, so no inputs there); `rolling_origin_backtest` now fits predictor models without a VAT schedule on the series' own growth. Per-series choice on origins before 2018: trades 0.834 -> 0.774, material prices 2.111 -> 2.103, all 72 series 1.407 -> 1.373.
 - **Selection limit:** before 2018 the ARX and the pooled AR tie for trades (0.324 vs 0.322); the ARX only pulls ahead in the 2021-23 shocks (0.744 vs 0.839). Choosing one model per metric on pre-2018 data would pick pooled (0.837), so the per-series choice stays; a combination rule would be chosen after seeing the test and is not adopted.
+
+## Forecast ledger: prospective evaluation (2026-10-22)
+
+- Every 2018+ comparison since 2026-10-20 reused the same test window, so later gains are partly selection on it. From now on the evidence that counts is prospective: `scripts.ops.forecast_ledger record` appends each published forecast (target, projections, 1-3 year forecasts) to `reports/forecast-ledger.jsonl` once per series, model, base and target quarter, each line chained to the previous one by SHA-256; `score` scores only outcomes first released after the forecast was made. The weekly update runs both.
+- Rule-dated inputs now count as public at the rule date or their fetch time, whichever is earlier (the fetch proves publication). History keeps rule dates; the live forecast no longer treats a fetched quarter (building cost 2026-Q2) as unreleased.
+- Review cadence: model or input changes only at scheduled reviews (proposed: April and October), judged on the ledger.
+
+## 1-3 year forecasts: protocol (fixed 2026-10-22 before the first run)
+
+- **Need:** budgets and escalation clauses price 1-3 years ahead, so the product question is the cumulative change of the level 4, 8 and 12 quarters after the last released quarter (`src.quant.horizon`, `scripts.ops.horizon_forecast`).
+- **Series:** the target (incl. VAT, modelled ex VAT with known VAT steps) and the 41 trade price series (excl. VAT).
+- **Models:** no change, 10-year drift, seasonal AR iterated, direct AR (h-quarter growth on last year's growth), direct AR + the published model's inputs.
+- **Split:** origins 1998-2012 to choose (target: lowest MAE per horizon; trades: lowest mean MAE, one model for the group); origins 2013+ held out, scored once with the chosen model. Bug fixes may rerun; the model list, inputs and choice rule do not change after seeing the holdout.
+- **Known weakness:** 12-quarter labels overlap, so 2013-2023 holds about 4 independent 3-year windows for the target; the trades add cross-section but share the same shocks. The design was set knowing that 2021-23 had a shock.

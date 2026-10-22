@@ -69,7 +69,7 @@ def load_predictors(store: DualLayerStore, revisions: list) -> dict:
     """Predictor levels with model-layer availability from config/predictor_release_lags.json.
 
     'evidence': earliest committed availability of any revision (release-dated by archived vintages).
-    'rule' (assumption): end of the Berlin day lag_days after the period end; the fetch date is ignored.
+    'rule' (assumption): end of the Berlin day lag_days after the period end, or the fetch time if earlier.
     """
     config = json.loads((REPO_ROOT / "config" / "predictor_release_lags.json").read_text(encoding="utf-8"))["predictors"]
     predictors = {}
@@ -82,6 +82,7 @@ def load_predictors(store: DualLayerStore, revisions: list) -> dict:
             if spec["availability"] == "rule":
                 day = datetime.fromisoformat(o.period_end_exclusive).date() + timedelta(days=spec["lag_days"])
                 when = datetime(day.year, day.month, day.day, 23, 59, 59, tzinfo=BERLIN).astimezone(timezone.utc)
+                when = min(when, store._available(o))  # fetched earlier than the rule says: it was public by then
             else:
                 when = store._available(o)
             cell = (o.series_id, o.period_start)

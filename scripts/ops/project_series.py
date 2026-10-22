@@ -43,6 +43,7 @@ def quarterly_levels(revisions: list, series_id: str, rule_lag_days, store) -> l
         else:  # assumption from config/predictor_release_lags.json: published lag_days after the period end
             day = datetime.fromisoformat(o.period_end_exclusive).date() + timedelta(days=rule_lag_days)
             when = datetime(day.year, day.month, day.day, 23, 59, 59, tzinfo=BERLIN).astimezone(timezone.utc)
+            when = min(when, store._available(o))  # fetched earlier than the rule says: it was public by then
         if o.period_start not in cells or when < cells[o.period_start][1]:
             cells[o.period_start] = (o.value, when)
     quarters = {}

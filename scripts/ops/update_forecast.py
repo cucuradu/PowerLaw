@@ -31,8 +31,10 @@ def main() -> None:
                  "--until", today.isoformat(), "--limit", "500") for source, days in SOURCES]
     # Only Destatis is required: without fresh Bundesbank vintages new values are dated by fetch time (later, never earlier).
     target_ok = steps[0]["exit_code"] == 0
-    for script in ("scripts.ops.backtest_target", "scripts.ops.project_series"):
+    for script in ("scripts.ops.backtest_target", "scripts.ops.project_series", "scripts.ops.horizon_forecast"):
         steps.append(run(script) if target_ok else {"step": script, "skipped": "Destatis update failed"})
+    # Record what was just published before any outcome can be known, then score what has been released.
+    steps += [run("scripts.ops.forecast_ledger", "record"), run("scripts.ops.forecast_ledger", "score")]
     log = Path(get_settings().data_dir) / "reports" / "update-log.jsonl"
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("a", encoding="utf-8") as handle:
