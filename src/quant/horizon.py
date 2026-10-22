@@ -10,7 +10,10 @@ growth excluding VAT when a VAT schedule is given and apply the rates the law sa
   direct_ar      OLS of h-quarter log growth on the last 4 quarters' log growth
   direct_inputs  direct_ar + input features at their release-aligned lag (forecasting._feature_at_origin)
 
-Intervals: split conformal on absolute errors of earlier origins whose labels were released by the origin.
+Intervals: split conformal on absolute errors of earlier origins whose labels were released by the origin
+(`interval_half_width`), and a history range (`history_range`): the 5th and 95th percentiles of every h-quarter
+change in the series since `range_start` that was public at the origin, with the known VAT step applied. The
+history range ignores the point forecast; it says what has happened over h quarters before.
 """
 import math
 from datetime import datetime, timezone
@@ -51,7 +54,8 @@ def _direct(logs: Dict[int, float], last: int, horizon: int, fit_from: int, feat
 
 def horizon_backtest(levels: List[Dict[str, Any]], origins: List[Any], horizon: int, *, fit_start: str = "1991-01-01",
                      vat_schedule=None, predictors: Optional[Dict[str, Dict[str, Any]]] = None,
-                     inputs: tuple = (), live_origin=None, alpha: float = 0.10, min_calibration: int = 20) -> Dict[str, Any]:
+                     inputs: tuple = (), live_origin=None, alpha: float = 0.10, min_calibration: int = 20,
+                     range_start: Optional[str] = None) -> Dict[str, Any]:
     """Rows {origin, base/target period, forecasts, actual, interval_half_width}; `live` for live_origin."""
     level = {}
     for r in levels:
@@ -98,9 +102,14 @@ def horizon_backtest(levels: List[Dict[str, Any]], origins: List[Any], horizon: 
             residuals = [abs(r["actual"] - r["forecasts"][m]) for r in known if r["forecasts"][m] is not None]
             widths[m] = (calibrate_residual_interval(residuals, alpha)["interval_half_width"]
                          if len(residuals) >= min_calibration and forecasts[m] is not None else None)
+        first = _quarter_index(range_start or fit_start)
+        long = {q: v / (1 + rate(q, None)) for q, (v, when) in level.items() if when <= origin and q >= first}
+        windows = [100 * math.log(long[q + horizon] / long[q]) for q in long if q + horizon in long]
+        history = ([100 * (math.exp(x / 100) * factor - 1) for x in np.percentile(windows, [100 * alpha / 2, 100 - 100 * alpha / 2])]
+                   if len(windows) >= min_calibration else None)
         row = {"origin": origin, "base_period_start": _quarter_start(last), "base_level": visible[last],
                "target_period_start": _quarter_start(target), "horizon": horizon, "forecasts": forecasts,
-               "interval_half_width": widths}
+               "interval_half_width": widths, "history_range": history}
         if is_live:
             live = row
             continue

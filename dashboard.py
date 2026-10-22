@@ -419,12 +419,13 @@ if horizon and horizon["forecasts"]:
                      "Likely range %": f"{interval[0]:+.1f} to {interval[1]:+.1f}" if interval else "",
                      "Typical miss (pts)": round(test["mae"][target["model"]], 1) if test.get("mae") else None,
                      "Trend-only miss": round(test["mae"]["drift_10y"], 1) if test.get("mae") else None,
-                     "Range held": f"{test['coverage']:.0%}" if test.get("coverage") is not None else "",
+                     "Range held": f"{test['history_range_coverage']:.0%}" if test.get("history_range_coverage") is not None else "",
                      "Trades, median %": round(float(np.median(trades)), 1) if trades else None})
     st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
     st.caption("\"Trend-only\" assumes the last ten years' average growth continues. Where it missed less, the model "
-               "adds nothing over the trend at that horizon. Ranges are calibrated on calmer years and held far less "
-               "often than 90% in the test. Generated " + horizon["generated_at"][:10] + " by scripts.ops.horizon_forecast.")
+               "adds nothing over the trend at that horizon. The range is what happened over the same span in 90% of "
+               "all periods since 1968 (including the 1970s and 2021-23), not a band around the forecast; in the test "
+               "it held less often than 90% at 3 years. Generated " + horizon["generated_at"][:10] + " by scripts.ops.horizon_forecast.")
     st.divider()
 
 # --- 3. INTERACTIVE CONSTRUCTION PRICE & COMMODITY TELEMETRY ---

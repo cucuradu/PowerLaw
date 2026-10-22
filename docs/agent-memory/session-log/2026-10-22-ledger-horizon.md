@@ -5,3 +5,5 @@
 - Rule-dated inputs count as public at min(rule date, fetch time).
 - `src.quant.horizon` + `scripts.ops.horizon_forecast`: 4/8/12-quarter cumulative forecasts for the target and 35 trades; protocol committed (b88551e) before the first run. Holdout: chosen SAR loses to the 10-year trend at 2-3 years; intervals undercover. Dashboard shows it with the trend comparison.
 - Tests: 617 passed.
+- Outside benchmark: DIW Wochenberichte 2019-2026 in `config/external_forecasts.json` (collected by a fetch agent, checked by nominal/real identity), scored by `scripts.ops.benchmark_external`: on par with ours.
+- Target 1-3 year ranges switched to history since 1968 (coverage 88/85/77% on 2013+ vs 75/73/44%).
