@@ -60,9 +60,8 @@ def live_entry(series_id: str, name: str, result: dict, model: str, history: boo
     if live is None or live["forecasts"][model] is None:
         return None
     growth, width = live["forecasts"][model], live["interval_half_width"][model]
-    # Published range for the target: the history range since 1968 (held 77-88% on 2013+ vs 44-75% for model-error
-    # intervals; chosen after seeing that holdout, so only the ledger can confirm it). Trades have history only
-    # from 1995, too calm (38-67%), so they keep the model-error interval (56-80%).
+    # Published range: the history range since 1968 (2013+: target 77-88%, trades 77-84% held vs 44-80% for
+    # model-error intervals; chosen after seeing that holdout, so only the ledger can confirm it).
     model_interval = None if width is None else [growth - width, growth + width]
     return {"series_id": series_id, "name": name, "model": model, "horizon_quarters": live["horizon"],
             "base_period_start": live["base_period_start"], "base_level": live["base_level"],
@@ -96,7 +95,7 @@ def main() -> None:
         entry = live_entry(target, names[target]["name"], result, model, history=True)
         if entry:
             report["forecasts"].append(entry)
-        results = {sid: run(sid, None, "1995-01-01") for sid in trades}
+        results = {sid: run(sid, None, "1995-01-01", "1968-01-01") for sid in trades}
         devs = {sid: complete([r for r in res["predictions"] if r["origin"] < DEV_END]) for sid, res in results.items()}
         devs = {sid: rows for sid, rows in devs.items() if len(rows) >= 8}
         group = min(MODELS, key=lambda m: np.mean([mae(rows, m) for rows in devs.values()]))
@@ -112,7 +111,7 @@ def main() -> None:
             "holdout_beats_no_change": sum(e["mae"][group] < e["mae"]["no_change"] for e in holdouts.values()),
             "holdout_series": len(holdouts)}
         for sid in devs:
-            entry = live_entry(sid, names[sid]["name"], results[sid], group, history=False)
+            entry = live_entry(sid, names[sid]["name"], results[sid], group, history=True)
             if entry:
                 report["forecasts"].append(entry)
         print(h, json.dumps({"target": report["target"][f"h{h}"]["chosen"], "trades": group}), flush=True)

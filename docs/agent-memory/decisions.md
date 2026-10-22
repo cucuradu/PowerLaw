@@ -170,7 +170,7 @@
 ## Ranges for 1-3 years: history instead of model errors (2026-10-22)
 
 - **Test** (target, origins 2013+): the 5th-95th percentile of every 4/8/12-quarter change since 1968-07 public at the origin (VAT steps as known) held 88% / 85% / 77% of outcomes, mean width 10.9 / 20.9 / 28.0 points; the model-error (split conformal) intervals held 75% / 73% / 44% at about twice the width at 2-3 years.
-- **Decision:** the target's published 1-3 year range is the history range (`range_basis` in horizon-latest.json); the model-error interval stays in the report. The trades keep model-error intervals: their history starts 1995 and its ranges held only 67% / 52% / 38%. The choice was made after seeing the 2013+ holdout, so the ledger is the only clean test from here; the first ledger entries (2026-10-22) still carry model-error intervals because the first forecast per slot stands.
+- **Decision:** the target's published 1-3 year range is the history range (`range_basis` in horizon-latest.json); the model-error interval stays in the report. Correction (same day): the trades' ranges first used history from 1995 only (a reused fit setting; the trades go back to 1968) and held 67% / 52% / 38%; with 1968+ they held 84% / 81% / 77% vs 80% / 72% / 56% for model errors, so the trades use history ranges too. The choice was made after seeing the 2013+ holdout, so the ledger is the only clean test from here; the first ledger entries (2026-10-22) still carry model-error intervals because the first forecast per slot stands.
 - **Reading:** the range describes what 1-3 years have done since 1968 (low about 0%, high +11% / +23% / +32%), not uncertainty around the point forecast. Scenario work (inflation regime, CO2 price path, wage settlements) would narrow it; not started.
 
 ## EU-wide 1-3 year model for the German target (2026-10-22, exploratory)
@@ -191,3 +191,12 @@
 - **Forecast vs what-if:** as a forecast (median material path, labour trend) the build-up ties with the trend (2.97 / 6.34 / 9.99) and its 10th-90th material scenarios held only 69% / 49% / 37% (material history before 2013 is short and calm; producer prices 1976+ as a longer history did worse because they rise more slowly than the cost index). So it is published as what-if rows (`scripts.ops.cost_scenarios`, dashboard "What would move it"), next to the history range, and its central path goes into the ledger as `cost_central`.
 - **Consequence for the graph:** this is the graph's real job for 1-3 years: it turns the question into cost paths. The open problem is forecasting material costs (and energy) at 1-3 years, not the price model.
 - **Hierarchy and EU-wide model** (sections above) stay review candidates; nothing here changes the published models before the April review.
+
+## April 2027 review rule (fixed 2026-10-22, before any ledger forecast is scored)
+
+- **Why now:** by April 2027 the ledger will hold only two scored target releases, too few to choose models; every other piece of evidence (2013+ holdout, DIW comparison) has already been seen. Writing the rule now stops the review from becoming another round of choosing on seen data.
+- **1-3 year point forecast (target):** replace the per-horizon choice with the equal-weight average of three forecasts: 10-year trend, EU-wide model (`scripts/research/global_horizon.py`, moved into the pipeline), and the target's inputs model. Averaging needs no selection and none of the three failed badly on 2013+.
+- **1 year:** add the trade bottom-up (inputs models) as a fourth member of that average only at the 1-year horizon.
+- **Ranges:** history ranges since 1968 stay (target and trades). Cost what-ifs stay as published.
+- **Next quarter:** `arx_vat_selected` stays unless the ledger shows its error above 0.70 (the 2018+ backtest level) over at least 4 scored releases; then fall back to the VAT-aware seasonal AR.
+- **Afterwards:** changes only at October and April reviews, each decided by a rule written before the ledger data it uses.
