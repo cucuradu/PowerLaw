@@ -431,9 +431,14 @@ if horizon and horizon["forecasts"]:
                    "the same span since 2000. These are what-ifs, not probabilities.")
         labels = {"low": "Materials weak (1 in 10)", "central": "Materials typical", "high": "Materials strong (1 in 10)",
                   "record": "Materials like the record (2021-23)"}
-        by_h = {f["horizon_quarters"]: f for f in costs["forecasts"]}
-        table = [{"If": label, **{f"{h // 4} year{'s' if h > 4 else ''} %": round(by_h[h]["scenarios"][key], 1)
-                                  for h in (4, 8, 12) if h in by_h}} for key, label in labels.items()]
+        by_h = {f["horizon_quarters"]: f for f in costs["forecasts"] if f["model"] == "cost_central"}
+        col = lambda h: f"{h // 4} year{'s' if h > 4 else ''} %"
+        table = [{"If": label, **{col(h): round(by_h[h]["scenarios"][key], 1) for h in (4, 8, 12) if h in by_h}}
+                 for key, label in labels.items()]
+        signal = {f["horizon_quarters"]: f["growth_pct"] for f in costs["forecasts"] if f["model"] == "cost_inputs"}
+        if signal:
+            table.insert(0, {"If": "Materials as world prices, energy and surveys now suggest",
+                             **{col(h): round(v, 1) for h, v in sorted(signal.items())}})
         st.dataframe(pd.DataFrame(table), width="stretch", hide_index=True)
         cond = {h: costs["evaluation"][f"h{h}"]["holdout"].get("mae_conditional") for h in (4, 8, 12)}
         st.caption("When the cost path is right, this rule missed by about "

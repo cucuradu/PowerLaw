@@ -10,8 +10,11 @@ At an origin the costs are not known, so:
   materials   scenarios = percentiles of every h-quarter material cost change since the series starts (2000), public
               at the origin: low (10th), central (median), high (90th), record (largest so far). Producer prices of materials (1976+) were
               tried as a longer history and did worse: they rise more slowly than the cost index.
-Rows also carry `conditional`: the price change implied by the costs that actually followed (backtests only), which
-measures the model, not the scenarios.
+With `material_inputs` ({name: predictor} for forecasting._feature_at_origin, grouped by `material_sets`), rows also
+carry `inputs`: the price change with materials forecast by the equal-weight average of direct regressions of the
+material change on [1, last-year change, the set's inputs] (one regression per set; no set is selected), labour on
+its trend. Rows also carry `conditional`: the price change implied by the costs that actually followed (backtests
+only), which measures the model, not the scenarios.
 """
 import math
 from datetime import datetime, timezone
@@ -19,7 +22,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from src.quant.forecasting import _quarter_index, _quarter_start, _reference_date, vat_rate
+from src.quant.forecasting import _feature_at_origin, _quarter_index, _quarter_start, _reference_date, vat_rate
 
 WEIGHT = 0.6
 SCENARIOS = {"low": 10, "central": 50, "high": 90, "record": 100}  # record: largest h-quarter rise so far
@@ -52,9 +55,33 @@ def _carry(series: Dict[int, float], to: int) -> Optional[float]:
     return series[k] + (to - k) * (series[k] - series[k - 40]) / 40
 
 
+def material_change(m: Dict[int, float], steps: int, features: List[Any], min_rows: int = 12) -> Optional[float]:
+    """Direct forecast of m[last + steps] - m[last] from [1, last-year change, features] (rows with known outcomes)."""
+    if steps == 0:
+        return 0.0
+    last = max(m)
+
+    def row(r):
+        if r not in m or r - 4 not in m:
+            return None
+        extra = [f(r) for f in features]
+        return None if None in extra else [1.0, m[r] - m[r - 4]] + extra
+    x, y = [], []
+    for r in m:
+        values = row(r)
+        if values is not None and r + steps in m:
+            x.append(values)
+            y.append(m[r + steps] - m[r])
+    current = row(last)
+    if current is None or len(y) < len(current) + min_rows:
+        return None
+    return float(np.dot(np.linalg.lstsq(np.array(x), np.array(y), rcond=None)[0], current))
+
+
 def cost_scenarios(target: List[Dict[str, Any]], material: List[Dict[str, Any]], labour: List[Dict[str, Any]],
                    origins: List[Any], horizon: int, vat_schedule, weight: float = WEIGHT, live_origin=None,
-                   min_windows: int = 20) -> Dict[str, Any]:
+                   min_windows: int = 20, material_inputs: Optional[Dict[str, Any]] = None,
+                   material_sets: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
     """Rows {origin, base/target period, scenarios {low, central, high}, conditional, actual}; `live` for live_origin."""
     p_all, m_all, l_all = _logs(target, vat_schedule), _logs(material), _logs(labour)
     p_level = {q: (math.exp(v / 100), when) for q, (v, when) in _logs(target).items()}  # incl. VAT, for the label
@@ -78,11 +105,26 @@ def cost_scenarios(target: List[Dict[str, Any]], material: List[Dict[str, Any]],
         factor = ((1 + vat_rate(vat_schedule, _reference_date(target_q), known_at=origin))
                   / (1 + vat_rate(vat_schedule, _reference_date(last), known_at=origin)))
         price = lambda dm, dl: 100 * (math.exp((weight * dm + (1 - weight) * dl) / 100) * factor - 1)
-        material_change = dict(zip(SCENARIOS, np.percentile(windows, list(SCENARIOS.values()))))
+        scenario_change = dict(zip(SCENARIOS, np.percentile(windows, list(SCENARIOS.values()))))
         row = {"origin": origin, "base_period_start": _quarter_start(last), "target_period_start": _quarter_start(target_q),
                "horizon": horizon, "labour_change_log": l_end - l_base,
-               "material_change_log": {k: float(v) for k, v in material_change.items()},
-               "scenarios": {k: price(v, l_end - l_base) for k, v in material_change.items()}}
+               "material_change_log": {k: float(v) for k, v in scenario_change.items()},
+               "scenarios": {k: price(v, l_end - l_base) for k, v in scenario_change.items()}}
+        if material_inputs:
+            # Materials from the last public quarter K: change K -> last + h minus change K -> last (0 if last = K).
+            k = max(m)
+            origin_quarter = origin.year * 4 + (origin.month - 1) // 3
+            feats = {n: _feature_at_origin(p_, origin, origin_quarter) for n, p_ in material_inputs.items()}
+            shifted = {n: None if f is None else (lambda r, f=f: f(r + origin_quarter - k)) for n, f in feats.items()}
+            paths = []
+            for members in material_sets.values():
+                fs = [shifted[n] for n in members]
+                if None in fs:
+                    continue
+                end, start = material_change(m, target_q - k, fs), material_change(m, max(last - k, 0), fs)
+                if None not in (end, start):
+                    paths.append(end - start if last >= k else end - (m[last] - m[k]))
+            row["inputs"] = price(float(np.mean(paths)), l_end - l_base) if len(paths) == len(material_sets) else None
         if is_live:
             live = row
             continue

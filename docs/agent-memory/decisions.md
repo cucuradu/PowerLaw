@@ -200,3 +200,10 @@
 - **Ranges:** history ranges since 1968 stay (target and trades). Cost what-ifs stay as published.
 - **Next quarter:** `arx_vat_selected` stays unless the ledger shows its error above 0.70 (the 2018+ backtest level) over at least 4 scored releases; then fall back to the VAT-aware seasonal AR.
 - **Afterwards:** changes only at October and April reviews, each decided by a rule written before the ledger data it uses.
+
+## Validity of the cost index and material cost forecasts (2026-10-22)
+
+- **Not circular:** Destatis states the building-cost index measures contractors' outlays, not builders' prices. Quarterly changes of its material component track material producer prices (correlation 0.76 for 2000-2020, 0.97 from 2021) more closely than construction prices (0.60, 0.92); its labour component tracks Eurostat's construction labour cost index (annual changes 0.89) and is unrelated to construction prices (0.11). No sign that it is derived from the price index.
+- **Wage agreements:** agreed construction wages (62221) track the labour cost component only loosely (annual changes 0.41), so signed agreements would capture part of the 7-10% "labour known" gain at most. Deprioritised.
+- **Material costs 1-3 years** (`scripts/research/material_cost_forecast.py`, dev only 9 origins): direct regressions of the material cost change on its last-year change plus one input set (euro Brent and metals, energy producer prices, builders' surveys). Equal-weight average of the four (no selection) on 2013+: 2.46 / 4.66 / 6.85 vs material trend 3.15 / 5.87 / 7.93; all inputs in one regression overfit beyond 1 year (9.69 at 3 years).
+- **Into the price:** the cost rule with these material forecasts (`cost_inputs`, `scripts.ops.cost_scenarios`) misses by 2.76 / 5.97 / 9.89 vs the target trend 2.81 / 5.80 / 9.33. Better material forecasts barely reach the price: labour on trend and margin swings dominate once materials are not known exactly. Recorded in the ledger as a candidate and shown on the dashboard as the first what-if row; not a published forecast.

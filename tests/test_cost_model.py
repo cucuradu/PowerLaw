@@ -32,3 +32,16 @@ def test_conditional_reproduces_prices_that_follow_costs_and_scenarios_ignore_un
     assert row["scenarios"]["low"] < row["scenarios"]["central"] < row["scenarios"]["high"] <= row["scenarios"]["record"]
     shocked = [{**r, "value": r["value"] * 2} if r["available_at"] > origin else r for r in quarters(m, 120)]
     assert run(shocked)["live"]["scenarios"] == result["live"]["scenarios"]
+
+
+def test_material_change_regression_recovers_a_leading_input():
+    from src.quant.cost_model import material_change
+    rng = np.random.default_rng(4)
+    x = rng.normal(0, 1, 140)
+    m, level = {}, 0.0
+    for q in range(140):  # material log level: next-year change = 2 x input at the base quarter
+        m[q] = level
+        level += 0.5 * x[q - 3] if q >= 3 else 0.0
+    f = lambda r: float(sum(x[r - k] for k in range(4)) / 2) if r >= 3 else None
+    change = material_change({q: v for q, v in m.items() if q <= 120}, 4, [f])
+    assert change == pytest.approx(m[124] - m[120], abs=1e-6)
