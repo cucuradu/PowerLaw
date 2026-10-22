@@ -177,3 +177,9 @@
 
 - **Test** (scratch, not in the pipeline): one direct regression of h-quarter log growth on [1, last-year growth, last-10-year mean growth], fitted on every country-quarter of the 26 other EU new-home price series (rule-dated, quarter end + 100 days) plus Germany ex VAT, with outcomes public at each origin; same German origins as `horizon_forecast`.
 - **Result** (MAE): 1 year dev 1.25 (best of all), holdout 2.67 (trend 2.75, seasonal AR 2.75, inputs model 2.56); 2 years holdout 5.91 (trend 5.72, seasonal AR 7.78); 3 years 9.88 (trend 9.22, seasonal AR 15.33). The country cross-section does not beat the trend at 2-3 years but never fails the way the German-only AR did; had it been a candidate, the development rule would have chosen it at 1 year. Exploratory and run after the holdout was seen: a candidate for the April review, not a result.
+
+## Index hierarchy: adding up the trades (2026-10-22)
+
+- **Test** (`scripts.ops.hierarchy_test`, next release, the published backtest's 82 origins): each of the 34 weighted trades (99.5% of the weight) gets its own model chosen before 2018 as in `project_series`; growths are aggregated by weight x level at the base quarter (aggregation error with actual trade growths: 0.05 points), then the known VAT step. From 2018 (trade choice out of sample): direct published model 0.655, bottom-up 0.672, 50/50 average 0.648; all 82 origins 0.446 / 0.431 / 0.431; Diebold-Mariano p 0.88 / 0.67.
+- **1 year** (scratch, horizon protocol origins): bottom-up of the trades' inputs models 2.42 on 2013+ vs 2.56 for the target's own inputs model and 2.75 for the published seasonal AR; development 1.47 vs 1.50 (seasonal AR 1.35). Found after the holdout was seen: a candidate for the April review.
+- **Reading:** the hierarchy is consistent and costs nothing, but the trades carry little information the total lacks; at best a small gain at 1 year. Not adopted.

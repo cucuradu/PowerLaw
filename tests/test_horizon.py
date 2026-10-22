@@ -56,3 +56,11 @@ def test_outside_forecasts_are_sourced_and_checked():
     config = json.loads((REPO_ROOT / "config" / "external_forecasts.json").read_text(encoding="utf-8"))
     for entry in config["forecasts"]:
         assert entry["url"].startswith("https://") and entry["quote"] and entry["check"] in config["check_levels"]
+
+
+def test_bottom_up_growth_weights_trades_by_weight_times_level():
+    from scripts.ops.hierarchy_test import aggregate
+    # Laspeyres: total = sum(w * index); growth = sum(w * index * g) / sum(w * index)
+    weights, level = {"a": 0.25, "b": 0.75}, {"a": 200.0, "b": 100.0}
+    assert aggregate({"a": 4.0, "b": 0.0}, level, weights) == pytest.approx(4.0 * 50 / 125)
+    assert aggregate({"b": 2.0}, level, weights) == pytest.approx(2.0)  # missing trades drop out, shares renormalise
