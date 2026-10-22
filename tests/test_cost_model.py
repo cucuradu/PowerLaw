@@ -45,3 +45,11 @@ def test_material_change_regression_recovers_a_leading_input():
     f = lambda r: float(sum(x[r - k] for k in range(4)) / 2) if r >= 3 else None
     change = material_change({q: v for q, v in m.items() if q <= 120}, 4, [f])
     assert change == pytest.approx(m[124] - m[120], abs=1e-6)
+
+
+def test_trade_sensitivity_windows_are_annual_changes_ending_before_the_split():
+    from scripts.ops.trade_cost_sensitivity import windows
+    trade = {q: 2.0 * q for q in range(20)}
+    m, lab = {q: 1.0 * q for q in range(20)}, {q: 0.5 * q for q in range(20)}
+    x, y, ends = windows(trade, m, lab, until=10)
+    assert ends == list(range(4, 10)) and x[0].tolist() == [1.0, 4.0, 2.0] and y[0] == 8.0

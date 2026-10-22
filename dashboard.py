@@ -29,6 +29,7 @@ from src.storage.dashboard_data import (
     load_projections,
     load_horizon,
     load_cost_scenarios,
+    load_trade_cost_sensitivity,
     model_name,
 )
 
@@ -445,6 +446,17 @@ if horizon and horizon["forecasts"]:
                    + ", ".join(f"{v:.1f}" for v in cond.values() if v is not None)
                    + " points at 1, 2 and 3 years in 2013 onward (half the trend's miss). Getting the material path right "
                    "is the hard part; labour is the more predictable half.")
+    exposure = load_trade_cost_sensitivity()
+    if exposure and exposure["trades"]:
+        with st.expander("Which trades move most with building costs"):
+            check = exposure["conditional_check_2013"]
+            st.caption("Change in each trade's price over a year when material or labour costs rise 10% over that year, "
+                       "estimated 2001-2026 (mostly from 2021-23). Out of sample these trade-specific figures did not "
+                       f"beat one rule for all trades (miss {check['trade_specific']:.1f} vs {check['rule_60_40']:.1f} "
+                       "points), so read them as a ranking of exposure, not as exact pass-through.")
+            st.dataframe(pd.DataFrame([{"Trade": t["name"], "Materials +10% →": f"+{10 * t['material']:.1f}%",
+                                        "Labour +10% →": f"+{10 * t['labour']:.1f}%", "Weight": f"{t['weight']:.1%}"}
+                                       for t in exposure["trades"]]), width="stretch", hide_index=True)
     st.caption("\"Trend-only\" assumes the last ten years' average growth continues. Where it missed less, the model "
                "adds nothing over the trend at that horizon. The range is what happened over the same span in 90% of "
                "all periods since 1968 (including the 1970s and 2021-23), not a band around the forecast; in the test "

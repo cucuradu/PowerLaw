@@ -1146,6 +1146,12 @@ def load_cost_scenarios(path: Optional[Union[str, Path]] = None) -> Optional[Dic
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+def load_trade_cost_sensitivity(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
+    """Per-trade cost sensitivities written offline by scripts.ops.trade_cost_sensitivity."""
+    path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "trade-cost-sensitivity-latest.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
 def load_graph_links(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
     """Material -> trade link tests written offline by scripts.ops.estimate_links."""
     path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "graph-links-latest.json"
