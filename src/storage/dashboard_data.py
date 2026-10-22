@@ -1152,6 +1152,21 @@ def load_trade_cost_sensitivity(path: Optional[Union[str, Path]] = None) -> Opti
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+def load_track_record(reports: Optional[Union[str, Path]] = None) -> Dict[str, Any]:
+    """Ledger scores (scripts.ops.forecast_ledger score) and the last automatic update's failed steps."""
+    reports = Path(reports) if reports else Path(get_settings().data_dir) / "reports"
+    out: Dict[str, Any] = {"scores": None, "last_update": None, "failed": []}
+    scores = reports / "forecast-ledger-scores.json"
+    if scores.exists():
+        out["scores"] = json.loads(scores.read_text(encoding="utf-8"))
+    log = reports / "update-log.jsonl"
+    if log.exists() and log.stat().st_size:
+        last = json.loads(log.read_text(encoding="utf-8").strip().splitlines()[-1])
+        out["last_update"] = last["run_at"]
+        out["failed"] = [step["step"] for step in last["steps"] if step.get("exit_code", 1) != 0]
+    return out
+
+
 def load_graph_links(path: Optional[Union[str, Path]] = None) -> Optional[Dict[str, Any]]:
     """Material -> trade link tests written offline by scripts.ops.estimate_links."""
     path = Path(path) if path else Path(get_settings().data_dir) / "reports" / "graph-links-latest.json"

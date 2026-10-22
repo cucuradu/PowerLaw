@@ -30,6 +30,7 @@ from src.storage.dashboard_data import (
     load_horizon,
     load_cost_scenarios,
     load_trade_cost_sensitivity,
+    load_track_record,
     model_name,
 )
 
@@ -396,6 +397,24 @@ if projections and projections["projections"]:
                f"{np.mean([p['test']['coverage'] for p in projections['projections'] if p['test']['coverage'] is not None]):.0%} "
                "of the time (target 90%). Generated " + projections["generated_at"][:10] + " by scripts.ops.project_series.")
     st.divider()
+
+# --- 2b'. TRACK RECORD AND UPDATE HEALTH ---
+record = load_track_record()
+if record["failed"]:
+    st.warning(f"The last automatic update ({record['last_update'][:10]}) failed at: {', '.join(record['failed'])}. "
+               "Figures below may be stale; see the Ingestion Console.")
+if record["scores"]:
+    sc = record["scores"]
+    groups = {k: v for k, v in sc["summary"].items()}
+    if groups:
+        st.markdown("##### Track record since forecasts were first saved")
+        st.dataframe(pd.DataFrame([{"Forecasts": name.replace("|h", ", quarters ahead: "), "Scored": g["n"],
+                                    "Typical miss (pts)": round(g["mae"], 2), "No-change miss": round(g["mae_no_change"], 2),
+                                    "Range held": f"{g['coverage']:.0%}" if g["coverage"] is not None else ""}
+                                   for name, g in groups.items()]), width="stretch", hide_index=True)
+    else:
+        st.caption(f"Track record: {sc['entries']} forecasts saved before their outcomes were known (since 2026-10-22); "
+                   "none can be scored yet. The first outcome is the 2026-Q4 release in January 2027.")
 
 # --- 2c. NEXT 1-3 YEARS ---
 horizon = load_horizon()

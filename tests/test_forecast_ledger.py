@@ -34,3 +34,13 @@ def test_scores_only_targets_released_after_the_forecast():
     assert scored[0]["actual_growth_pct"] == pytest.approx(1.5) and scored[0]["in_interval"] is True
     revised = quarterly_levels([{"period_start": "2026-07-01", "value": v, "available_at": t(d)} for v, d in ((100.0, 2), (101.0, 9))])
     assert revised == {"2026-07-01": (101.0, t(2))}  # latest value, first release time
+
+
+def test_track_record_reports_failed_update_steps(tmp_path):
+    import json
+    from src.storage.dashboard_data import load_track_record
+    (tmp_path / "update-log.jsonl").write_text(json.dumps({"run_at": "2026-10-22T06:00:00", "steps": [
+        {"step": "ingest DESTATIS", "exit_code": 0}, {"step": "scripts.ops.horizon_forecast", "exit_code": 1},
+        {"step": "scripts.ops.project_series", "skipped": "Destatis update failed"}]}) + "\n", encoding="utf-8")
+    record = load_track_record(tmp_path)
+    assert record["failed"] == ["scripts.ops.horizon_forecast", "scripts.ops.project_series"] and record["scores"] is None
