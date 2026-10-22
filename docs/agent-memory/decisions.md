@@ -212,3 +212,8 @@
 
 - **Estimate** (`scripts.ops.trade_cost_sensitivity`, weekly): each weighted trade's annual price change on the annual material and labour cost changes of the same year (2001+), pulled towards the pooled fit (prior 40 windows). Pooled: materials 0.63, labour 0.57 (sum above 1: prices outran costs in 2021-23). Highest material exposure: structural steelwork 0.90, carpentry/timber 0.87, concrete 0.82; lowest: wallpapering 0.42, natural stone 0.43, tiling 0.44.
 - **Check** (costs known, fitted before 2013, scored 2013+): trade-specific 2.20, pooled 2.20, single 60/40 rule 1.88 points. Calm years cannot identify pass-through (same as for the target), so the per-trade figures are shown as an exposure ranking (dashboard expander "Which trades move most with building costs") with that caveat, not as validated what-ifs.
+
+## Shadow models for the April review (2026-10-22)
+
+- `scripts.ops.horizon_forecast` now computes, for the target, the EU-wide model (`src.quant.horizon.panel_direct`, moved from `scripts/research/global_horizon.py`) and the review average (trend, EU-wide, inputs model) at every origin and live. They are written to horizon-latest.json with `"shadow": true`, logged in the ledger, and not shown as the forecast. 2013+ errors (seen data): review average 2.43 / 5.66 / 9.67 vs published seasonal AR 2.75 / 7.78 / 15.33 and trend 2.75 / 5.72 / 9.22.
+- The April 2027 review compares the ledger entries of `sar`/`direct_inputs`/`drift_10y` (published per horizon), `eu_panel`, `review_average`, `cost_central` and `cost_inputs`; the decision rule stays as written above.

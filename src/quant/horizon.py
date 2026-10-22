@@ -116,3 +116,24 @@ def horizon_backtest(levels: List[Dict[str, Any]], origins: List[Any], horizon: 
         rows.append({**row, "actual": 100 * (level[target][0] / level[last][0] - 1),
                      "label_available_at": max(level[target][1], level[last][1])})
     return {"predictions": rows, "live": live}
+
+
+def panel_direct(panel: Dict[str, Dict[int, tuple]], origin, horizon: int, own: str, last: int) -> Optional[float]:
+    """EU-wide direct model: h-quarter log growth on [1, last-year growth, last-10-year mean annual growth], fitted on
+    every country-quarter of `panel` ({geo: {quarter: (100 log level, public)}}) whose outcome was public at the
+    origin; applied to `own` at its last released quarter `last`. Returns the log change (x100), VAT not applied."""
+    def feats(logs, r):
+        return [1.0, logs[r] - logs[r - 4], (logs[r] - logs[r - 40]) / 10] if all(q in logs for q in (r, r - 4, r - 40)) else None
+    x, y, current = [], [], None
+    for geo, series in panel.items():
+        logs = {q: v for q, (v, when) in series.items() if when <= origin}
+        for r in logs:
+            f = feats(logs, r)
+            if f and r + horizon in logs:
+                x.append(f)
+                y.append(logs[r + horizon] - logs[r])
+        if geo == own and last in logs:
+            current = feats(logs, last)
+    if current is None or len(y) < 100:
+        return None
+    return float(np.dot(np.linalg.lstsq(np.array(x), np.array(y), rcond=None)[0], current))

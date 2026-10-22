@@ -64,3 +64,20 @@ def test_bottom_up_growth_weights_trades_by_weight_times_level():
     weights, level = {"a": 0.25, "b": 0.75}, {"a": 200.0, "b": 100.0}
     assert aggregate({"a": 4.0, "b": 0.0}, level, weights) == pytest.approx(4.0 * 50 / 125)
     assert aggregate({"b": 2.0}, level, weights) == pytest.approx(2.0)  # missing trades drop out, shares renormalise
+
+
+def test_panel_model_uses_only_outcomes_public_at_the_origin():
+    from src.quant.horizon import panel_direct
+    rng = np.random.default_rng(1)
+    origin = datetime(2015, 2, 1, tzinfo=UTC)
+    def country(seed_shift):
+        level, out = 0.0, {}
+        for q in range(1990 * 4, 2020 * 4):
+            level += 0.5 + rng.normal(0, 0.3)
+            out[q] = (level, datetime(q // 4, 3 * (q % 4) + 1, 1, tzinfo=UTC) + timedelta(days=100 + seed_shift))
+        return out
+    panel = {"AA": country(0), "BB": country(0), "DE": country(0)}
+    last = max(q for q, (_, when) in panel["DE"].items() if when <= origin)
+    base = panel_direct(panel, origin, 4, "DE", last)
+    later = {g: {q: (v * (2 if when > origin else 1), when) for q, (v, when) in s.items()} for g, s in panel.items()}
+    assert base is not None and panel_direct(later, origin, 4, "DE", last) == pytest.approx(base)

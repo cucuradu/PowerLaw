@@ -409,7 +409,7 @@ if horizon and horizon["forecasts"]:
     for h in (4, 8, 12):
         key = f"h{h}"
         target = next((f for f in horizon["forecasts"] if f["series_id"] == primary_target_series_id()
-                       and f["horizon_quarters"] == h), None)
+                       and f["horizon_quarters"] == h and not f.get("shadow")), None)
         test = horizon["target"].get(key, {}).get("holdout", {})
         trades = [f["growth_pct"] for f in horizon["forecasts"] if f["series_id"] != primary_target_series_id()
                   and f["horizon_quarters"] == h]
