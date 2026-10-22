@@ -41,3 +41,18 @@ def test_uses_only_values_public_at_the_origin_and_known_vat_steps():
     vat = horizon_backtest(base, [], 4, fit_start="1990-01-01", vat_schedule=schedule, live_origin=origin)["live"]["forecasts"]
     assert vat["no_change"] == 0.0
     assert (1 + vat["drift_10y"] / 100) / (1 + run(base)["drift_10y"] / 100) == pytest.approx(1.21 / 1.10, rel=1e-3)
+
+
+def test_outside_benchmark_compares_annual_average_levels():
+    from scripts.ops.benchmark_external import annual_change
+    levels = {2024 * 4 + k: 100.0 for k in range(4)} | {2025 * 4 + k: 102.0 + k for k in range(4)}
+    assert annual_change(levels, 2025) == pytest.approx(3.5)
+    assert annual_change(levels, 2026) is None
+
+
+def test_outside_forecasts_are_sourced_and_checked():
+    import json
+    from src.config import REPO_ROOT
+    config = json.loads((REPO_ROOT / "config" / "external_forecasts.json").read_text(encoding="utf-8"))
+    for entry in config["forecasts"]:
+        assert entry["url"].startswith("https://") and entry["quote"] and entry["check"] in config["check_levels"]
