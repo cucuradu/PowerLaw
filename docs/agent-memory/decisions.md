@@ -217,3 +217,9 @@
 
 - `scripts.ops.horizon_forecast` now computes, for the target, the EU-wide model (`src.quant.horizon.panel_direct`, moved from `scripts/research/global_horizon.py`) and the review average (trend, EU-wide, inputs model) at every origin and live. They are written to horizon-latest.json with `"shadow": true`, logged in the ledger, and not shown as the forecast. 2013+ errors (seen data): review average 2.43 / 5.66 / 9.67 vs published seasonal AR 2.75 / 7.78 / 15.33 and trend 2.75 / 5.72 / 9.22.
 - The April 2027 review compares the ledger entries of `sar`/`direct_inputs`/`drift_10y` (published per horizon), `eu_panel`, `review_average`, `cost_central` and `cost_inputs`; the decision rule stays as written above.
+
+## Web app simplified (2026-10-23)
+
+- `dashboard.py` is now only the menu (st.navigation): Overview, Laws, Graph, Data, Ingestion. News Feed (source disabled) and GNN Lab (paused) stay as files but are not in the menu.
+- `overview.py` replaces the old home page (KPI telemetry, power-law, architecture and "GNN impulse" panels removed): headline cards (latest, next quarter, 1-3 years), index chart with the forecast path and history range, cost what-ifs, accuracy relative to "no change", trades/materials next quarter and per-trade cost exposure.
+- Backend: the overview reads only report files through `src.storage.home_data` (one cache keyed on file times); `backtest_target` now writes the quarterly history into forecast-latest.json. Overview cold load 2.6 s (was about 12 s), warm 0.3 s. The Laws page caches its data per store generation (warm 20 s -> 1.4 s). The first store-backed page opened still pays the store open (about 20 s).

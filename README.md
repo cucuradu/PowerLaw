@@ -213,8 +213,9 @@ streamlit run dashboard.py
 
 ```
 PowerLaw/
-├── dashboard.py                     # Executive Hub with system KPIs & architecture diagram
-├── pages/                           # Interactive 6-Page Streamlit Suite
+├── dashboard.py                     # App entry: menu (Overview, Laws, Graph, Data, Ingestion)
+├── overview.py                      # Overview: prices, forecast to 3 years, cost what-ifs, accuracy, trades
+├── pages/                           # Laws, Graph, Data, Ingestion (News Feed and GNN Lab files kept, not in the menu)
 │   ├── 1_📜_Law_Registry.py         # Search EU laws, browse extracted IF-THEN logic gates
 │   ├── 2_📰_News_Feed.py            # Real-time trade & commodity news stream with extractions
 │   ├── 3_🕸️_Graph_Explorer.py       # Interactive PyVis / NetworkX graph visualization
@@ -236,7 +237,8 @@ PowerLaw/
 │   ├── storage/
 │   │   ├── dual_layer_store.py      # Dual-layer storage manager (Graph + Tabular)
 │   │   ├── graph_store.py           # Topo graph & temporal snapshot queries
-│   │   └── dashboard_data.py        # Analytics & metric aggregation
+│   │   ├── dashboard_data.py        # Data for the store-backed pages
+│   │   └── home_data.py             # Overview data, read only from the weekly report files
 │   ├── gnn/
 │   │   ├── temporal_gnn.py          # Spatio-Temporal GNN (Graph Conv + Temporal GRU)
 │   │   ├── trainer.py               # Multi-task training & counterfactual shock simulation

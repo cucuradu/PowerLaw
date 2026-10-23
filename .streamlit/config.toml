@@ -1,3 +1,6 @@
 [browser]
 # No usage telemetry: the dashboard otherwise posts to webhooks.fivetran.com on every page load.
 gatherUsageStats = false
+
+[theme]
+primaryColor = "#2563EB"

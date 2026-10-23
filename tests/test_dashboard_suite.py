@@ -73,22 +73,21 @@ def test_dashboard_data_provider():
 
 
 def test_render_dashboard_main():
-    """Test dashboard.py renders cleanly without exceptions."""
+    """The app entry (navigation) and the overview page render cleanly without exceptions."""
     at = AppTest.from_file(str(REPO_ROOT / "dashboard.py")).run(timeout=15)
     assert not at.exception, f"dashboard.py raised exception: {at.exception}"
-    assert len(at.title) > 0 or len(at.markdown) > 0
+    at = AppTest.from_file(str(REPO_ROOT / "overview.py")).run(timeout=15)
+    assert not at.exception, f"overview.py raised exception: {at.exception}"
+    assert len(at.title) > 0
 
 
-def test_dashboard_snapshot_is_cached():
-    """Dashboard reruns should reuse derived data until storage generation changes."""
-    tree = ast.parse((REPO_ROOT / "dashboard.py").read_text(encoding="utf-8"))
-    loader = next(
-        node for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and node.name == "_load_dashboard_data"
-    )
-    decorators = [ast.unparse(decorator) for decorator in loader.decorator_list]
-    assert any(name.startswith("st.cache_data") for name in decorators)
+def test_overview_reads_reports_through_a_cache():
+    """The overview reloads report data only when a report file changes, and never opens the store."""
+    source = (REPO_ROOT / "overview.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    loader = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_reports")
+    assert any(ast.unparse(d).startswith("st.cache_data") for d in loader.decorator_list)
+    assert "get_graph_store" not in source and "DualLayerStore" not in source
 
 
 def test_render_page_1_law_registry():

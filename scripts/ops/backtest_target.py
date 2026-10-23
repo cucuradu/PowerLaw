@@ -190,6 +190,8 @@ def forecast_record(result: dict, section: dict, levels: list, target: str, now:
         "forecast_growth_pct": growth,
         "interval_growth_pct": [growth - width, growth + width] if growth is not None and width is not None else None,
         "forecast_level": known[last] * (1 + growth / 100) if growth is not None and last in known else None,
+        # Quarterly levels as public now, so the dashboard can draw the history without opening the store.
+        "history": [{"period_start": period, "value": value} for period, value in sorted(known.items()) if value is not None],
         "reference_forecasts_growth_pct": {name: live["forecasts"].get(name) for name in REFERENCE_MODELS} if live else {},
         "track_record": {name: {**section["models"][name], "interval": section["intervals"][name]}
                          for name in (model,) + REFERENCE_MODELS if name in section["models"]},

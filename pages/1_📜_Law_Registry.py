@@ -8,7 +8,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
-from src.storage.dashboard_data import get_all_laws_data
+from src.storage.dashboard_data import get_all_laws_data, get_graph_store
 
 st.set_page_config(
     page_title="EU Law Registry & Logic Gates",
@@ -23,8 +23,13 @@ Browse codified EU regulations, atomic **IF-THEN logic gates** extracted via Goo
 and their cross-industry **NACE Rev. 2 sector mappings**.
 """)
 
-# Load Laws
-laws_data = get_all_laws_data()
+# Load Laws (rebuilt only when the store changes)
+@st.cache_data(show_spinner="Loading laws...")
+def _laws(generation: int) -> list:
+    return get_all_laws_data()
+
+
+laws_data = _laws(get_graph_store()._generation)
 
 if not laws_data:
     st.warning("No structured law data found in registry.")
