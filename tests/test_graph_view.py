@@ -1,0 +1,49 @@
+"""Graph page logic: zones bundle until opened, the chosen year and share filter apply, focus and chains lay out."""
+from src.storage.graph_view import edge_details, focus_view, map_view, node_details, visible_edges
+
+ZONES = {z: {"label": z, "color": "#2563EB", "about": z} for z in ("laws", "construction", "economy", "materials", "data")}
+TYPES = {t: {"label": t, "color": "#16A34A", "dashes": False, "about": t}
+         for t in ("contains", "regulates", "supplies", "buys", "part_of", "chain", "measures")}
+
+
+def node(nid, zone, kind="sector"):
+    return {"id": nid, "zone": zone, "kind": kind, "label": nid, "description": "", "facts": {}, "degree": 1}
+
+
+VIEW = {"zones": ZONES, "edge_types": TYPES,
+        "nodes": [node("law", "laws", "law"), node("rule", "laws", "rule"), node("F", "construction"), node("C23", "economy"),
+                  node("C24", "economy"), node("buyer", "economy"), node("gas", "materials", "commodity")],
+        "edges": [{"id": "e0", "source": "law", "target": "rule", "type": "contains"},
+                  {"id": "e1", "source": "rule", "target": "F", "type": "regulates"},
+                  {"id": "e2", "source": "C23", "target": "F", "type": "supplies", "weight": 0.08, "year": 2022},
+                  {"id": "e3", "source": "C24", "target": "F", "type": "supplies", "weight": 0.002, "year": 2022},
+                  {"id": "e4", "source": "C23", "target": "F", "type": "supplies", "weight": 0.07, "year": 2021},
+                  {"id": "e5", "source": "F", "target": "buyer", "type": "buys", "weight": 0.2, "year": 2022},
+                  {"id": "e6", "source": "gas", "target": "C23", "type": "chain", "chain": "energy"}]}
+
+
+def test_year_and_share_filter():
+    assert {e["id"] for e in visible_edges(VIEW, 2022, 0.005)} == {"e0", "e1", "e2", "e5", "e6"}
+
+
+def test_closed_zones_are_bubbles_with_bundled_relations_until_opened():
+    nodes, edges = map_view(VIEW, set(), 2022, 0.005)
+    assert {n["id"] for n in nodes} == {f"zone:{z}" for z in ZONES}
+    bundle = next(e for e in edges if e["id"] == "bundle:zone:economy|zone:construction|supplies")
+    assert edge_details(VIEW, bundle["id"], 2022, 0.005)["count"] == 1  # e3 is below the share threshold
+    nodes, edges = map_view(VIEW, {"economy"}, 2022, 0.005)
+    ids = {n["id"] for n in nodes}
+    assert {"C23", "C24", "buyer", "zone:construction"} <= ids and "zone:economy" not in ids
+    assert any(e["from"] == "C23" and e["to"] == "zone:construction" for e in edges)
+
+
+def test_focus_rings_put_inputs_left_and_chains_left_to_right():
+    nodes, edges = focus_view(VIEW, "F", 1, 2022, 0.005)
+    pos = {n["id"]: (n["x"], n["y"]) for n in nodes}
+    assert pos["F"] == (0, 0) and pos["C23"][0] < 0 < pos["buyer"][0]  # supplier left, buyer right
+    assert {e["id"] for e in edges} == {"e1", "e2", "e5"}
+    nodes, edges = focus_view(VIEW, "F", 1, 2022, 0.005, chain="energy")
+    pos = {n["id"]: n["x"] for n in nodes}
+    assert pos["gas"] < pos["C23"] and [e["id"] for e in edges] == ["e6"]
+    details = node_details(VIEW, "F", 2022, 0.005)
+    assert details["relations"][0]["other"] == "buyer"  # strongest first

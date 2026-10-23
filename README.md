@@ -213,15 +213,12 @@ streamlit run dashboard.py
 
 ```
 PowerLaw/
-├── dashboard.py                     # App entry: menu (Overview, Laws, Graph, Data, Ingestion)
+├── dashboard.py                     # App entry: menu (Overview, Graph, Laws, Ingestion)
 ├── overview.py                      # Overview: prices, forecast to 3 years, cost what-ifs, accuracy, trades
-├── pages/                           # Laws, Graph, Data, Ingestion (News Feed and GNN Lab files kept, not in the menu)
-│   ├── 1_📜_Law_Registry.py         # Search EU laws, browse extracted IF-THEN logic gates
-│   ├── 2_📰_News_Feed.py            # Real-time trade & commodity news stream with extractions
-│   ├── 3_🕸️_Graph_Explorer.py       # Interactive PyVis / NetworkX graph visualization
-│   ├── 4_⏱️_Temporal_Table.py       # Behind-the-graph Tabular Inspector with time slider
-│   ├── 5_🤖_GNN_Modeling_Lab.py     # Inspect feature tensors, dynamic adjacency, and graph splits
-│   └── 6_⚙️_Ingestion_Console.py     # Manage crawlers, trigger scrapers & rebuild LanceDB
+├── views/                           # Pages in the menu (dashboard.py routes to them)
+│   ├── graph.py                     # Store graph: zones map and relations/chains views, click for details
+│   ├── laws.py                      # Laws: plain profile, parameters, rules, numbers set by the law
+│   └── ingestion.py                 # Weekly update status, sources, store size
 ├── src/
 │   ├── scrapers/
 │   │   ├── eurlex.py                # Direct CELEX PDF downloader

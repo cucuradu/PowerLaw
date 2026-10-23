@@ -90,59 +90,22 @@ def test_overview_reads_reports_through_a_cache():
     assert "get_graph_store" not in source and "DualLayerStore" not in source
 
 
-def test_render_page_1_law_registry():
-    """Test pages/1_📜_Law_Registry.py renders cleanly without exceptions."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "1_📜_Law_Registry.py")).run(timeout=15)
-    assert not at.exception, f"pages/1_📜_Law_Registry.py raised exception: {at.exception}"
-    assert len(at.title) > 0
 
 
-def test_render_page_2_news_feed():
-    """Test pages/2_📰_News_Feed.py renders cleanly without exceptions."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "2_📰_News_Feed.py")).run(timeout=15)
-    assert not at.exception, f"pages/2_📰_News_Feed.py raised exception: {at.exception}"
-    assert len(at.title) > 0
 
 
-def test_render_page_3_graph_explorer():
-    """Test pages/3_🕸️_Graph_Explorer.py renders cleanly without exceptions."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "3_🕸️_Graph_Explorer.py")).run(timeout=15)
-    assert not at.exception, f"pages/3_🕸️_Graph_Explorer.py raised exception: {at.exception}"
-    assert len(at.title) > 0
 
 
-def test_render_page_4_temporal_table():
-    """Test pages/4_⏱️_Temporal_Table.py renders cleanly without exceptions."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "4_⏱️_Temporal_Table.py")).run(timeout=15)
-    assert not at.exception, f"pages/4_⏱️_Temporal_Table.py raised exception: {at.exception}"
-    assert len(at.title) > 0
 
 
-def test_render_page_5_gnn_modeling_lab():
-    """Test pages/5_🤖_GNN_Modeling_Lab.py renders cleanly without exceptions."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "5_🤖_GNN_Modeling_Lab.py")).run(timeout=25)
-    assert not at.exception, f"pages/5_🤖_GNN_Modeling_Lab.py raised exception: {at.exception}"
-    assert len(at.title) > 0
 
 
-def test_gnn_page_defers_heavy_imports():
-    """The read-only page must not import PyTorch-backed modules at startup."""
-    page = REPO_ROOT / "pages" / "5_🤖_GNN_Modeling_Lab.py"
-    tree = ast.parse(page.read_text(encoding="utf-8"))
-    top_level_imports = {
-        alias.name
-        for node in tree.body
-        if isinstance(node, ast.ImportFrom)
-        for alias in node.names
-        if node.module in {"src.gnn.graph_exporter", "src.gnn.trainer", "src.gnn.temporal_gnn"}
-    }
-    assert top_level_imports == set()
 
 
-def test_render_page_6_ingestion_console():
-    """Test pages/6_⚙️_Ingestion_Console.py renders cleanly without exceptions."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "6_⚙️_Ingestion_Console.py")).run(timeout=15)
-    assert not at.exception, f"pages/6_⚙️_Ingestion_Console.py raised exception: {at.exception}"
+def test_render_ingestion_page():
+    """Test views/ingestion.py renders cleanly without exceptions."""
+    at = AppTest.from_file(str(REPO_ROOT / "views" / "ingestion.py")).run(timeout=15)
+    assert not at.exception, f"views/ingestion.py raised exception: {at.exception}"
     assert len(at.title) > 0
 
 
@@ -170,32 +133,10 @@ def test_gnn_tensor_export():
     assert len(gnn_data["edge_index"][0]) == gnn_data["num_edges"]
 
 
-def test_edge_case_law_registry_search_nonexistent():
-    """Test Law Registry behavior when search matches zero laws."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "1_📜_Law_Registry.py"))
-    at.run()
-    if at.sidebar.text_input:
-        at.sidebar.text_input[0].input("NONEXISTENT_REGULATION_QUERY_12345").run()
-    assert not at.exception, f"Law registry threw on nonexistent search: {at.exception}"
 
 
-def test_edge_case_graph_explorer_filtering():
-    """Test Graph Explorer with single node type filter."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "3_🕸️_Graph_Explorer.py"))
-    at.run()
-    if at.sidebar.multiselect:
-        # Select only LAW nodes
-        at.sidebar.multiselect[0].select("LAW").run()
-    assert not at.exception, f"Graph explorer threw on filter: {at.exception}"
 
 
-def test_edge_case_temporal_table_slider():
-    """Test Temporal Table with earliest date slider selection."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "4_⏱️_Temporal_Table.py"))
-    at.run()
-    if at.select_slider:
-        at.select_slider[0].set_value("2022-01-15").run()
-    assert not at.exception, f"Temporal table threw on date change: {at.exception}"
 
 
 def test_temporal_gnn_export_as_of():
@@ -242,93 +183,39 @@ def test_production_readers_reuse_graph_store(monkeypatch, tmp_path):
     assert seen == [canonical_store, canonical_store]
 
 
-def test_news_feed_null_delta_resilience(monkeypatch):
-    """Verify News Feed renders cleanly without TypeError when delta_value is None."""
-    import src.storage.dashboard_data as dd
-    
-    mock_news = [
-        {
-            "news_id": "TEST_NULL_DELTA_1",
-            "title": "EU Considers New Sanctions Package",
-            "published_date": "2024-05-01",
-            "source_name": "Reuters",
-            "source_url": "https://example.com/news1",
-            "summary": "EU officials discussed additional sanctions on industrial imports.",
-            "receptor_signal": "SANCTIONS_EXPANSION",
-            "target_asset": "COMMODITY_METALS",
-            "metric": "COMPLIANCE_RESTRICTION",
-            "direction": "INCREASE",
-            "delta_value": None,
-            "delta_unit": None,
-            "timeframe": "IMMEDIATE",
-            "actions": [],
-            "reactions": []
-        }
-    ]
-    monkeypatch.setattr(dd, "get_all_news_data", lambda: mock_news)
-    
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "2_📰_News_Feed.py")).run()
-    assert not at.exception, f"News Feed threw on null delta_value: {at.exception}"
 
 
-def test_news_feed_missing_receptor_signal_resilience(monkeypatch):
-    """Verify the timeline renders when canonical news has no legacy receptor signal."""
-    import src.storage.dashboard_data as dd
-
-    mock_news = [
-        {
-            "news_id": "TEST_NO_SIGNAL_1",
-            "title": "Official construction update",
-            "published_date": "2026-10-20",
-            "source_name": "Official source",
-            "source_url": "https://example.com/news1",
-            "summary": "A reported construction-market update.",
-            "target_asset": "CONSTRUCTION",
-            "direction": "STABLE",
-            "delta_value": None,
-            "delta_unit": None,
-            "timeframe": "IMMEDIATE",
-            "actions": [],
-            "reactions": [],
-        }
-    ]
-    monkeypatch.setattr(dd, "get_all_news_data", lambda: mock_news)
-
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "2_📰_News_Feed.py")).run()
-    assert not at.exception, f"News Feed threw without receptor_signal: {at.exception}"
 
 
-def test_law_registry_null_rule_resilience(monkeypatch):
-    """Verify Law Registry handles regulations with null rule and scope safely."""
-    import src.storage.dashboard_data as dd
-
-    mock_laws = [
-        {
-            "law_id": "99999R0000",
-            "title": "Draft Law with Unparsed Rule",
-            "chunk_id": "ART_1",
-            "rule_type": "REGULATORY",
-            "jurisdiction": "EU",
-            "valid_from": "2024-01-01",
-            "valid_to": "",
-            "summary": "Law without parsed logic gates.",
-            "recitals": "",
-            "source_url": "",
-            "rule": None
-        }
-    ]
-    monkeypatch.setattr(dd, "get_all_laws_data", lambda: mock_laws)
-
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "1_📜_Law_Registry.py")).run()
-    assert not at.exception, f"Law Registry threw on null rule: {at.exception}"
 
 
-def test_graph_explorer_ego_network_mode():
-    """Verify Graph Explorer ego-network radio option runs without throwing."""
-    at = AppTest.from_file(str(REPO_ROOT / "pages" / "3_🕸️_Graph_Explorer.py"))
-    at.run()
-    if at.sidebar.radio:
-        # Select Ego-Network (k-Hop Neighborhood)
-        at.sidebar.radio[0].set_value("Ego-Network (k-Hop Neighborhood)").run()
-    assert not at.exception, f"Graph Explorer threw on ego-network mode: {at.exception}"
 
+
+
+def test_laws_and_graph_pages_render_with_and_without_a_snapshot(tmp_path):
+    """Without a snapshot the graph page explains how to make one; with one, both pages render a law and the map."""
+    import json
+    for page in ("graph.py", "laws.py"):
+        at = AppTest.from_file(str(REPO_ROOT / "views" / page)).run(timeout=30)
+        assert not at.exception, f"{page} raised {at.exception}"
+    reports = tmp_path / "reports"
+    reports.mkdir(exist_ok=True)
+    snapshot = {"generated_at": "2026-10-23", "years": [2022], "chains": [{"id": "c", "label": "Chain", "why": "why"}],
+                "inventory": {"nodes": 3, "relations": 2, "documents": 1, "series": 0, "cross_border_flows_not_drawn": 0},
+                "zones": {z: {"label": z, "color": "#2563EB", "about": z} for z in ("laws", "construction", "economy", "materials", "data")},
+                "edge_types": {t: {"label": t, "color": "#16A34A", "dashes": False, "about": t} for t in
+                               ("contains", "implements", "amends", "regulates", "supplies", "buys", "part_of", "classified_in",
+                                "sets", "measures", "tested_link", "chain")},
+                "nodes": [{"id": "law_de_geg", "zone": "laws", "kind": "law", "label": "GEG", "description": "d", "facts": {}, "degree": 1},
+                          {"id": "sec_F", "zone": "construction", "kind": "sector", "label": "Construction", "description": "", "facts": {}, "degree": 2},
+                          {"id": "sec_C23", "zone": "economy", "kind": "sector", "label": "Minerals", "description": "", "facts": {}, "degree": 1}],
+                "edges": [{"id": "e0", "source": "law_de_geg", "target": "sec_F", "type": "regulates"},
+                          {"id": "e1", "source": "sec_C23", "target": "sec_F", "type": "supplies", "weight": 0.07, "year": 2022}]}
+    (reports / "graph-view-latest.json").write_text(json.dumps(snapshot), encoding="utf-8")
+    graph = AppTest.from_file(str(REPO_ROOT / "views" / "graph.py")).run(timeout=30)
+    assert not graph.exception, f"graph.py raised {graph.exception}"
+    laws = AppTest.from_file(str(REPO_ROOT / "views" / "laws.py"))
+    laws.query_params["law"] = "law_de_geg"
+    laws.run(timeout=30)
+    assert not laws.exception, f"laws.py raised {laws.exception}"
+    assert any("GEG" in h.value for h in laws.subheader)

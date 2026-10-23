@@ -32,7 +32,8 @@ def main() -> None:
     # Only Destatis is required: without fresh Bundesbank vintages new values are dated by fetch time (later, never earlier).
     target_ok = steps[0]["exit_code"] == 0
     for script in ("scripts.ops.backtest_target", "scripts.ops.project_series", "scripts.ops.horizon_forecast",
-                   "scripts.ops.cost_scenarios", "scripts.ops.trade_cost_sensitivity"):
+                   "scripts.ops.cost_scenarios", "scripts.ops.trade_cost_sensitivity",
+                   "scripts.ops.build_graph_view"):
         steps.append(run(script) if target_ok else {"step": script, "skipped": "Destatis update failed"})
     # Record what was just published before any outcome can be known, then score what has been released.
     steps += [run("scripts.ops.forecast_ledger", "record"), run("scripts.ops.forecast_ledger", "score")]

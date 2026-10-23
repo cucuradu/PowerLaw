@@ -14,7 +14,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parents[2]
-PAGES = ["", "laws", "graph", "data", "ingestion"]
+PAGES = ["", "graph", "laws", "ingestion"]
 
 
 def wait_healthy(url: str, timeout: float = 120) -> None:

@@ -179,4 +179,4 @@ with st.expander("How this works"):
         "- **What would move it:** prices follow building costs; materials are the uncertain part.\n"
         f"- **Track record:** every forecast is saved before its outcome is known ({scores.get('entries', 0)} so far); "
         "the first are scored with the 2026-Q4 release in January 2027.\n"
-        "- Details: `docs/agent-memory/decisions.md`. Other pages: laws, graph, data and the ingestion console.")
+        "- Details: `docs/agent-memory/decisions.md`. Other pages: Graph (everything in the store and how it connects), Laws, Ingestion.")
