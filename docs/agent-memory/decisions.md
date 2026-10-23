@@ -231,3 +231,8 @@
 - **Graph page:** two views. Store map: five zones as bubbles (counts, bundled relations); click to open a zone. Relations: rings around any node (inputs left, buyers right) or one cost chain left to right with step status. Click a node or arrow for details (description, parameters, relations, evidence quote, source); laws open in the Laws page. vis-network vendored in `src/ui/vendor` (MIT/Apache) and drawn through `st.components.v2` with Python-computed positions, so a click does not reshuffle the picture.
 - **Laws page:** one card per law from `config/law_profiles.json` (hand-written description, how it reaches prices, type, year, channel, relevance), plus what the store holds: rules (if/then, binding), implements/implemented by, regulates, numbers the law sets (with quotes). `32015L1814` is flagged: a decision's CELEX type is D.
 - **Ingestion page:** read-only apart from the schedule toggle (the old job-enqueue buttons are gone: pages must not ingest).
+
+## Graph page: Architecture view (2026-10-23)
+
+- The Graph page opens on an **Architecture** view: one box per kind of node (per zone) with its count, one arrow per kind of relation with how many exist. It is computed from the same snapshot as the Store map and Relations views, so it cannot drift from the data (the old home-page "dual-layer architecture" banner was hand-written and is not coming back).
+- Clicking a box lists its members (open one in Relations, or open the zone on the Store map); clicking an arrow lists the relations behind it.

@@ -214,7 +214,8 @@ def test_laws_and_graph_pages_render_with_and_without_a_snapshot(tmp_path):
     (reports / "graph-view-latest.json").write_text(json.dumps(snapshot), encoding="utf-8")
     graph = AppTest.from_file(str(REPO_ROOT / "views" / "graph.py")).run(timeout=30)
     assert not graph.exception, f"graph.py raised {graph.exception}"
-    laws = AppTest.from_file(str(REPO_ROOT / "views" / "laws.py"))
+    assert any("How the graph is built" in m.value for m in graph.markdown)  # also fails if the page does not compile
+    laws =AppTest.from_file(str(REPO_ROOT / "views" / "laws.py"))
     laws.query_params["law"] = "law_de_geg"
     laws.run(timeout=30)
     assert not laws.exception, f"laws.py raised {laws.exception}"

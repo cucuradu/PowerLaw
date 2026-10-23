@@ -1,6 +1,7 @@
 """Graph page logic: turn the store snapshot (scripts.ops.build_graph_view) into drawable views and details.
 
-Two views:
+Three views:
+  schema   the architecture: one box per kind of node, one arrow per kind of relation, with counts.
   map      the store by zone; a closed zone is one bubble (with its size), an open zone shows its members.
            Relations between closed zones are bundled with a count.
   focus    everything within one or two steps of a chosen node (rings by distance), or one cost chain (left to right).
@@ -288,3 +289,89 @@ def edge_details(view: Dict[str, Any], eid: str, year: Optional[int], min_share:
     e = next(x for x in view["edges"] if x["id"] == eid)
     return {"bundle": False, **e, "type_info": view["edge_types"][e["type"]], "from_label": labels.get(e["source"]),
             "to_label": labels.get(e["target"])}
+
+
+KIND_ABOUT = {
+    "law": "An EU or German law, with its official text stored as a source document.",
+    "rule": "An If / Then requirement extracted from one article of a law, with the article quoted as evidence.",
+    "sector": "An industry (NACE classification) from the input-output tables: who supplies whom, in million EUR.",
+    "trade": "A construction trade (e.g. concrete work, roofing) with its own Destatis price index.",
+    "commodity": "A material or energy carrier (e.g. steel, cement, gas) tracked by producer or import prices.",
+    "series": "A stored time series (price index, cost index, rate); the observations sit in the series table.",
+    "planned": "A stage of a cost chain the store does not hold data for yet.",
+    "EU panel": "The same indicator for the EU countries, grouped into one node per indicator.",
+    "value added": "Wages, profits and taxes: the part of output that is not bought from other sectors.",
+    "policy number": "A number a law sets (e.g. the CO2 price path), quoted from the law's text.",
+}
+KIND_PLURAL = {"law": "Laws", "rule": "Rules", "sector": "Sectors", "trade": "Trades", "commodity": "Commodities",
+               "series": "Series", "planned": "Planned stages", "EU panel": "EU panels", "value added": "Value added",
+               "policy number": "Policy numbers"}
+
+
+def _tint(color: str, amount: float) -> str:
+    """Opaque light version of `color`, so arrows do not show through a box."""
+    return "#" + "".join(f"{round(255 - (255 - int(color[i:i + 2], 16)) * amount):02X}" for i in (1, 3, 5))
+
+
+def _kind_key(n: Dict[str, Any]) -> str:
+    return f"kind:{n['zone']}/{n['kind']}"
+
+
+def schema_view(view: Dict[str, Any], year: Optional[int], min_share: float) -> Tuple[list, list]:
+    """The graph's architecture: one node per kind of node (per zone), one arrow per kind of relation, with counts."""
+    groups = defaultdict(list)
+    for n in view["nodes"]:
+        groups[_kind_key(n)].append(n)
+    by_zone = defaultdict(list)
+    for key, members in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+        by_zone[members[0]["zone"]].append(key)
+    nodes = []
+    for zone, keys in by_zone.items():
+        cx, cy = (0.3 * c for c in ZONE_CENTERS[zone])
+        info = view["zones"][zone]
+        side = zone in ("laws", "materials")  # left and right zones stack vertically, the others side by side
+        for i, key in enumerate(keys):
+            offset = i - (len(keys) - 1) / 2
+            kind, count = groups[key][0]["kind"], len(groups[key])
+            name = KIND_PLURAL.get(kind, kind)
+            if kind == "sector":
+                name = "Construction sectors" if zone == "construction" else "Other sectors"
+            nodes.append({"id": key, "label": f"{name}\n{count}", "x": cx + (0 if side else 250 * offset), "y": cy + (130 * offset if side else 0),
+                          "shape": "box", "margin": 12, "borderWidth": 2,
+                          "color": {"background": _tint(info["color"], 0.14), "border": info["color"],
+                                    "highlight": {"background": _tint(info["color"], 0.3), "border": "#111827"},
+                                    "hover": {"background": _tint(info["color"], 0.24), "border": info["color"]}},
+                          "font": {"size": 22, "color": "#111827"},
+                          "tip": f"{name}: {count}\n{KIND_ABOUT.get(kind, '')}\n\nClick for examples"})
+    key_of = {n["id"]: _kind_key(n) for n in view["nodes"]}
+    counts = defaultdict(int)
+    for e in visible_edges(view, year, min_share):
+        counts[(key_of[e["source"]], e["type"], key_of[e["target"]])] += 1
+    edges = []
+    for (s, kind, t), count in counts.items():
+        style = view["edge_types"][kind]
+        edges.append({"id": f"schema:{s}|{kind}|{t}", "from": s, "to": t, "label": str(count),
+                      "width": 1 + 1.4 * math.log2(1 + count), "dashes": style["dashes"],
+                      "font": {"size": 15, "color": "#374151", "strokeWidth": 4, "strokeColor": "#FFFFFF"},
+                      "color": {"color": _hex_alpha(style["color"], 0.6), "highlight": style["color"], "hover": style["color"]},
+                      "tip": f"{count} × {style['label']}\n{style['about']}\n\nClick for the list"})
+    return nodes, edges
+
+
+def schema_details(view: Dict[str, Any], ref: str, year: Optional[int], min_share: float) -> Dict[str, Any]:
+    """A kind of node (its members, most connected first) or a kind of relation (its arrows, strongest first)."""
+    labels = {n["id"]: n["label"] for n in view["nodes"]}
+    if ref.startswith("kind:"):
+        members = sorted((n for n in view["nodes"] if _kind_key(n) == ref), key=lambda n: -n["degree"])
+        kind = members[0]["kind"]
+        return {"what": "kind", "zone": members[0]["zone"], "kind": kind, "about": KIND_ABOUT.get(kind, ""),
+                "count": len(members), "members": [(n["id"], n["label"]) for n in members]}
+    s, kind, t = ref[len("schema:"):].split("|")
+    key_of = {n["id"]: _kind_key(n) for n in view["nodes"]}
+    group = sorted((e for e in visible_edges(view, year, min_share)
+                    if e["type"] == kind and key_of[e["source"]] == s and key_of[e["target"]] == t),
+                   key=lambda e: -(e.get("weight") or 0))
+    return {"what": "relation", "type": view["edge_types"][kind], "count": len(group),
+            "items": [edge_text(view, e, labels).split("\n")[0]
+                      + (f" ({100 * e['weight']:.1f}%)" if e.get("weight") and kind in ("supplies", "buys", "part_of") else "")
+                      for e in group]}

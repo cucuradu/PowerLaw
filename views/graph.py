@@ -5,7 +5,8 @@ import pandas as pd
 import streamlit as st
 
 from src.config import get_settings
-from src.storage.graph_view import edge_details, focus_view, load_graph_view, map_view, node_details
+from src.storage.graph_view import (edge_details, focus_view, load_graph_view, map_view, node_details, schema_details,
+                                     schema_view)
 from src.ui.graph_component import network
 
 SNAPSHOT = Path(get_settings().data_dir) / "reports" / "graph-view-latest.json"
@@ -29,13 +30,15 @@ st.caption(f"{inv['nodes']} nodes and {inv['relations']} relations from the stor
 state = st.session_state
 state.setdefault("open_zones", set())
 state.setdefault("selected", None)
-state.setdefault("graph_mode", "Store map")
+state.setdefault("graph_mode", "Architecture")
 by_id = {n["id"]: n for n in view["nodes"]}
 if "focus" in st.query_params and st.query_params["focus"] in by_id:  # opened from another page
     state.update(go_to=st.query_params["focus"], selected=("node", st.query_params["focus"]))
     del st.query_params["focus"]
 if "go_to" in state:  # set by a button below; widgets can only be changed before they are drawn
     state.graph_mode, state.focus_select = "Relations", state.pop("go_to")
+if "open_zone" in state:  # from the architecture view: show that zone on the map
+    state.graph_mode, state.open_zones = "Store map", state.open_zones | {state.pop("open_zone")}
 
 
 def go_to(node_id: str) -> None:
@@ -44,8 +47,9 @@ def go_to(node_id: str) -> None:
 
 # --- Controls ----------------------------------------------------------------------------------------------------
 c1, c2, c3 = st.columns([1.3, 1.6, 1.4])
-mode = c1.segmented_control("View", ["Store map", "Relations"], key="graph_mode",
-                            help="Store map: the store by zone; click a zone to open it. Relations: what surrounds one node, or one cost chain.")
+mode = c1.segmented_control("View", ["Architecture", "Store map", "Relations"], key="graph_mode",
+                            help="Architecture: the kinds of nodes and relations, with counts. Store map: the store by zone; "
+                                 "click a zone to open it. Relations: what surrounds one node, or one cost chain.") or "Architecture"
 years = view["years"]
 year = c2.select_slider("Input-output year", years, value=years[-1],
                         help="Eurostat publishes Germany's input-output tables in this classification for 2010-2022; "
@@ -66,6 +70,8 @@ if mode == "Relations":
     nodes, edges = focus_view(view, focus, depth or 1, year, min_share, chain=chain)
     if chain:
         st.caption(next(c["why"] for c in view["chains"] if c["id"] == chain))
+elif mode == "Architecture":
+    nodes, edges = schema_view(view, year, min_share)
 else:
     nodes, edges = map_view(view, state.open_zones, year, min_share)
 
@@ -90,19 +96,24 @@ with left:
                "(input-output share, index weight, tested pass-through). Scroll to zoom, drag to move.")
 
 if clicked.node:
-    if clicked.node.startswith("zone:"):
+    if clicked.node.startswith("kind:"):
+        state.selected = ("kind", clicked.node)
+    elif clicked.node.startswith("zone:"):
         state.open_zones ^= {clicked.node[5:]}
         state.selected = ("zone", clicked.node[5:])
         st.rerun()
-    state.selected = ("node", clicked.node)
+    else:
+        state.selected = ("node", clicked.node)
 elif clicked.edge:
-    state.selected = ("edge", clicked.edge)
+    state.selected = ("schema" if clicked.edge.startswith("schema:") else "edge", clicked.edge)
 
 with right:
     if mode == "Store map" and state.open_zones and st.button("Close all zones", width="stretch"):
         state.open_zones = set()
         st.rerun()
     kind, ref = state.selected or (None, None)
+    if (kind in ("kind", "schema")) != (mode == "Architecture"):  # selection from another view
+        kind, ref = None, None
     if mode == "Relations" and kind in (None, "zone"):  # show the node the view is centred on
         kind, ref = "node", state.get("focus_select", "sec_F")
     if kind == "node" and ref in by_id:
@@ -156,11 +167,40 @@ with right:
             if b2.button("Go to end", width="stretch"):
                 state.update(selected=("node", d["target"]))
                 st.rerun()
+    elif kind in ("kind", "schema"):
+        d = schema_details(view, ref, year, min_share)
+        if d["what"] == "kind":
+            zone = view["zones"][d["zone"]]
+            st.markdown(f"<span style='color:{zone['color']};font-weight:700;font-size:0.8rem'>● {zone['label'].upper()}</span>",
+                        unsafe_allow_html=True)
+            st.subheader(f"{d['count']} × {d['kind']}")
+            st.write(d["about"])
+            if st.button("Show them on the store map", width="stretch"):
+                state.open_zone = d["zone"]
+                st.rerun()
+            pick = st.selectbox("Open one in Relations", [m[0] for m in d["members"]], index=None,
+                                format_func=dict(d["members"]).get, placeholder="Most connected first")
+            if pick:
+                go_to(pick)
+            st.markdown("\n".join(f"- {label}" for _, label in d["members"][:25]) + ("\n- …" if d["count"] > 25 else ""))
+        else:
+            st.markdown(f"<span style='color:{d['type']['color']};font-weight:700;font-size:0.8rem'>━ {d['type']['label'].upper()}</span>",
+                        unsafe_allow_html=True)
+            st.subheader(f"{d['count']} relations")
+            st.write(d["type"]["about"])
+            st.markdown("\n".join(f"- {item}" for item in d["items"][:40]) + ("\n- …" if d["count"] > 40 else ""))
     elif kind == "zone":
         z = view["zones"][ref]
         st.subheader(z["label"])
         st.write(z["about"])
         st.caption("Click a node inside the zone for details, or the zone bubble again to close it.")
+    elif mode == "Architecture":
+        st.markdown("**How the graph is built**")
+        st.markdown("- Each **box** is a kind of node; the number is how many the store holds.\n"
+                    "- Each **arrow** is a kind of relation between them, with how many exist (input-output flows: chosen year and threshold).\n"
+                    "- Click a box or an arrow for its meaning and the full list.\n"
+                    f"- **Behind the graph:** {inv['series']} time series hold the observations, and {inv['documents']} source "
+                    "documents hold the quotes every law, rule and relation is taken from.")
     else:
         st.markdown("**How to read it**")
         st.markdown("- Each **bubble** is a zone of the store; the number is how many nodes it holds. Click to open it.\n"

@@ -1,5 +1,6 @@
 """Graph page logic: zones bundle until opened, the chosen year and share filter apply, focus and chains lay out."""
-from src.storage.graph_view import edge_details, focus_view, map_view, node_details, visible_edges
+from src.storage.graph_view import (edge_details, focus_view, map_view, node_details, schema_details, schema_view,
+                                     visible_edges)
 
 ZONES = {z: {"label": z, "color": "#2563EB", "about": z} for z in ("laws", "construction", "economy", "materials", "data")}
 TYPES = {t: {"label": t, "color": "#16A34A", "dashes": False, "about": t}
@@ -47,3 +48,13 @@ def test_focus_rings_put_inputs_left_and_chains_left_to_right():
     assert pos["gas"] < pos["C23"] and [e["id"] for e in edges] == ["e6"]
     details = node_details(VIEW, "F", 2022, 0.005)
     assert details["relations"][0]["other"] == "buyer"  # strongest first
+
+
+def test_architecture_counts_kinds_and_relation_types():
+    nodes, edges = schema_view(VIEW, 2022, 0.005)
+    assert {n["id"] for n in nodes} == {"kind:laws/law", "kind:laws/rule", "kind:construction/sector", "kind:economy/sector",
+                                        "kind:materials/commodity"}
+    supplies = next(e for e in edges if e["id"] == "schema:kind:economy/sector|supplies|kind:construction/sector")
+    assert supplies["label"] == "1"  # e3 below the threshold, e4 another year
+    d = schema_details(VIEW, "kind:economy/sector", 2022, 0.005)
+    assert d["count"] == 3 and schema_details(VIEW, supplies["id"], 2022, 0.005)["items"][0].startswith("C23 → F")
