@@ -77,11 +77,23 @@ def _edge_style(view: Dict[str, Any], e: Dict[str, Any], label: bool) -> Dict[st
                 "font": {"size": 11, "color": "#374151"}}
     weight = e.get("weight")
     width = 1 + min(12, 14 * math.sqrt(weight)) if e["type"] in WEIGHTED and weight else 1.3
-    text = None
-    if label and weight and e["type"] in WEIGHTED:
-        text = f"{weight:.2f}" if e["type"] == "tested_link" else f"{100 * weight:.1f}%"
+    text = weight_text(view, e).split(",")[0] if label else None
     return {"color": {"color": _hex_alpha(t["color"], 0.55), "highlight": t["color"], "hover": t["color"]},
             "width": width, "dashes": t["dashes"], **({"label": text} if text else {})}
+
+
+def weight_text(view: Dict[str, Any], e: Dict[str, Any]) -> str:
+    """The weight as people read it. Index weights are stored as a share of the whole index; a trade also gets its
+    share of its group (shell or finishing work), which is what the arrow to the group means."""
+    w = e.get("weight")
+    if w is None or e["type"] not in WEIGHTED:
+        return ""
+    if e["type"] == "tested_link":
+        return f"{w:.2f}"
+    if e["type"] == "part_of":
+        group = next((x["weight"] for x in view["edges"] if x["type"] == "part_of" and x["source"] == e["target"] and x.get("weight")), None)
+        return f"{100 * w / group:.1f}% of the group, {100 * w:.2f}% of the index" if group else f"{100 * w:.1f}% of the index"
+    return f"{100 * w:.1f}%"
 
 
 def node_tip(view: Dict[str, Any], n: Dict[str, Any]) -> str:
@@ -95,8 +107,8 @@ def node_tip(view: Dict[str, Any], n: Dict[str, Any]) -> str:
 def edge_text(view: Dict[str, Any], e: Dict[str, Any], labels: Dict[str, str]) -> str:
     t = view["edge_types"][e["type"]]["label"]
     text = f"{labels.get(e['source'], e['source'])} → {labels.get(e['target'], e['target'])}\n{t}"
-    if e.get("weight") is not None and e["type"] in WEIGHTED:
-        text += f": {e['weight']:.3f}" if e["type"] == "tested_link" else f": {100 * e['weight']:.1f}%"
+    if weight_text(view, e):
+        text += f": {weight_text(view, e)}"
     if e.get("year"):
         text += f" ({e['year']})"
     if e.get("note"):
@@ -268,7 +280,8 @@ def node_details(view: Dict[str, Any], nid: str, year: Optional[int], min_share:
             other = e["target"] if e["source"] == nid else e["source"]
             relations.append({"edge": e["id"], "direction": "→" if e["source"] == nid else "←", "other": other,
                               "other_label": labels.get(other, other), "type": view["edge_types"][e["type"]]["label"],
-                              "weight": e.get("weight") if e["type"] in WEIGHTED else None, "year": e.get("year")})
+                              "weight": e.get("weight") if e["type"] in WEIGHTED else None, "weight_text": weight_text(view, e),
+                              "year": e.get("year")})
     relations.sort(key=lambda r: (-(r["weight"] or 0), r["type"], r["other_label"]))
     return {**by_id[nid], "relations": relations}
 
@@ -284,7 +297,7 @@ def edge_details(view: Dict[str, Any], eid: str, year: Optional[int], min_share:
         group = [e for e in visible_edges(view, year, min_share) if e["type"] == kind
                  and match(s, e["source"]) and match(t, e["target"])]
         return {"bundle": True, "type": view["edge_types"][kind], "count": len(group),
-                "items": [edge_text(view, e, labels).split("\n")[0] + (f" ({100 * e['weight']:.1f}%)" if e.get("weight") and kind in ("supplies", "buys", "part_of") else "")
+                "items": [edge_text(view, e, labels).split("\n")[0] + (f" ({weight_text(view, e)})" if weight_text(view, e) else "")
                           for e in sorted(group, key=lambda e: -(e.get("weight") or 0))]}
     e = next(x for x in view["edges"] if x["id"] == eid)
     return {"bundle": False, **e, "type_info": view["edge_types"][e["type"]], "from_label": labels.get(e["source"]),
@@ -373,5 +386,5 @@ def schema_details(view: Dict[str, Any], ref: str, year: Optional[int], min_shar
                    key=lambda e: -(e.get("weight") or 0))
     return {"what": "relation", "type": view["edge_types"][kind], "count": len(group),
             "items": [edge_text(view, e, labels).split("\n")[0]
-                      + (f" ({100 * e['weight']:.1f}%)" if e.get("weight") and kind in ("supplies", "buys", "part_of") else "")
+                      + (f" ({weight_text(view, e)})" if weight_text(view, e) else "")
                       for e in group]}

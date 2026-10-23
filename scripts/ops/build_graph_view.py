@@ -43,7 +43,8 @@ EDGE_TYPES = {
     "buys": {"label": "buys from construction", "color": "#0D9488", "dashes": False,
              "about": "Share of construction's total output used by this buyer in the year shown (Eurostat naio_10_cp1700)."},
     "part_of": {"label": "weight in the price index", "color": "#2563EB", "dashes": False,
-                "about": "Official weight of the trade in the construction price index (IT.NRW weighting scheme, base 2021)."},
+                "about": "Official weight of the trade in the price index for residential buildings (Wohngebäude, IT.NRW weighting "
+                         "scheme, base 2021), shown as a share of its group and of the whole index."},
     "classified_in": {"label": "belongs to product group", "color": "#9CA3AF", "dashes": True,
                       "about": "The good belongs to this product group (CPA 2.1 / GP 2019 classification)."},
     "sets": {"label": "sets this number", "color": "#B45309", "dashes": False,

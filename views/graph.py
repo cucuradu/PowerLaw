@@ -6,7 +6,7 @@ import streamlit as st
 
 from src.config import get_settings
 from src.storage.graph_view import (edge_details, focus_view, load_graph_view, map_view, node_details, schema_details,
-                                     schema_view)
+                                     schema_view, weight_text)
 from src.ui.graph_component import network
 
 SNAPSHOT = Path(get_settings().data_dir) / "reports" / "graph-view-latest.json"
@@ -135,7 +135,7 @@ with right:
         if n["relations"]:
             st.markdown(f"**{len(n['relations'])} relations**")
             st.dataframe(pd.DataFrame([{"With": f"{r['direction']} {r['other_label']}", "Relation": r["type"],
-                                        "Weight": "" if r["weight"] is None else f"{100 * r['weight']:.1f}%" if r["type"] != "tested price link" else f"{r['weight']:.2f}",
+                                        "Weight": r["weight_text"],
                                         "Year": r["year"] or ""} for r in n["relations"][:60]]),
                          hide_index=True, width="stretch", height=min(420, 36 * (len(n["relations"][:60]) + 1)))
     elif kind == "edge":
@@ -150,7 +150,7 @@ with right:
                         f"━ {d['type_info']['label'].upper()}</span>", unsafe_allow_html=True)
             st.subheader(f"{d['from_label']} → {d['to_label']}")
             st.caption(d["type_info"]["about"])
-            facts = {"Weight": None if d.get("weight") is None else f"{d['weight']:.3f}" if d["type"] == "tested_link" else f"{100 * d['weight']:.2f}%",
+            facts = {"Weight": weight_text(view, d) or None,
                      "Year": d.get("year"), "Value": f"{d['value_mio_eur']:,.0f} million EUR" if d.get("value_mio_eur") else None,
                      "Note": d.get("note")}
             st.markdown("\n".join(f"- **{k}:** {v}" for k, v in facts.items() if v))

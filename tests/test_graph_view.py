@@ -58,3 +58,11 @@ def test_architecture_counts_kinds_and_relation_types():
     assert supplies["label"] == "1"  # e3 below the threshold, e4 another year
     d = schema_details(VIEW, "kind:economy/sector", 2022, 0.005)
     assert d["count"] == 3 and schema_details(VIEW, supplies["id"], 2022, 0.005)["items"][0].startswith("C23 → F")
+
+
+def test_index_weights_read_as_share_of_group_and_of_index():
+    from src.storage.graph_view import weight_text
+    view = {"edges": [{"source": "shell", "target": "F", "type": "part_of", "weight": 0.4425},
+                      {"source": "steel", "target": "shell", "type": "part_of", "weight": 0.00164}]}
+    assert weight_text(view, view["edges"][1]) == "0.4% of the group, 0.16% of the index"
+    assert weight_text(view, view["edges"][0]) == "44.2% of the index"
