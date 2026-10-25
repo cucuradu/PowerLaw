@@ -388,7 +388,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -404,7 +404,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -420,7 +420,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -436,7 +436,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -452,7 +452,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -468,7 +468,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -484,7 +484,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -500,7 +500,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -516,7 +516,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -532,7 +532,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -548,7 +548,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -564,7 +564,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -580,7 +580,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -596,7 +596,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -612,7 +612,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -628,7 +628,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -644,7 +644,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -660,9 +660,25 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
+        },
+        "material_steel_scrap": {
+          "table_id": "61241-0006",
+          "provider_series_key": "61241-0006|DINSG=DG|GP19M6=GP19-383222|PRE001|2021=100",
+          "dimensions": {
+            "DINSG": "DG",
+            "GP19M6": "GP19-383222"
+          },
+          "provider_label": "Sekundärrohstoffe aus Eisenmetallen",
+          "measurement_kind": "MATERIAL_PPI_DETAIL",
+          "frequency": "MONTHLY",
+          "base_period": "2021=100",
+          "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
+          "historical_release_vintages_verified": false,
+          "verified_scope": "Live GENESIS GP2019 6-digit producer prices; GP19-383222 checked 2026-10-25 (monthly values from 2000)."
         },
         "material_metal_windows_doors": {
           "table_id": "61241-0006",
@@ -676,7 +692,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -692,7 +708,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -708,7 +724,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -724,7 +740,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -740,7 +756,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -756,7 +772,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -772,7 +788,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -788,7 +804,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -804,7 +820,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -820,7 +836,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -836,7 +852,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -852,7 +868,7 @@
           "frequency": "MONTHLY",
           "base_period": "2021=100",
           "fixture_path": "tests/fixtures/ingestion/destatis_61241_0006_2025_official.zip",
-          "fixture_sha256": "e28796cc00502107c4cdb70971b6f7f2e9f57fe62403985c53195fb17d178b7c",
+          "fixture_sha256": "014aaf64cc48a414df79168cb7b3470eab96d80ed5e136f373910adb82b4be2e",
           "historical_release_vintages_verified": false,
           "verified_scope": "Live GENESIS GP2019 6-digit producer prices; codes checked 2026-10-20 (series start 1991-2015 depending on product)."
         },
@@ -6660,6 +6676,7 @@
           "material_prefabricated_timber_buildings",
           "material_steel_bars",
           "material_steel_sections",
+          "material_steel_scrap",
           "material_metal_windows_doors",
           "material_radiators",
           "material_heating_boilers",

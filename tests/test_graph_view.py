@@ -66,3 +66,27 @@ def test_index_weights_read_as_share_of_group_and_of_index():
                       {"source": "steel", "target": "shell", "type": "part_of", "weight": 0.00164}]}
     assert weight_text(view, view["edges"][1]) == "0.4% of the group, 0.16% of the index"
     assert weight_text(view, view["edges"][0]) == "44.2% of the index"
+
+
+def test_drivers_and_outcomes_multiply_weights_along_paths_and_add_up_paths():
+    from src.storage.graph_view import drivers, outcomes
+    view = {"edge_types": {t: {"label": t} for t in ("part_of", "tested_link", "chain", "regulates", "measures")},
+            "nodes": [{"id": i, "label": i, "zone": "z", "kind": k} for i, k in
+                      (("scrap", "commodity"), ("bars", "commodity"), ("concrete", "trade"), ("shell", "trade"), ("sec_F", "sector"),
+                       ("law", "law"), ("reuse", "planned"))]
+                     + [{"id": "s", "label": "s", "zone": "z", "kind": "series", "moves": {"p10": -10, "p50": 1, "p90": 50, "high": 100}}],
+            "edges": [{"source": "scrap", "target": "bars", "type": "chain", "weight": 0.5},
+                      {"source": "bars", "target": "concrete", "type": "tested_link", "weight": 0.2},
+                      {"source": "scrap", "target": "concrete", "type": "tested_link", "weight": 0.1},
+                      {"source": "concrete", "target": "shell", "type": "part_of", "weight": 0.2},
+                      {"source": "concrete", "target": "sec_F", "type": "chain", "weight": 0.9},  # ignored: the trade has index weights
+                      {"source": "shell", "target": "sec_F", "type": "part_of", "weight": 0.4},
+                      {"source": "law", "target": "reuse", "type": "chain"},
+                      {"source": "reuse", "target": "concrete", "type": "chain"},
+                      {"source": "s", "target": "scrap", "type": "measures"}]}
+    o = outcomes(view, "scrap", None, 0)
+    index = o["rows"][0]
+    assert index["node"] == "sec_F" and abs(index["effect"] - (0.5 * 0.2 + 0.1) * 0.5 * 0.4) < 1e-12  # 0.2/0.4 of the group, group 0.4
+    assert index["scenarios"]["p90"] == round(50 * index["effect"], 3)
+    d = {r["node"]: r for r in drivers(view, "concrete", None, 0)}
+    assert abs(d["scrap"]["strength"] - 0.1) < 1e-12 and d["law"]["strength"] is None and d["law"]["steps"] == 2

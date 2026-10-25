@@ -388,3 +388,120 @@ def schema_details(view: Dict[str, Any], ref: str, year: Optional[int], min_shar
             "items": [edge_text(view, e, labels).split("\n")[0]
                       + (f" ({weight_text(view, e)})" if weight_text(view, e) else "")
                       for e in group]}
+
+
+# --- Drivers and outcomes --------------------------------------------------------------------------------------
+# Arrows that carry a cause (source moves target). "buys" (who buys construction) and "measures" from data series are
+# not causes; a policy number's "measures" arrow is (the number applies to that good).
+CAUSAL = {"supplies", "part_of", "tested_link", "chain", "regulates", "contains", "sets", "implements", "amends", "classified_in"}
+INDEX_NODE = "sec_F"  # construction: the trades' weights add up to its price index
+
+
+def _causal_edges(view: Dict[str, Any], year: Optional[int], min_share: float) -> List[Dict[str, Any]]:
+    """Causal arrows with their elasticity: % change of the target per 1% change of the source, where measured
+    (input-output cost share, index weight within the group, tested pass-through); None where only the link is known."""
+    kinds = {n["id"]: n["kind"] for n in view["nodes"]}
+    group_weight = {e["source"]: e["weight"] for e in view["edges"] if e["type"] == "part_of" and e.get("weight")}
+    out = []
+    for e in visible_edges(view, year, min_share):
+        if e["type"] not in CAUSAL and not (e["type"] == "measures" and kinds.get(e["source"]) == "policy number"):
+            continue
+        w = e.get("weight")
+        if e["type"] == "part_of" and w:
+            w = w / group_weight[e["target"]] if e["target"] in group_weight else w
+        elif e["type"] not in ("supplies", "tested_link", "chain"):
+            w = None
+        out.append({**e, "elasticity": w})
+    return out
+
+
+def node_moves(view: Dict[str, Any], nid: str) -> Optional[Dict[str, Any]]:
+    """Historical twelve-month moves of the node, from its own series or the first series that measures it."""
+    by_id = {n["id"]: n for n in view["nodes"]}
+    if by_id.get(nid, {}).get("moves"):
+        return by_id[nid]["moves"]
+    for e in view["edges"]:
+        if e["type"] == "measures" and e["target"] == nid and by_id.get(e["source"], {}).get("moves"):
+            return {**by_id[e["source"]]["moves"], "series": by_id[e["source"]]["label"]}
+    return None
+
+
+def _paths(edges: List[Dict[str, Any]], start: str, depth: int, forward: bool) -> List[List[Dict[str, Any]]]:
+    """Simple paths of up to `depth` arrows leaving (forward) or reaching (backward) `start`. Going forward, a node
+    with index weights passes its change on through those weights only: the accounting identity, not a test, says
+    how much a trade moves the index."""
+    step = defaultdict(list)
+    for e in edges:
+        step[e["source"] if forward else e["target"]].append(e)
+    weighted = {s for s, es in step.items() if any(e["type"] == "part_of" for e in es)} if forward else set()
+    found, stack = [], [(start, [], {start})]
+    while stack:
+        node, path, seen = stack.pop()
+        for e in step[node]:
+            if node in weighted and e["type"] != "part_of":
+                continue
+            other = e["target"] if forward else e["source"]
+            if other in seen:
+                continue
+            new = path + [e]
+            found.append(new)
+            if len(new) < depth:
+                stack.append((other, new, seen | {other}))
+    return found
+
+
+def _product(path: List[Dict[str, Any]]) -> Optional[float]:
+    value = 1.0
+    for e in path:
+        if e["elasticity"] is None:
+            return None
+        value *= e["elasticity"]
+    return value
+
+
+def _path_text(view: Dict[str, Any], path: List[Dict[str, Any]], labels: Dict[str, str]) -> str:
+    nodes = [path[0]["source"]] + [e["target"] for e in path]
+    return " → ".join(short(labels.get(n, n), 30) for n in nodes)
+
+
+def drivers(view: Dict[str, Any], nid: str, year: Optional[int], min_share: float, depth: int = 3, limit: int = 20) -> List[Dict[str, Any]]:
+    """What moves the node: every node with a causal path into it, the strongest path each, measured ones first."""
+    labels = {n["id"]: n["label"] for n in view["nodes"]}
+    zone = {n["id"]: n["zone"] for n in view["nodes"]}
+    best = {}
+    for path in _paths(_causal_edges(view, year, min_share), nid, depth, forward=False):
+        path = path[::-1]  # from the driver to the node
+        source, strength = path[0]["source"], _product(path)
+        old = best.get(source)
+        if old is None or (strength is not None and (old["strength"] is None or abs(strength) > abs(old["strength"]))) \
+                or (strength is None and old["strength"] is None and len(path) < old["steps"]):
+            best[source] = {"node": source, "label": labels.get(source, source), "zone": zone.get(source), "strength": strength,
+                            "steps": len(path), "path": _path_text(view, path, labels),
+                            "how": "; ".join(view["edge_types"][e["type"]]["label"] + (f" ({e['note'].split(';')[0]})" if e.get("note") and e["type"] == "chain" else "")
+                                             for e in path)}
+    rows = sorted(best.values(), key=lambda r: (r["strength"] is None, -abs(r["strength"] or 0), r["steps"], r["label"]))
+    return rows[:limit]
+
+
+def outcomes(view: Dict[str, Any], nid: str, year: Optional[int], min_share: float, depth: int = 4, limit: int = 20) -> Dict[str, Any]:
+    """What the node moves. Measured effects add up over all paths (a material can reach the index through several
+    trades); each row shows its strongest path. With the node's history, each effect is also given for a calm, a
+    typical, a bad and the record year of the node."""
+    labels = {n["id"]: n["label"] for n in view["nodes"]}
+    zone = {n["id"]: n["zone"] for n in view["nodes"]}
+    reached = {}
+    for path in _paths(_causal_edges(view, year, min_share), nid, depth, forward=True):
+        target, strength = path[-1]["target"], _product(path)
+        row = reached.setdefault(target, {"node": target, "label": labels.get(target, target), "zone": zone.get(target),
+                                          "effect": None, "best": None, "path": None, "steps": len(path)})
+        if strength is not None:
+            row["effect"] = (row["effect"] or 0) + strength
+        if row["path"] is None or (strength is not None and (row["best"] is None or abs(strength) > abs(row["best"]))):
+            row.update(best=strength, path=_path_text(view, path, labels), steps=len(path))
+    moves = node_moves(view, nid)
+    rows = sorted(reached.values(), key=lambda r: (r["node"] != INDEX_NODE, r["effect"] is None, -abs(r["effect"] or 0), r["steps"]))
+    if moves:
+        for r in rows:
+            if r["effect"] is not None:
+                r["scenarios"] = {k: round(moves[k] * r["effect"], 3) for k in ("p10", "p50", "p90", "high")}
+    return {"moves": moves, "rows": rows[:limit]}

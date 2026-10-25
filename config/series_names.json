@@ -301,6 +301,14 @@
         "metric": "producer_price"
       }
     },
+    "61241-0006|DINSG=DG|GP19M6=GP19-383222|PRE001|2021=100": {
+      "name": "Material prices: steel scrap",
+      "status": "active",
+      "measures": {
+        "commodity": "steel_scrap",
+        "metric": "producer_price"
+      }
+    },
     "61241-0006|DINSG=DG|GP19M6=GP19-251210|PRE001|2021=100": {
       "name": "Material prices: metal doors and windows",
       "status": "active",

@@ -57,12 +57,31 @@ EDGE_TYPES = {
               "about": "A step of a cost chain (config/chains.json): how a cost passes from one stage to the next, with its test status."},
 }
 CHAIN_STATUS = {"tested_supported": "tested: supported", "tested_not_supported": "tested: not supported",
-                "in_store": "data stored, not tested", "needs_data": "needs data"}
+                "in_store": "data stored, not tested", "needs_data": "needs data", "law_text": "quoted from the law, effect not measured"}
+
+
+def yearly_moves(points: list, unit: str = "") -> dict | None:
+    """How much the series moved over twelve months in its history: percentiles, record rise and fall, latest.
+    Percent changes for indices and prices, point changes for series already in percent (rates, shares)."""
+    by_month = {str(period)[:7]: value for period, value in points if value is not None}
+    in_points = "%" in (unit or "") or "percent" in (unit or "").lower()
+    moves = []
+    for month, value in sorted(by_month.items()):
+        before = by_month.get(f"{int(month[:4]) - 1}{month[4:]}")
+        if before is not None and (in_points or before > 0):
+            moves.append((month, value - before if in_points else 100 * (value / before - 1)))
+    if len(moves) < 8:
+        return None
+    values = sorted(m for _, m in moves)
+    pick = lambda q: round(values[min(len(values) - 1, int(q * len(values)))], 2)
+    return {"unit": "points" if in_points else "%", "p10": pick(0.1), "p50": pick(0.5), "p90": pick(0.9),
+            "low": round(values[0], 2), "high": round(values[-1], 2), "latest": round(moves[-1][1], 2),
+            "latest_month": moves[-1][0], "since": moves[0][0], "n": len(moves)}
 
 
 def node_ref(ref: str) -> str:
     kind, name = ref.split(":", 1)
-    return {"commodity": f"commodity_{name}", "new": f"planned:{name}"}.get(kind, f"sec_{name}")
+    return {"commodity": f"commodity_{name}", "new": f"planned:{name}", "law": f"law_{name}"}.get(kind, f"sec_{name}")
 
 
 def main() -> None:
@@ -175,6 +194,8 @@ def main() -> None:
                                                    "Latest value": points[-1][1] if points else None,
                                                    "Forecast target": "yes" if sid == primary_target_series_id() else None,
                                                    "Store id": sid}}
+        if not sid.startswith("POLICY") and (moves := yearly_moves(points, d.unit)):
+            nodes[nid]["moves"] = moves
         if sid in law_numbers:  # numbers set by law: the quoted values and the law that sets them
             law_id, spec = law_numbers[sid]
             nodes[nid]["entries"] = spec["entries"]
@@ -200,7 +221,7 @@ def main() -> None:
             nodes[f"planned:{key}"] = {**nodes[stored], "alias_of": stored}
         else:
             nodes[f"planned:{key}"] = {"zone": "data", "kind": "planned", "label": spec["label"],
-                                       "description": "A stage of a cost chain without data in the store yet.",
+                                       "description": spec.get("about") or "A stage of a cost chain without data in the store yet.",
                                        "facts": {"Where to get it": spec.get("source"), "Status": CHAIN_STATUS.get(spec.get("status"), spec.get("status"))}}
     # Tested price links and cost chains.
     for link in tested.get("links", []):
@@ -209,12 +230,19 @@ def main() -> None:
             if add_entity(s) and add_entity(t):
                 edges.append({"source": s, "target": t, "type": "tested_link", "weight": link["pass_through"],
                               "note": f"pass-through {link['pass_through']:.3f}, p = {link['p']:.3f}, {link['n']} quarters"})
+    chain_tests = {(r["chain"], r["from"], r["to"]): r for r in tested.get("chain_links", [])}
     for chain in chains:
         for link in chain["links"]:
             s, t = (nodes[n].get("alias_of", n) if n in nodes else n for n in (node_ref(link["from"]), node_ref(link["to"])))
             if (s in nodes or add_entity(s)) and (t in nodes or add_entity(t)):
+                status, extra = CHAIN_STATUS.get(link.get("status"), link.get("status")), {}
+                test = chain_tests.get((chain["id"], link["from"], link["to"]))
+                if test:  # the latest test overrides the status written in the config
+                    status = f"tested: {test['verdict']} (pass-through {test['pass_through']:.2f}, p = {test['p']:.3f}, {test['n']} quarters)"
+                    extra = {"weight": test["pass_through"]} if test["verdict"] == "supported" else {}
                 edges.append({"source": s, "target": t, "type": "chain", "chain": chain["id"],
-                              "note": f"{link.get('mechanism', '')}; {CHAIN_STATUS.get(link.get('status'), link.get('status'))}"})
+                              "note": f"{link.get('mechanism', '')}; {status}", **extra,
+                              **({"evidence": {"quote": link["quote"]}} if link.get("quote") else {})})
     for i, e in enumerate(edges):
         e["id"] = f"e{i}"
     degree = defaultdict(int)

@@ -5,8 +5,8 @@ import pandas as pd
 import streamlit as st
 
 from src.config import get_settings
-from src.storage.graph_view import (edge_details, focus_view, load_graph_view, map_view, node_details, schema_details,
-                                     schema_view, weight_text)
+from src.storage.graph_view import (drivers, edge_details, focus_view, load_graph_view, map_view, node_details, outcomes,
+                                     schema_details, schema_view, weight_text)
 from src.ui.graph_component import network
 
 SNAPSHOT = Path(get_settings().data_dir) / "reports" / "graph-view-latest.json"
@@ -132,12 +132,44 @@ with right:
         law = ref if n["kind"] == "law" else next((r["other"] for r in n["relations"] if r["type"] == "contains rule"), None)
         if law and b2.button("Open in Laws", width="stretch"):
             st.switch_page("views/laws.py", query_params={"law": law})
-        if n["relations"]:
-            st.markdown(f"**{len(n['relations'])} relations**")
-            st.dataframe(pd.DataFrame([{"With": f"{r['direction']} {r['other_label']}", "Relation": r["type"],
-                                        "Weight": r["weight_text"],
-                                        "Year": r["year"] or ""} for r in n["relations"][:60]]),
-                         hide_index=True, width="stretch", height=min(420, 36 * (len(n["relations"][:60]) + 1)))
+        per_pct = lambda e: "not measured" if e is None else f"{e:.3g}% per 1%"
+        t_drivers, t_outcomes, t_relations = st.tabs(["What drives it", "What it moves", f"Relations ({len(n['relations'])})"])
+        with t_drivers:
+            rows = drivers(view, ref, year, min_share)
+            if rows:
+                st.dataframe(pd.DataFrame([{"Driver": r["label"], "Strength": per_pct(r["strength"]), "Path": r["path"], "How": r["how"]}
+                                           for r in rows]), hide_index=True, width="stretch", height=min(420, 36 * (len(rows) + 1)))
+                st.caption("Strength: how much this node moves when the driver moves 1%, along the strongest path (input-output "
+                           "cost shares, index weights and tested pass-throughs multiplied). 'Not measured': the link is "
+                           "known (law text, accounting, a hypothesis) but its size is not.")
+            else:
+                st.caption("Nothing in the store drives this node.")
+        with t_outcomes:
+            o = outcomes(view, ref, year, min_share)
+            m = o["moves"]
+            if m:
+                u = "%" if m["unit"] == "%" else " pts"
+                st.markdown(f"**Its history** ({m.get('series', 'own series')}, twelve-month changes since {m['since']}): "
+                            f"calm year {m['p10']:+.1f}{u}, typical {m['p50']:+.1f}{u}, bad year {m['p90']:+.1f}{u}, "
+                            f"record {m['high']:+.1f}{u} (fall {m['low']:+.1f}{u}); latest {m['latest']:+.1f}{u} ({m['latest_month']}).")
+            if o["rows"]:
+                st.dataframe(pd.DataFrame([{"Outcome": r["label"], "Effect": per_pct(r["effect"]),
+                                            **({"Calm": f"{r['scenarios']['p10']:+.3g}%", "Typical": f"{r['scenarios']['p50']:+.3g}%",
+                                                "Bad year": f"{r['scenarios']['p90']:+.3g}%", "Record": f"{r['scenarios']['high']:+.3g}%"}
+                                               if r.get("scenarios") else {}),
+                                            "Strongest path": r["path"]} for r in o["rows"]]),
+                             hide_index=True, width="stretch", height=min(420, 36 * (len(o["rows"]) + 1)))
+                st.caption("Effect: summed over every measured path (a material reaches the index through several trades). "
+                           "Calm / typical / bad / record: the effect if this node moves as in its 10th, 50th and 90th "
+                           "percentile and record twelve months, all else equal. Construction (the price index) comes first.")
+            else:
+                st.caption("This node does not move anything else in the store.")
+        with t_relations:
+            if n["relations"]:
+                st.dataframe(pd.DataFrame([{"With": f"{r['direction']} {r['other_label']}", "Relation": r["type"],
+                                            "Weight": r["weight_text"],
+                                            "Year": r["year"] or ""} for r in n["relations"][:60]]),
+                             hide_index=True, width="stretch", height=min(420, 36 * (len(n["relations"][:60]) + 1)))
     elif kind == "edge":
         d = edge_details(view, ref, year, min_share)
         if d["bundle"]:

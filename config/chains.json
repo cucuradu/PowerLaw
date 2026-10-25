@@ -1,6 +1,6 @@
 {
   "description": "Causal chains that move German (and EU) construction prices. Each link is a hypothesis with a mechanism and the free data that can test it; it becomes a training edge only when an official accounting source (input-output table, index weights) or a test in scripts/ops/estimate_links.py supports it. Node references: sector:<code> and commodity:<slug> exist in config/sectors.json; new:<id> nodes are listed under new_nodes with the source that would measure them. Status: in_store (both ends measured), tested_supported / tested_not_supported (see reports/graph-links-latest.json), needs_data.",
-  "reviewed_at": "2026-10-20",
+  "reviewed_at": "2026-10-25",
   "new_nodes": {
     "eu_carbon_price": {
       "label": "EU ETS allowance price (EUR/t CO2)",
@@ -20,11 +20,6 @@
     "truck_toll_co2": {
       "label": "Truck toll CO2 surcharge (EUR/t CO2, since 2023-12-01)",
       "source": "BFStrMG annex (gesetze-im-internet)",
-      "status": "needs_data"
-    },
-    "steel_scrap": {
-      "label": "Steel scrap price",
-      "source": "Destatis 61241 (GP19 383211 scrap) or Eurostat sts_inpp",
       "status": "needs_data"
     },
     "eur_usd": {
@@ -96,6 +91,12 @@
       "label": "Imports of materials by origin country",
       "source": "Eurostat FIGARO naio_10_fcp_ip1-ip4 (FLOWS_TO with scope origin>dest, 2010-2024)",
       "status": "in_store"
+    },
+    "reclaimed_steel": {
+      "label": "Reclaimed structural steel (reused sections)",
+      "about": "Steel sections taken out of a building and built in again as sections, after checking, cleaning and testing, instead of being melted down as scrap. Under CPR 2024 they are 'used products' (Art. 3(20)). No public price index exists yet, so this stage has no data in the store.",
+      "source": "No public price index: dealer and reuse-platform quotes, or project tenders; the circular-steel-reuse project collects donor data",
+      "status": "needs_data"
     }
   },
   "chains": [
@@ -339,14 +340,14 @@
           "note": "world price stored; no German price series long enough for the target"
         },
         {
-          "from": "new:steel_scrap",
+          "from": "commodity:steel_scrap",
           "to": "commodity:steel_bars",
           "mechanism": "electric arc furnace input",
           "lag_q": [
             0,
             1
           ],
-          "status": "needs_data"
+          "status": "in_store"
         },
         {
           "from": "commodity:aluminium",
@@ -678,6 +679,74 @@
           ],
           "status": "tested_not_supported",
           "note": "2026-10-21: German wood/mineral/metal producer prices follow EU producer prices (pass-through ~1), but FIGARO import weights fit no better than equal weights: European co-movement, not trade transmission at this level."
+        }
+      ]
+    },
+    {
+      "id": "steel_reuse",
+      "label": "New steel, scrap, labour and the CPR -> reclaimed steel -> structural steelwork",
+      "why": "A reused beam competes with a new one: new section prices set the ceiling, the scrap price the floor (the owner can always sell to a scrapyard), and deconstruction, testing and re-certification costs decide whether the gap pays. CPR 2024 brings used products under the regulation.",
+      "links": [
+        {
+          "from": "commodity:steel_scrap",
+          "to": "commodity:steel_sections",
+          "mechanism": "electric arc furnaces also roll sections from scrap",
+          "lag_q": [
+            0,
+            1
+          ],
+          "status": "in_store"
+        },
+        {
+          "from": "commodity:steel_sections",
+          "to": "new:reclaimed_steel",
+          "mechanism": "new sections set the ceiling price",
+          "lag_q": [
+            0,
+            2
+          ],
+          "status": "needs_data"
+        },
+        {
+          "from": "commodity:steel_scrap",
+          "to": "new:reclaimed_steel",
+          "mechanism": "scrap value sets the floor",
+          "lag_q": [
+            0,
+            1
+          ],
+          "status": "needs_data"
+        },
+        {
+          "from": "sector:D1",
+          "to": "new:reclaimed_steel",
+          "mechanism": "deconstruction, testing and re-certification labour",
+          "lag_q": [
+            0,
+            4
+          ],
+          "status": "needs_data"
+        },
+        {
+          "from": "law:32024R3110",
+          "to": "new:reclaimed_steel",
+          "mechanism": "CPR 2024 covers used products",
+          "quote": "This Regulation applies to construction products, including used products (Art. 2(1))",
+          "lag_q": [
+            0,
+            8
+          ],
+          "status": "law_text"
+        },
+        {
+          "from": "new:reclaimed_steel",
+          "to": "sector:F_BPNB115",
+          "mechanism": "reused sections replace new ones",
+          "lag_q": [
+            0,
+            2
+          ],
+          "status": "needs_data"
         }
       ]
     }

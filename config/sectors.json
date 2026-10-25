@@ -457,6 +457,10 @@
    "label": "Steel sections and beams",
    "sector": "C24"
   },
+  "steel_scrap": {
+   "label": "Steel scrap",
+   "sector": "E37-39"
+  },
   "steel": {
    "label": "Steel",
    "sector": "C24"

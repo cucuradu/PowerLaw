@@ -44,11 +44,13 @@ def test_every_chain_node_exists_or_names_its_data_source():
     chains = json.loads((root / "chains.json").read_text(encoding="utf-8"))
     sectors = json.loads((root / "sectors.json").read_text(encoding="utf-8"))
     known = {f"sector:{c}" for c in sectors["sectors"]} | {f"commodity:{c}" for c in sectors["commodities"]} | {
-        f"new:{n}" for n, spec in chains["new_nodes"].items() if spec["source"]}
+        f"new:{n}" for n, spec in chains["new_nodes"].items() if spec["source"]} | {
+        f"law:{law[4:]}" for law in json.loads((root / "law_profiles.json").read_text(encoding="utf-8"))["laws"]}
     for chain in chains["chains"]:
         for link in chain["links"]:
             assert {link["from"], link["to"]} <= known, (chain["id"], link)
-            assert link["mechanism"] and link["status"] in {"in_store", "tested_supported", "tested_not_supported", "needs_data"}
+            assert link["mechanism"] and link["status"] in {"in_store", "tested_supported", "tested_not_supported", "needs_data", "law_text"}
+            assert link["status"] != "law_text" or link.get("quote")  # a law link quotes the provision
 
 
 def test_fact_copies_stay_safe_without_deep_copy():

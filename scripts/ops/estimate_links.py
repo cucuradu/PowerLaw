@@ -161,19 +161,25 @@ def main() -> None:
                 results.append({"trade": trade, "material": material, "hypothesised": hypothesised,
                                 "verdict": "supported" if (supported if hypothesised else discovered) else "not supported",
                                 **{k: round(v, 4) if isinstance(v, float) else v for k, v in test.items()}})
-    # Chain links from config/chains.json: world prices (converted to euros) -> German material and trade prices.
+    # Chain links from config/chains.json: world prices (converted to euros) or German prices -> German prices.
     chain_results = []
     for chain in json.loads((REPO_ROOT / "config" / "chains.json").read_text(encoding="utf-8"))["chains"]:
         for link in chain["links"]:
             source, target = link["from"].split(":", 1)[1], link["to"].split(":", 1)[1]
-            if link.get("from_metric") != "world_price" or world.get(source) not in levels or target not in growth:
+            if target not in growth:
                 continue
-            in_eur = {m: v / usd_per_eur[m] for m, v in levels[world[source]].items() if m in usd_per_eur}
-            others = [growth[o] for o in materials if o != target]
+            if link.get("from_metric") == "world_price" and world.get(source) in levels:
+                metric = "world_price_eur"
+                driver = quarterly_growth({m: v / usd_per_eur[m] for m, v in levels[world[source]].items() if m in usd_per_eur})
+            elif not link.get("from_metric") and source in growth:
+                metric, driver = "german_price", growth[source]
+            else:
+                continue
+            others = [growth[o] for o in materials if o not in (source, target)]  # the driver is not part of the common factor
             common = {q: float(np.mean([g[q] for g in others if q in g])) for q in growth[target]}
-            test = link_test(growth[target], quarterly_growth(in_eur), common, since)
+            test = link_test(growth[target], driver, common, since)
             if test:
-                chain_results.append({"chain": chain["id"], "from": link["from"], "to": link["to"], "metric": "world_price_eur",
+                chain_results.append({"chain": chain["id"], "from": link["from"], "to": link["to"], "metric": metric,
                                       "verdict": "supported" if test["p"] < 0.05 and test["pass_through"] > 0 else "not supported",
                                       **{k: round(v, 4) if isinstance(v, float) else v for k, v in test.items()}})
     cross_border = cross_border_tests(store, now, growth, materials, since)

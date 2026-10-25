@@ -236,3 +236,11 @@
 
 - The Graph page opens on an **Architecture** view: one box per kind of node (per zone) with its count, one arrow per kind of relation with how many exist. It is computed from the same snapshot as the Store map and Relations views, so it cannot drift from the data (the old home-page "dual-layer architecture" banner was hand-written and is not coming back).
 - Clicking a box lists its members (open one in Relations, or open the zone on the Store map); clicking an arrow lists the relations behind it.
+
+## Steel scrap, reclaimed steel, drivers and outcomes (2026-10-25)
+
+- **Steel scrap is a stored series:** Destatis 61241-0006 `GP19-383222` (Sekundärrohstoffe aus Eisenmetallen), monthly from 2000, commodity `steel_scrap` (sector E37-39). The 61241-0006 fixture was re-recorded with the extra code (same 2025 request).
+- **Reclaimed steel is a planned node** (`new:reclaimed_steel`, chain `steel_reuse`): no public price index exists. Drivers: new section prices (ceiling), scrap (floor), labour, CPR 2024 (Art. 2(1) covers used products, quoted). Outcome: structural steelwork. Chains may now reference laws (`law:<id>`, status `law_text` with a quote).
+- **Chain links between two German series are tested** by `scripts.ops.estimate_links` (now a weekly step), and the graph shows the test result instead of the configured status. First results: scrap -> rebar pass-through 0.24, scrap -> sections 0.55 (both p < 0.01, 44 quarters); electricity -> rebar not supported.
+- **Drivers and outcomes** (`src/storage/graph_view.py`): causal arrows only; elasticity = input-output cost share, index weight within the group, or tested pass-through; unmeasured links are shown but not sized. Outcomes add up over all measured paths; from a trade only its index weights are followed (accounting beats a test). Possible outcomes = elasticity x the node's own 10th/50th/90th percentile and record twelve-month moves. Partial-equilibrium, all else equal, not a forecast.
+- **Side effect:** the extraction prompt lists the commodities, so any half-finished Gemini law extraction will not find its cached segments.
